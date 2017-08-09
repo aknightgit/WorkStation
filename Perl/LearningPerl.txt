@@ -1,0 +1,196 @@
+
+Learning Perl
+
+# @inc 修改
+
+#!/usr/bin/perl -w
+push(@INC,"/home/test");
+#或者
+#!/usr/bin/perl -w
+BEGIN{push(@INC,"/home/test")};
+#或者
+#!/usr/bin/perl -w
+use lib '/home/test';
+
+
+###############################
+#  @INC require/do/use区别
+
+今天，脑子里突然冒出来这个问题，用了那么久，对这些概念，貌似不是很清楚，所以特地google了一下，看完加上自己的理解，作为笔记，顺便给也分享一下给想知道的童鞋们，加深一下印象。 
+
+@INC 
+这个很好理解，当童鞋们写Perl的时候，大多数清楚，我们都会调用这个那个文件或模块来完成一些特定的工作。那么Perl怎么知道去哪里找呢，答案就是这个@INC。 
+@INC 是perl 的一个特殊列表标量，他储存着你当前版本的Perl模块的路径。编译时，Perl会根据@INC存储的路径去查询用户所调用的模块。具体的是那些目录。我 们可以通过命令行键入perl -V 来查看，我们同样可以再BEGIN代码块里对这个@INC进行操作。（一些Perl Hacker就经常这么做） 
+
+perl -V 
+
+@INC: 
+/usr/local/perl/lib/site_perl/5.14.2/x86_64-linux-thread-multi 
+/usr/local/perl/lib/site_perl/5.14.2 
+/usr/local/perl/lib/5.14.2/x86_64-linux-thread-multi 
+/usr/local/perl/lib/5.14.2 
+
+这个是在我机器上的结果。可以看到Perl会从这5个目录下面去找模块，其中”.”代表当前目录下。 
+
+%INC 
+当Perl程序中调用的文件或模块被找到后，Perl会叫这些信息存放在%INC这个哈希中去，其中的key为模块的名字，value为模块完整的路径名 
+
+warnings.pm => /usr/local/perl/lib/5.14.2/warnings.pm 
+vars.pm => /usr/local/perl/lib/5.14.2/vars.pm 
+strict.pm => /usr/local/perl/lib/5.14.2/strict.pm 
+Config.pm => /usr/local/perl/lib/5.14.2/x86_64-linux-thread-multi/Config.pm 
+lib.pm => /usr/local/perl/lib/5.14.2/x86_64-linux-thread-multi/lib.pm 
+
+当 我们使用use, require, do后，那些被成功加载和编译后的文件或模块信息会被存进%INC这个哈希中。在我们使用use或者require加载文件或模块之前，如果他们存在 于%INC中，那么对于这些文件或者模块的加载的编译的步骤就被省略掉了。但是如果我们使用do，他会执行一个无条件的加载，不会去查看文件或者模块在不 在%INC中。同样地， 我们也可以再BEGIN代码块中对%INC进行操作 
+
+require 
+require是用来读取一个包含Perl代码的文件来对他进行编译。如果%INC中已经存在了这个文件的话，require除了返回以外不做什么了。如果没用，那么就加载，然后编译，最后存进%INC。 
+如果require 得到的是一个完整路径的参数的话，reuqire就会试着去读取这个参数指定的文件 
+
+require “/home/twang/test.pl” 
+
+如果require 得到的是一个相对路径的参数的话，reuqire就会去@INC中查找 
+
+require “test.pl” 
+
+如果在查找的路径里有多个文件重名，那么Perl只会使用最先找到的那一个 
+值得注意的是，被加载的文件或者模块必须返回TRUE。传统上我们会在代码的最后加上”1;”。 
+另外，如果文件时一个模块的话，我们必须使用 
+
+require twanglib::test 
+
+这条语句相当于 
+
+require “twanglib/test.pm” 
+
+如果文件或者模块加载失败的话，那么可能的情况有两种 
+
+文件找不到 
+文件没有返货TRUE 
+
+这是后程序会终止，Perl中意味着执行die。这种错误时可以通过eval被捕捉的。用eval捕捉的一个优点是，我们可以让程序继续运行而不必因为文件或者模块的加载问题而退出。 
+? 
+require.pl 
+
+#!/usr/bin/perl -w 
+eval { require "/file/that/does/not/exists"}; 
+if ($@) { 
+print "Failed to load, because : $@" 
+} 
+print "\nHello\n" 
+
+代码运行结果 
+
+% ./require.pl 
+
+Failed to load, because : Can’t locate /file/that/does/not/exists in 
+@INC (@INC contains: /usr/lib/perl5/5.00503/i386-linux 
+/usr/lib/perl5/5.00503 /usr/lib/perl5/site_perl/5.005/i386-linux 
+/usr/lib/perl5/site_perl/5.005 .) at require.pl line 3. 
+
+Hello 
+
+可以看到Hello还是被打印了出来。 
+
+如果我们移除eval，程序直接die，在大多数情况下，是我们直接想要的结果。 
+? 
+require.pl 
+1 
+2 
+3 
+
+#!/usr/bin/perl -w 
+require "/file/that/does/not/exists"; 
+print "Hello"; 
+
+% ./require1.pl 
+
+Can’t locate /file/that/does/not/exists in @INC (@INC contains: 
+/usr/lib/perl5/5.00503/i386-linux /usr/lib/perl5/5.00503 
+/usr/lib/perl5/site_perl/5.005/i386-linux 
+/usr/lib/perl5/site_perl/5.005 .) at require1.pl line 3. 
+
+use 
+use和reuqire类似，但是use只能作用于模块，也就是pm文件。另外，use发生在complie time。 
+
+use twanglib::Show 
+
+这里，use做了两件事。 
+
+把语句中::替换成系统各个目录间的分隔符。通常情况下是”/”. 
+在最后加上.pm 
+
+所以上面例子会变成Show.pm 
+use()和下面的语句有着同样效果 
+
+BEGIN{ 
+require Moduel; 
+Module-&gt;import(LIST); 
+} 
+
+从上面代码可以看到，use首先会条用require，在require完成加载模块之后，import方法会被调用。如果以”()”作为use的第二个参数的话，那么import方法不会被调用。 
+这里有些例子，他们都完成相同的工作。 
+use MyModule; 
+BEGIN {require MyModule; MyModule-&gt;import; } 
+
+use MyModule qw(foo bar); 
+BEGIN {require MyModule; MyModule-&gt;import(“foo”,”bar”); } 
+
+use MyModule (); 
+BEGIN {require MyModule; } 
+
+这里的import方法不是perl内置的方法，而是一个被调用模块的静态方法。这样听上去，似乎自己写模块是还有编写import这个方法，感觉挺复杂，实际上做起来要比听上去简单许多。这部分我以后再讨论。 
+
+do 
+do和require很类似，只是do会强制load文件而不会先去检查他是否已经存在于%INC。 
+如果do不能读取文件，那么会返回undef，然后设置$!，报告错误。如果do能读取文件，但是不能编译文件，那么他返回undef，设置$@，报告错误。do返回的结果为对文件最后一句表达式的评估
+##############################
+
+######## qq qw q引用 ########
+在perl语言中，有两个特殊而常用的符号qq qw,分别解释如下：
+qq{foobar}的意思为意思为双引号字符串，可内插变量
+相当于 "foobar"
+qw{foo bar}的意思为用空格分解字符串，得到列表，相当于如下语句
+split(' ','foo bar') 得到的结果是'foo','bar'
+字符串比较等于用 eq
+q运算符对'号转义的方式
+$someword = 'i \'ve some money';
+可以等价于:
+$someword = q~i 've some money~;
+qq运算符对"号转义的方式
+$someword = "i say \"ok!\".";
+可以等价于:
+$someword = qq~i say "ok!".~;
+qw代表用空格来分隔元素,得到列表
+@list = ("perl","Regular","network","web");
+可以等价于:
+@list = qw(perl Regular network web);
+qr代表创建正则
+$myword = "catcat";
+$replaceword = qr(catcat);
+$finalword = "ok" if ($myword =~ $replaceword);
+引号执行运算符(quoted execution operator)，qx//
+qx/uname -p -r/
+q 和 qq 运算符的特点：
+※ q 和 qq 必须是一个标识符，而不是标识符的部分。例如：
+q (abc)      用 () 作为分界符
+q(abc)       用 () 作为分界符
+q xabcx      用 x 作为分界符
+都是合法的，而
+qxabcx 就会被当作是一个标识符来处理，有谁会想到 qxabcx 居然是一个 q 运算式呢？
+※ q 和 qq 后面的空格并不会影响语法，但是任何非空字符(不是空格、不是 TAB 字符、
+   不是换行符)则会被当作界限符来使用。
+※ 如果 q 和 qq 使用一些特殊的符号的时候，则必须配对。比如：< 只能和 >; 在一起
+   用来当作界限符，而不能只用两个 < 作为界限符。而 | 则只能和它自己作为一对界
+   限符。这些特殊的符号有：()、{}、[]、<>;
+ 
+复制代码 代码如下:
+$myword = "catcat";
+$replaceword = qr(catcat);
+$finalword = "ok" if ($myword =~ $replaceword);
+@list = ("perl","Regular","network","web");
+可以等价于:
+@list = qw(perl Regular network web);
+$someword = 'i \'v some money';
+可以等价于:
+$someword = q~i 'v some money~;
