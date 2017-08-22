@@ -1,20 +1,18 @@
 
-#! C:/Strawberry/Perl/bin/perl.exe -w
+#! D:/Perl/bin/perl.exe 
 
-# push(@INC,"C:/Perl/lib"); 
-# BEGIN{push(@INC,"C:/Perl/site/lib")};
-# use lib "D:/Perl/lib";
-
+#push(@INC,"D:/Perl/lib");
 use LWP::UserAgent;
 use HTML::Parser;
 use HTML::TableExtract;
+#use HTML::TableExtract;
 use Text::Table;
 use Tie::File;
 #use Test::More;
 use strict;
 use warnings;
 
-my $HOME="C:/AK/Home";
+my $HOME="D:/Home";
 my $DATDIR="$HOME/indir";
 my $indexhistfile = $DATDIR."/szzs_indexhist.txt";
 
@@ -49,7 +47,7 @@ while(<DATA>){
 #		print $day
 #	}
 }
-print "done" ;
+
 
 __DATA__
-http://q.stock.sohu.com/hisHq?code=zs_399001&start=20010101&end=20170829&stat=1&order=D&period=d&callback=historySearchHandler
+http://q.stock.sohu.com/hisHq?code=zs_000001&start=20010101&end=20160629&stat=1&order=D&period=d&callback=historySearchHandler

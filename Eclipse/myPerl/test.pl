@@ -52,4 +52,4 @@ while(<DATA>){
 print "done" ;
 
 __DATA__
-http://q.stock.sohu.com/hisHq?code=zs_399001&start=20010101&end=20170829&stat=1&order=D&period=d&callback=historySearchHandler
+http://q.stock.sohu.com/hisHq?code=zs_399001&start=20010101&end=20160629&stat=1&order=D&period=d&callback=historySearchHandler

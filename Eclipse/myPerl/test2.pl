@@ -22,8 +22,6 @@ my $EXEDIR="$HOME/exedir";
 my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time()); 
 my $today = ($year + 1900) * 10000 + ($mon + 1) * 100 + $mday;
 #print $today;
-print 'Start at '.($hour>9?$hour:'0'.$hour).':'.($min>9?$min:'0'.$min).':'.($sec>9?$sec:'0'.$sec);
-# exit;
 my $stockrankdaily = "http://vip.stock.finance.sina.com.cn/q/go.php/vDYData/kind/dpqs/index.phtml";
 #my $page_num = 1;
 
@@ -35,7 +33,7 @@ http://vip.stock.finance.sina.com.cn/q/go.php/vInvestConsult/kind/qgqp/index.pht
 
 
 #my $index_page_sina = 'http://quote.eastmoney.com/center/index.html#zyzs_0_1';
-#my $index_page = 'http://q.10jqka.com.cn/stock/zs/';
+# my $index_page = 'http://q.10jqka.com.cn/stock/zs/';
 my $index_page = 'http://q.10jqka.com.cn/zs/';
 
 ###### determin date
@@ -48,7 +46,7 @@ $stockrank_html =~ m/更新日期：(.*)&nbsp/;
 (my $date = $1) =~ s/-//g;
 #		print $date;
 if ($date lt $today) {$today = $date;}
-print "\nToday is ".$today;
+#exit;
 my $cnt = 1;
 
 my $datafile = $DATDIR."/stockdaily_".$today.".txt";
@@ -60,27 +58,21 @@ my $index_ua = LWP::UserAgent->new;
 my $index_res = $index_ua->get($index_page);		
 my $index_html = $index_res->content();
 # print $index_html;
-$index_html =~ s/\(%\)//g;
-$index_html =~ s/\（|\）//g;
-# print $index_html;
 
 #my $headers =  [ '代码', '名称' ,'最新价','涨跌额','涨跌幅','成交量\(手\)','成交额\(万\)','昨收' ,'今开','最高','最低' ]; 
-my $headers =  [ '序号', '指数代码', '指数名称' ,'最新价' ,'涨跌额', '涨跌幅', '昨收' , '今开', '最高价', '最低价' ,'成交量万手' ,'成交额亿元' ]; 
+my $headers =  [ '序号', '指数代码', '指数名称' ,'最新价' ,'涨跌额', '涨跌幅\(\%\)', '昨收' , '今开', '最高价', '最低价' ,'成交量\（万手\）' ,'成交额\（亿元\）' ]; 
 my $te_index = HTML::TableExtract->new(headers => $headers);
-# print $te_index;	
-$te_index->parse($index_html);
-# print $te_index;
-my ($tables) = $te_index->tables; # my $table = $te_index->first_table_found;
-# print $tables;		
-
 my $te_output = Text::Table->new(@$headers);
-# print $te_output;
+	# print $te_index;	
+	# print $te_output;
+$te_index->parse($index_html);
+my ($tables) = $te_index->tables;
+print $tables;		
+
 for my $row ($tables->rows) {
 #    clean_up_spaces($row); # not shown for brevity
-	#print $row;
     $te_output->load($row);		    
 }
-#print $te_output;
 #$te_output =~ s/\s+\n$/\n/;
 $te_output =~ s/%//g ;
 $te_output =~ s/(\d+)\n/$1/g;
@@ -175,6 +167,5 @@ for(@contents){
 #    s/^代码.*\n//;
 }
 untie @contents;
-print "\nPull Daily stock list is done!";
 exit 0;
 #sed -i -n -e 's/\s+/\t/' $datafile;
