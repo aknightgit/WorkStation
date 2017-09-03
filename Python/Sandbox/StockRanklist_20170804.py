@@ -5,3 +5,5 @@ request=urllib.request.Request(url=url,headers=headers)  #请求服务器
 response=urllib.request.urlopen(request)  #服务器应答
 content=response.read().decode('gbk')   #以一定的编码方式查看源码
 print(content)  #打印页面源码
+
+
