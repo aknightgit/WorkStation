@@ -1,7 +1,7 @@
 __author__ = 'Administrator'
 import sys
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 
 def get_data():
