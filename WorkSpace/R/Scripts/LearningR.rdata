@@ -1,0 +1,62 @@
+
+R  
+
+#Sample
+
+> age <- c(1,2,3,4,5,6)
+> weight <- c(2.4,3.4,4,5.2,6.7,8)
+> mean(weight)
+[1] 4.95
+> sd(weight)
+[1] 2.108791
+> cor(age,weight)
+[1] 0.991081
+> plot(age,weight)
+> 
+
+#工作空间 WorkDirecotry
+> getwd()
+[1] "C:/Users/AK/Documents"
+> setwd("D:/WorkSpace/R/WorkDirectory")
+> getwd()
+[1] "D:/WorkSpace/R/WorkDirectory"
+
+#lib改变
+> .libPaths(c(.libPaths(),"D:\WorkSpace\R\lib"))
+
+#显示可以用的包
+> search()
+ [1] ".GlobalEnv"           
+ [2] "package:RODBC"        
+ [3] "tools:rstudio"        
+ [4] "package:RevoUtilsMath"
+ [5] "package:RevoUtils"    
+ [6] "package:RevoMods"     
+ [7] "package:RevoScaleR"   
+ [8] "package:lattice"      
+ [9] "package:rpart"        
+[10] "package:stats"        
+[11] "package:graphics"     
+[12] "package:grDevices"    
+[13] "package:utils"        
+[14] "package:datasets"     
+[15] "package:methods"      
+[16] "Autoloads"            
+[17] "package:base" 
+
+#常用命令
+> setwd("D:/WorkSpace/R/WorkDirectory")
+> data()
+> history()
+> history(2)   
+> options()
+> ?plot()
+> ls()
+[1] "age"      "carspeed" "weight"   "x"       
+> data()
+> objects()
+
+> savehistory()			#.Rhistory
+> save.image()			#.Rdata
+> save(x,file="x.obj")
+> 
