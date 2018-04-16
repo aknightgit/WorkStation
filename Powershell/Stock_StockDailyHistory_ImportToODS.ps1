@@ -7,7 +7,7 @@ $server = "AKNIGHT\AK"
 $dbname ="staging"
 $fileformat = "*[\d][\d][\d][\d][\d][\d.txt"
 
-$query ="truncate table dms.DimStockDaily_History
+$query ="truncate table ods.StockDaily_History
 	go"
 Invoke-Sqlcmd -Query $query -ServerInstance $server  -Database $dbname
 
@@ -17,7 +17,7 @@ foreach($file in Get-ChildItem -Path $Folder -Filter *.txt|Where-object {$_.Base
 	#echo $file.name 
     
 	$query ="
-	BULK INSERT dms.[DimStockDaily_History]
+	BULK INSERT ods.[StockDaily_History]
 	   FROM '"+$file.fullname+"'
 	   WITH 
 		  (

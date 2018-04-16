@@ -13,8 +13,6 @@ use POSIX qw(strftime);
 my $HOME="C:/AK/Home";
 my $DATDIR="$HOME/indir/stock_daily";
 
-($DATDIR)=@ARGV?@ARGV:($DATDIR);
-$DATDIR=~s/\\/\//g;
 
 opendir(DH, "$DATDIR") or die "Can't open: $DATDIR! $!\n" ;
 
