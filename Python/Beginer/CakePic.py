@@ -31,7 +31,7 @@ plt.show()
 # plt.savefig(IMG_PATH)
 
 # the code should not be changed
-"" "if __name__ == '__main__': 
+if __name__ == '__main__':
  if len(sys.argv) == 1 : print 'error' else : #the path of image to show
 IMG_PATH = sys.argv[1] + 'fig.jpg' draw(IMG_PATH)"" "
  draw()
