@@ -1,0 +1,32 @@
+import httplib
+import urlparse
+
+
+def request(url, cookie=''):
+    ret = urlparse.urlparse(url)  # Parse input URL
+    if ret.scheme == 'http':
+        conn = httplib.HTTPConnection(ret.netloc)
+    elif ret.scheme == 'https':
+        conn = httplib.HTTPSConnection(ret.netloc)
+
+    url = ret.path
+    if ret.query: url += '?' + ret.query
+    if ret.fragment: url += '#' + ret.fragment
+    if not url: url = '/'
+
+    conn.request(method='GET', url=url, headers={'Cookie': cookie})
+    return conn.getresponse()
+
+
+if __name__ == '__main__':
+    cookie_str = 'tLargeScreenP=1; Authorization=Basic%20HereIsMySecret; subType=pcSub; TPLoginTimes=2'
+    url = 'http://192.168.1.253'
+    html_doc = request(url, cookie_str).read()
+    import re
+
+    print
+    'With Auth:', re.search('<title>(.*?)</title>', html_doc, re.IGNORECASE).group(1)
+
+    html_doc = request(url).read()
+    print
+    'Without Auth:', re.search('<title>(.*?)</title>', html_doc, re.IGNORECASE).group(1)
