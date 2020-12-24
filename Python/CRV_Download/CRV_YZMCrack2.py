@@ -14,11 +14,12 @@ import random    # 导入 random(随机数) 模块
 '''
 Cookie -> yzm.jpg -> yzm
 '''
-now_milli_timestamp = int(round(time.time() * 1000))
+now_milli_timestamp = lambda: int(round(time.time() * 1000))
+#print(now_milli_timestamp)
 
 crvURL = 'https://vss.crv.com.cn'
 logonURL = crvURL+'/scm/logon/logon.jsp'
-imgURL = crvURL+'/scm/DaemonCode?timestamp='+str(now_milli_timestamp)
+imgURL = crvURL+'/scm/DaemonCode?timestamp='+str(now_milli_timestamp())
 crvCrackHome = 'D:/Projects/CRV/Crack'
 crvCookie = '{}/cookies.txt'.format(crvCrackHome)
 imgCookie = '{}/imgcookies.txt'.format(crvCrackHome)
@@ -26,7 +27,7 @@ crvYZMjpg = '{}/yzm.jpg'.format(crvCrackHome)
 
 # session代表某一次连接
 crvSession = requests.session()
-#crvSession.cookies.clear_session_cookies()
+crvSession.cookies.clear_session_cookies()
 
 print('session cookie at beginning',crvSession.cookies.get_dict())
 # 因为原始的session.cookies 没有save()方法，所以需要用到cookielib中的方法LWPCookieJar，这个类实例化的cookie对象，就可以直接调用save方法。
@@ -51,17 +52,17 @@ header = {'Referer':logonURL,
 print(imgURL)
 img = crvSession.get(imgURL, headers=header, allow_redirects=True, stream=True)
 
-print('crv session after get img:', crvSession.cookies.get_dict())
-img2 = crvSession.get(imgURL, headers=header, allow_redirects=True, stream=True)
+#print('crv session after get img:', crvSession.cookies.get_dict())
+#img2 = crvSession.get(imgURL, headers=header, allow_redirects=True, stream=True)
 
 #print(img.headers)
 ##wb 写入二进制图片
 with open(crvYZMjpg, 'wb') as file:
-    file.write(img2.content)
+    file.write(img.content)
 
 ##用pytesseract解析下载的图片
 imageObject = Image.open(crvYZMjpg)
-yzm = pytesseract.image_to_string(imageObject).replace(" ", "")   #解析并去除空格
+yzm = pytesseract.image_to_string(imageObject).replace(" ", "").strip()   #解析并去除空格
 #print(imageObject)
 print(len(yzm))
 print('YZM recoganized as:',yzm)
