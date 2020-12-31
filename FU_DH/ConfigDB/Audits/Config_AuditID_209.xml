@@ -1,0 +1,80 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>  
+<note>  
+  <query>
+	<![CDATA[
+
+  declare @Return int;	
+
+SELECT @Return=SUM(COUNT) FROM
+(SELECT (7-COUNT(DISTINCT [DateKey]))  COUNT
+  FROM [Foodunion].[dm].[Fct_Qulouxia_Store_List]
+  WHERE [DateKey]>=CONVERT(VARCHAR(10),DATEADD(DAY,-7,GETDATE()),112)
+UNION
+SELECT (7-COUNT(DISTINCT [DateKey]))
+  FROM [Foodunion].[dm].[Fct_Qulouxia_Sales]
+  WHERE [DateKey]>=CONVERT(VARCHAR(10),DATEADD(DAY,-7,GETDATE()),112)
+UNION
+SELECT (7-COUNT(DISTINCT [DateKey]))
+  FROM [Foodunion].[dm].[Fct_Qulouxia_StoreInventory]
+  WHERE [DateKey]>=CONVERT(VARCHAR(10),DATEADD(DAY,-7,GETDATE()),112)
+  ) T
+
+SELECT   @return ;	
+	
+	]]></query>
+  <to></to> 
+  <cc></cc>   
+  <from></from>  
+  <title>[Alert]  监控ZBOX数据加载</title>  
+  <body>
+  <![CDATA[
+#### Zbox 数据加载缺失， 请查询下面SQL。
+SELECT DISTINCT C.[DateKey],'[dm].[Fct_Qulouxia_Store_List]' AS TableName
+  
+FROM [Foodunion].[dm].[Fct_Qulouxia_Store_List] A
+  RIGHT JOIN [dm].[Dim_Calendar] C
+  
+ON A.DateKey=C.Datekey
+  
+WHERE C.[DateKey]>=CONVERT(VARCHAR(10),DATEADD(DAY,-7,GETDATE()),112)
+  
+AND C.[DateKey]<CONVERT(VARCHAR(10), GETDATE() ,112)
+  
+AND A.DateKey IS NULL
+  
+union
+  
+SELECT DISTINCT C.[DateKey],'[dm].[Fct_Qulouxia_Sales]' AS TableName
+  
+FROM [Foodunion].[dm].[Fct_Qulouxia_Sales] A
+  RIGHT JOIN [dm].[Dim_Calendar] C
+  
+ON A.DateKey=C.Datekey
+  
+WHERE C.[DateKey]>=CONVERT(VARCHAR(10),DATEADD(DAY,-7,GETDATE()),112)
+  
+AND C.[DateKey]<CONVERT(VARCHAR(10), GETDATE() ,112)
+  
+AND A.DateKey IS NULL
+  
+union
+  
+SELECT DISTINCT C.[DateKey],'[dm].[Fct_Qulouxia_StoreInventory]' AS TableName
+  
+FROM [Foodunion].[dm].[Fct_Qulouxia_StoreInventory] A
+  RIGHT JOIN [dm].[Dim_Calendar] C
+  
+ON A.DateKey=C.Datekey
+  
+WHERE C.[DateKey]>=CONVERT(VARCHAR(10),DATEADD(DAY,-7,GETDATE()),112)
+  
+AND C.[DateKey]<CONVERT(VARCHAR(10), GETDATE() ,112)
+  
+AND A.DateKey IS NULL;
+
+
+  ]]></body>
+  <returntable></returntable>
+  <returnrows></returnrows>
+  <orderby></orderby>
+</note>  

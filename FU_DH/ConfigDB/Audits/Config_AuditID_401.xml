@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>  
+<note>  
+  <query>
+<![CDATA[
+SELECT COUNT(1) 
+FROM [Foodunion].[rpt].[YH门店商品库存缺货日报汇总] 
+WHERE [Region]='东区'
+;
+]]></query>
+  <to>simon.ni@foodunion.com.cn</to> 
+  <cc>ab@foodunion.com;Jaco.Liu@foodunion.com.cn;Susie.Sun@foodunion.com.cn;Helen.Liang@foodunion.com.cn;
+         Jeffrey.Wang@foodunion.com.cn;
+         Andrey.Ognev@foodunion.com.cn;Kun.Jiang@foodunion.com.cn;ak.wang@foodunion.com.cn;Serene.Yang@foodunion.com.cn;
+         FUNCHINA.BI@foodunion.com.cn</cc>   
+  <from>powerbi@shapetime.cn</from>  
+  <title>YH东区门店缺货列表</title>   
+  <body>
+ <![CDATA[  
+	
+Hi Simon, <br/>
+-以下是鲜奶在永辉渠道江苏、福建、安徽、浙江区域库存不足的门店信息，请关注，门店详情见附件。<br/>
+-数据来源于 #Date# 日永辉门店的库存，系统数字可能和实际库存有偏差，请具体再确认。<br/>
+<br/>
+	
+]]></body>
+  <returntable>
+SELECT [SKU_ID],[SKU_Name_CN],[Sales_Area],[Sales or MD],[Sales Manager],[Sales Director],[Store_no],[OOS],[Row_Attr] 
+FROM [Foodunion].[rpt].[YH门店商品库存缺货日报汇总] 
+WHERE [Region]='东区'
+</returntable>
+  <returnrows></returnrows>
+  <orderby>[SKU_ID],[Sales_Area]</orderby>
+</note>  

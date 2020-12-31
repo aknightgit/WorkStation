@@ -1,0 +1,34 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>  
+<note>  
+  <query>
+<![CDATA[
+SELECT COUNT(DISTINCT Channel)-1 FROM rpt.[Sales_销售渠道客户达成日报] 
+WHERE Update_Time>=CAST(GETDATE() AS DATE)
+AND Is_UTD = 1 
+AND Channel IN ('Vanguard','YH')
+;
+]]></query>
+  <to>ak.wang@foodunion.com.cn;Eva.Wang@foodunion.com.cn;Serene.Yang@foodunion.com.cn;kun.jiang@foodunion.com.cn</to> 
+  <cc></cc>   
+  <from>powerbi@shapetime.cn</from>  
+  <title>销售渠道MTD达成日报 #Date#</title>  
+  <body>
+ <![CDATA[   
+	销售渠道客户MTD达成日报 <br/>
+	当前日期：#Date# <br/>
+	数据来源：YH EDI & Vanguard上传 & ERP <br/>
+	明细：<br/>
+	<br/>
+]]></body>
+  <returntable>SELECT 
+      [Channel]
+      ,[Customer]
+      ,[Sales]
+      ,[Data_Up_to]
+	  ,[Row_Attr]
+  FROM [rpt].[Sales_销售渠道客户达成日报]
+  WHERE Monthkey = CONVERT(CHAR(6),DATEADD(DAY,-1,GETDATE()),112) 
+</returntable>
+  <returnrows></returnrows>
+  <orderby>[Channel] DESC,CAST(REPLACE([Sales],'','','''') AS INT) DESC</orderby>
+</note>  

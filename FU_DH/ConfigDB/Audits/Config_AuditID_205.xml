@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>  
+<note>  
+  <query>
+	<![CDATA[
+SELECT COUNT(PlanDescription)   
+FROM ConfigDB.aud.JobLog
+WHERE datediff("SECOND",StartTime,ISNULL(ENDTIME,getdate())) >=3600 AND 
+		StatusID<>2 AND
+		JobID=(SELECT MAX (JobID) FROM ConfigDB.aud.JobLog WHERE PlanID IN(1,2,4));
+
+	]]></query>
+  <to></to> 
+  <cc></cc>   
+  <from></from>  
+  <title>[Alert]  当前 Job 执行超过1小时！</title>  
+  <body>
+  <![CDATA[
+#### Job 执行超过1小时！ Check !
+  ]]></body>
+  <returntable></returntable>
+  <returnrows></returnrows>
+  <orderby></orderby>
+</note>  

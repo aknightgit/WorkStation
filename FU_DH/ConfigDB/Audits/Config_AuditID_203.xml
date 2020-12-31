@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>  
+<note>  
+  <query>
+<![CDATA[
+
+SELECT COUNT(1) FROM (
+	SELECT Bar_Code
+	FROM dm.Dim_Product  
+	WHERE Bar_Code IS NOT NULL AND Bar_Code<>'''' AND IsEnabled=1
+	GROUP BY Bar_Code
+	HAVING(COUNT(1)>1)
+)x
+
+]]></query>
+  <to>ak.wang@foodunion.com.cn;FUNCHINA.BI@foodunion.com.cn</to> 
+  <cc></cc>   
+  <from>powerbi@shapetime.cn</from>  
+  <title>[Notification] Product information issues</title>  
+  <body>
+ <![CDATA[
+	dm.Dim_Product表可能有Active且Barcode相同的SKU_ID，
+	或者有Active，但是有必要字段为空的SKU_ID（Product_Sort，Product_Category，Bar_Code，Brand_Name，Sale_Scale）。<br/>
+	SELECT Bar_Code
+	FROM dm.Dim_Product  
+	WHERE Bar_Code IS NOT NULL AND Bar_Code<>''''
+	GROUP BY Bar_Code
+	HAVING(COUNT(1)>1)<br/>
+		
+]]></body>
+  <returntable></returntable>
+  <returnrows></returnrows>
+  <orderby></orderby>
+</note>  

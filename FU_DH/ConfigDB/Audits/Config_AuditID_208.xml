@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>  
+<note>  
+  <query>
+<![CDATA[
+SELECT CASE WHEN COUNT(1)>1 THEN 0 ELSE 1 END FROM [ODS].[ods].[File_Inventory]
+  WHERE [Date_DT]<CAST(DATEADD(DAY,-3,GETDATE()) AS DATE) ;
+]]></query>
+  <to>Maggie.Zhang@foodunion.com.cn</to> 
+  <cc>ak.wang@foodunion.com.cn;FUNCHINA.BI@foodunion.com.cn</cc>   
+  <from>powerbi@shapetime.cn</from>  
+  <title>[Notification] 猫武士数据上传</title>  
+  <body>
+ <![CDATA[
+      Hi Maggie，  <br/>
+猫武士最近3天没有数据上传，请帮忙上传数据到FTP。如以上传请忽略哈~~~  <br/>
+      <br/>
+]]></body>
+  <returntable></returntable>
+  <returnrows></returnrows>
+  <orderby></orderby>
+</note>  

@@ -1,0 +1,17 @@
+USE [Foodunion]
+GO
+DROP PROCEDURE [rpt].[SP_RPT_Youzan_Recon]
+GO
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE PROC [rpt].[SP_RPT_Youzan_Recon]
+AS
+BEGIN
+
+
+
+SELECT 1
+END
+GO

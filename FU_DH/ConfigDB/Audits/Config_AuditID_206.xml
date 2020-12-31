@@ -1,0 +1,48 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>  
+<note>  
+  <query>
+	<![CDATA[
+
+declare @Return int;	
+
+SELECT @Return=
+(SELECT COUNT(1)
+FROM  [Foodunion].[dm].[Dim_Product] P
+        WHERE Status='Active' AND Qty_BaseInSale * Qty_SaleInTray <> Qty_BaseInTray )
++
+(SELECT COUNT(1)
+FROM  [Foodunion].[dm].[Dim_Product] P
+LEFT JOIN [Foodunion].[dm].[Dim_ERP_Unit_ConvertRate] C        
+ON P.Produce_Unit=C.From_Unit AND P.Sale_Unit=C.To_Unit 
+        WHERE Status='Active' AND P.Qty_SaleInTray-CAST(C.Convert_Rate AS decimal(18,0))<>0)
++
+(SELECT  COUNT(1)
+FROM  [Foodunion].[dm].[Dim_Product] P        
+LEFT JOIN [Foodunion].[dm].[Dim_ERP_Unit_ConvertRate] C        
+ON P.sale_unit=C.From_Unit AND P.base_unit=C.To_Unit 
+        WHERE Status='Active' AND P.Qty_BaseInSale-CAST(C.Convert_Rate AS decimal(18,0))<>0)
++
+(SELECT  COUNT(1)
+from [Foodunion].dm.Dim_Product p
+JOIN ods.ods.ERP_SKU_List sl ON p.SKU_ID=sl.SKU_ID
+WHERE p.Sale_Unit<>sl.Sale_Unit
+AND p.Status='Active'
+AND p.Create_Time >='2020-4-1')
+
+SELECT   @return ;	
+	
+	]]></query>
+  <to></to> 
+  <cc></cc>   
+  <from></from>  
+  <title>[Alert]  监控Product维度表！</title>  
+  <body>
+  <![CDATA[
+#### Product维度表存在异常数据！ Check !
+
+
+  ]]></body>
+  <returntable></returntable>
+  <returnrows></returnrows>
+  <orderby></orderby>
+</note>  

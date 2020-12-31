@@ -1,0 +1,30 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>  
+<note>  
+  <query>
+	<![CDATA[
+SELECT CASE y.monthkey WHEN convert(varchar(6),getdate(),112) THEN 1 ELSE 0 END AS 'HighRecord'
+FROM (
+SELECT monthkey,row_number() over(order by monthsale desc) as rid
+FROM (
+select left(Calendar_DT,6) monthkey,sum(sales_amt) monthsale
+from [dm].Fct_YH_Sales_Inventory
+group by left(Calendar_DT,6)
+)x)y
+WHERE y.rid=1 
+
+	]]></query>
+  <to></to> 
+  <cc></cc>   
+  <from></from>  
+  <title>[Notification] YH月销售额创新高</title>  
+  <body>
+  <![CDATA[
+  #### YH本月销售额，创月销售记录新高！
+  快去看一看把~
+	![screenshot](http://sc.jb51.net/uploads/allimg/130814/2-130Q42233520-L.jpg)
+	[查看YH报表](https://app.powerbi.com/view?r=eyJrIjoiZjk4NGMwNDUtMDY4YS00NDNhLThmZjctY2VlMjQ4ODBkZDFhIiwidCI6IjI3ODEyMTk1LTg3YWItNGI1ZS05YmU2LTBiOWZmNTYwNWYzZiIsImMiOjh9)
+  ]]></body>
+  <returntable></returntable>
+  <returnrows></returnrows>
+  <orderby></orderby>
+</note>  

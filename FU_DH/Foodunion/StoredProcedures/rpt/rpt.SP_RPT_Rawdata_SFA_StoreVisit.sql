@@ -1,0 +1,17 @@
+﻿USE [Foodunion]
+GO
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE PROC [rpt].[SP_RPT_Rawdata_SFA_StoreVisit]
+AS
+BEGIN
+
+	--FXXK
+	SELECT 0 
+	--POP6
+
+END
+GO

@@ -1,0 +1,17 @@
+﻿USE [Foodunion]
+GO
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE PROCEDURE [rpt].[SP_RPT_MiniSOP_Forecast]
+AS
+BEGIN
+
+
+	SELECT * FROM [dm].[Fct_MiniSOP_Forecast];
+
+END
+
+GO

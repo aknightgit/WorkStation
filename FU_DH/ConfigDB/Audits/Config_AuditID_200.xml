@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>  
+<note>  
+  <query>
+<![CDATA[
+SELECT COUNT(1) FROM dm.[Dim_ERP_CustomerMapping_Missing]
+WHERE  Customer_Name not like '一次性现金客户%' AND Customer_Name  not like '合肥苏鲜生超市采购有限公司';
+]]></query>
+  <to>ak.wang@foodunion.com.cn;FUNCHINA.BI@foodunion.com.cn;Cici.Yuan@foodunion.com.cn;Cherie.Yin@foodunion.com.cn;Eva.Wang@foodunion.com.cn;Serene.Yang@foodunion.com.cn</to> 
+  <cc></cc>   
+  <from>powerbi@shapetime.cn</from>  
+  <title>[Notification] OmniChannel CustomerMapping Missing</title>  
+  <body>
+ <![CDATA[
+	dm.[Dim_ERP_CustomerMapping_Missing]表中发现有缺失Customer Mapping，会影响到Omni Channel首页中该Customer归类在Other渠道中。<br/>
+	需要参考更新以下表：<br/>
+	
+	update [dm].[Dim_Channel]
+	set Channel_Type='CP'
+	,Channel_Category='CP - West'
+	,Channel_Name_Display=Channel_Name_Short
+	,Channel_Handler='Salvatore Yang'
+	,Team='Dragon Team'
+	,Team_Handler='Daniel'
+	where Channel_Name_Short='成都市众合晟'
+ <br/>
+EXEC [dm].[SP_Dim_Channel_Update]
+
+	<br/>
+]]></body>
+  <returntable>SELECT Monthkey,Customer_Name FROM dm.[Dim_ERP_CustomerMapping_Missing] WHERE  Customer_Name not like '一次性现金客户%' AND  Customer_Name not like '合肥苏鲜生超市采购有限公司'</returntable>
+  <returnrows></returnrows>
+  <orderby></orderby>
+</note>  

@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>  
+<note>  
+  <query>
+<![CDATA[
+SELECT COUNT(1) FROM dm.dim_store 
+WHERE   Store_Province IS NULL;
+]]></query>
+  <to>ak.wang@foodunion.com.cn;FUNCHINA.BI@foodunion.com.cn</to> 
+  <cc></cc>   
+  <from>powerbi@shapetime.cn</from>  
+  <title>[Notification] New Store Province IS NULL OR Store City IS NULL</title>  
+  <body>
+ <![CDATA[
+	dm.dim_store表有新增3日以上的store，且没有分配Province、city。<br/>
+]]></body>
+  <returntable></returntable>
+  <returnrows></returnrows>
+  <orderby></orderby>
+</note>  

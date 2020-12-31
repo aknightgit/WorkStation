@@ -1,0 +1,78 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>  
+<note>  
+  <query>
+<![CDATA[
+SELECT COUNT(1) 
+FROM  [rpt].[Sales_销售代表月度指标达成日报] a
+WHERE a.Update_Time>=CAST(GETDATE() AS DATE)
+AND EXISTS (SELECT TOP 1 1 FROM dm.Fct_KAStore_DailySalesInventory WHERE Datekey=CONVERT(VARCHAR(8),GETDATE()-1,112))
+AND EXISTS (SELECT TOP 1 1 FROM dm.Fct_YH_JXT_Daily WHERE Datekey=CONVERT(VARCHAR(8),GETDATE()-1,112))
+;
+]]></query>
+  <to>Xiaoning.Zhang@foodunion.com.cn;
+Herman.Liu@foodunion.com.cn;
+Yang.Sun@foodunion.com.cn;
+Justin.Xue@foodunion.com.cn;
+Min.Zhang@foodunion.com.cn;
+Feng.Qiu@foodunion.com.cn;
+Alisa.Wei@foodunion.com.cn;
+Eason.Zheng@foodunion.com.cn;
+Jian.Liu@foodunion.com.cn;
+Fangyong.Liu@foodunion.com.cn;
+Jiaqin.Xie@foodunion.com.cn;
+Jun.Luo@foodunion.com.cn;
+Jianjun.Yang@foodunion.com.cn;
+Simpson.Shu@foodunion.com.cn;
+Rio.Feng@foodunion.com.cn;
+Alisa.Chen@foodunion.com.cn;
+Xilin.Luo@foodunion.com.cn;
+Guoqing.Zhang@foodunion.com.cn;
+Xingyu.Zeng@foodunion.com.cn;
+Kevin.Feng@foodunion.com.cn
+</to> 
+  <cc>ab@foodunion.com;
+Shirley.Wang@foodunion.com.cn;
+Eric.Xu@foodunion.com.cn;
+Jaco.Liu@foodunion.com.cn;
+Kun.Jiang@foodunion.com.cn;
+ak.wang@foodunion.com.cn;
+FUNCHINA.BI@foodunion.com.cn;</cc>   
+  <from>powerbi@shapetime.cn</from>  
+  <title>YH销售区域达成日报 #Date#</title>   
+  <body>
+ <![CDATA[  
+	YH销售区域达成日报 <br/>
+	当前日期：#Date# (销售数据到D-1)<br/>
+	数据来源：YH供零在线“门店进销退查询” <br/>
+	明细：<br/>
+	<br/>
+]]></body>
+  <returntable>
+SELECT 
+      [Manager_Display] AS [区域负责人]
+      ,[SalesPerson] AS [门店负责人]
+      ,[进货目标]
+      ,[进货实际]
+      ,[进货达成%]
+      ,[POS目标]
+      ,[POS实际]
+      ,[POS达成%]
+      ,[常温目标]
+      ,[常温实际]
+      ,[常温达成%]
+      ,[低温目标]
+      ,[低温实际]
+      ,[低温达成%]
+      ,[常温SKU数目标]
+      ,[常温SKU数实际]
+      ,[常温SKU数达成%]
+      ,[低温SKU数目标]
+      ,[低温SKU数实际]
+      ,[低温SKU数达成%]
+      ,[Row_Attr]
+  FROM [rpt].[Sales_销售代表月度指标达成日报]
+  WHERE Manager_Display !='' OR SalesPerson !=''
+</returntable>
+  <returnrows></returnrows>
+  <orderby>Region,Director,Manager,RN</orderby>
+</note>  

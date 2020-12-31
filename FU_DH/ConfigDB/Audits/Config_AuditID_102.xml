@@ -1,0 +1,26 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>  
+<note>  
+  <query>
+	<![CDATA[
+SELECT COUNT(1)
+FROM [dm].[Fct_YH_Store_Flag_Daily] fl
+JOIN dm.Dim_Store ds ON fl.Store_ID = ds.Store_ID
+WHERE ds.SR_Level_1='张兴华'
+AND fl.Date_ID=CONVERT(VARCHAR(8),GETDATE()-1,112)
+AND fl.SKU_Distribution in ('库存不足','库存为0门店','库存滞销')
+	]]></query>
+  <to></to> 
+  <cc></cc>   
+  <from></from>  
+  <title>[Alert]  YH门店库存预警</title>  
+  <body>
+  <![CDATA[
+  #### 发现当前有库存不足YH门店，或有滞销门店，请及时查看！
+  @张兴华
+	![screenshot](https://cdn-a.william-reed.com/var/wrbm_gb_food_pharma/storage/images/7/4/7/6/3266747-1-eng-GB/Food-Union-buys-Premia-Foods-ice-cream-business-for-27m_wrbm_large.jpg)
+	[查看YH门店库存陈列](https://app.powerbi.com/view?r=eyJrIjoiOWEzNmJlMjMtODgxYi00ODE4LWI4NjktOGU2MmQwOGI2OTk0IiwidCI6IjI3ODEyMTk1LTg3YWItNGI1ZS05YmU2LTBiOWZmNTYwNWYzZiIsImMiOjh9)
+  ]]></body>
+  <returntable></returntable>
+  <returnrows></returnrows>
+  <orderby></orderby>
+</note>  

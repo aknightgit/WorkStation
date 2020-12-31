@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>  
+<note>  
+  <query>
+<![CDATA[
+SELECT COUNT(1) FROM [FU_EDW].[Dim_Calendar] WHERE Day_Filter_Flag = 0 AND Date_NM = DATEADD(DAY,-1,CAST(GETDATE() AS DATE));
+]]></query>
+  <to>ak.wang@foodunion.com.cn;FUNCHINA.BI@foodunion.com.cn</to> 
+  <cc></cc>   
+  <from>powerbi@shapetime.cn</from>  
+  <title>[Notification] Calendar is not updated</title>  
+  <body>
+ <![CDATA[
+	[FU_EDW].[Dim_Calendar]表今天没有更新，会影响到报表的日期。<br/>
+	可能需要如下手动处理：<br/>
+	Sample：<br/>
+	EXEC [Foodunion].[FU_EDW].[SP_Dim_Calendar]<br/>
+]]></body>
+  <returntable>SELECT TOP 1 Date_ID FROM [FU_EDW].[Dim_Calendar] WHERE Day_Filter_Flag = 1</returntable>
+  <returnrows></returnrows>
+  <orderby>Date_ID DESC</orderby>
+</note>  

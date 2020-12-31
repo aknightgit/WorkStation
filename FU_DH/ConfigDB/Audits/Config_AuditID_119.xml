@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>  
+<note>  
+  <query>
+	<![CDATA[
+SELECT COUNT(1)
+FROM (
+	select ROW_NUMBER() OVER(PARTITION BY PlanID ORDER BY JobID DESC) RID,*
+	from aud.JobLog
+)x
+WHERE x.RID=1
+AND PlanID IN (1,2,4) AND StatusID<>0;
+
+	]]></query>
+  <to></to> 
+  <cc></cc>   
+  <from></from>  
+  <title>[Alert]  当前有Daily/Hourly Job报错！</title>  
+  <body>
+  <![CDATA[
+  #### Daily/Hourly Job Abort！ Check ASAP!
+  ]]></body>
+  <returntable></returntable>
+  <returnrows></returnrows>
+  <orderby></orderby>
+</note>  

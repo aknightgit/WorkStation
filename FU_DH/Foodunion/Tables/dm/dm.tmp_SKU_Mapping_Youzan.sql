@@ -1,0 +1,16 @@
+﻿USE [Foodunion]
+GO
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dm].[tmp_SKU_Mapping_Youzan](
+	[sku_name] [nvarchar](1000) NOT NULL,
+	[manual_sku_id] [nvarchar](30) NOT NULL,
+ CONSTRAINT [PK_Dim_SKU_Mapping_Youzan] PRIMARY KEY CLUSTERED 
+(
+	[sku_name] ASC,
+	[manual_sku_id] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO

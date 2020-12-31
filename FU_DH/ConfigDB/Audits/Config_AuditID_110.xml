@@ -1,0 +1,38 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>  
+<note>  
+  <query>
+<![CDATA[
+	DECLARE @return SMALLINT;
+
+	;WITH DailySales as(
+	SELECT Calendar_DT
+	  ,SUM(sal.Sales_AMT) AS Sales_AMT
+	FROM dm.Fct_YH_Sales_Inventory sal WITH(NOLOCK)
+	GROUP BY Calendar_DT
+	  )
+	SELECT  @return = CASE WHEN ISNULL(SUM(sal.Sales_AMT),0)/14*0.7>ISNULL(MAX(sal2.Sales_AMT),0) THEN 1 ELSE 0 END 
+	FROM [dm].[Dim_Calendar] dt WITH(NOLOCK)
+	LEFT JOIN DailySales AS sal ON dt.Datekey >= sal.Calendar_DT AND DATEDIFF(DAY,CAST(sal.Calendar_DT AS VARCHAR),dt.Date)<14
+	LEFT JOIN DailySales AS sal2 ON dt.Datekey = sal2.Calendar_DT
+	WHERE dt.Datekey>='20180801' AND dt.Date<GETDATE()AND dt.Datekey = (SELECT MAX(sal3.Calendar_DT) FROM DailySales sal3 WHERE sal3.Sales_AMT>0)
+	--GROUP BY dt.Date_ID
+
+	SELECT @return as 'Return';	
+]]></query>
+  <to>ak.wang@foodunion.com.cn</to> 
+  <cc></cc>   
+  <from>powerbi@shapetime.cn</from>  
+  <title>[Notification] YH门店日销售数据异常</title>  
+  <body>
+  <![CDATA[
+	YH报表-日销售数据异常：
+	<br/>	
+	<font color="red"> YH报表当日销售额低于 (过去30天日均销售额 * 70%)! </font>
+	<br/>
+	<a href="https://app.powerbi.com/groups/cb781185-64a7-4cbd-8ee0-a702d7c4581c/reports/bffd9fd4-8a3b-4401-a87a-076efe1ff67b/ReportSection12142c29a1d1bfacd4e2">查看YH报表:</a>
+	<br/>
+	 ]]></body>
+  <returntable></returntable>
+  <returnrows></returnrows>
+  <orderby></orderby>
+</note>  

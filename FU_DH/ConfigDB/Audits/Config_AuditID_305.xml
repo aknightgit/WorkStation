@@ -1,0 +1,51 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>  
+<note>  
+  <query>
+<![CDATA[
+SELECT COUNT(1) 
+FROM  [rpt].[Sales_销售代表月度指标达成日报] a
+WHERE a.Update_Time>=CAST(GETDATE() AS DATE)
+;
+]]></query>
+  <to>ak.wang@foodunion.com.cn;Eva.Wang@foodunion.com.cn;
+</to> 
+  <cc></cc>   
+  <from>powerbi@shapetime.cn</from>  
+  <title>YH销售代表月度指标达成日报 #Date#</title>   
+  <body>
+ <![CDATA[  
+	YH销售代表月度指标达成日报 <br/>
+	当前日期：#Date# (销售数据到D-1)<br/>
+	数据来源：YH供零在线 <br/>
+	明细：<br/>
+	<br/>
+]]></body>
+  <returntable>
+SELECT 
+      [Manager_Display] AS [区域负责人]
+      ,[SalesPerson] AS [门店负责人]
+      ,[进货目标]
+      ,[进货实际]
+      ,[进货达成%]
+      ,[POS目标]
+      ,[POS实际]
+      ,[POS达成%]
+      ,[常温目标]
+      ,[常温实际]
+      ,[常温达成%]
+      ,[低温目标]
+      ,[低温实际]
+      ,[低温达成%]
+      ,[常温SKU数目标]
+      ,[常温SKU数实际]
+      ,[常温SKU数达成%]
+      ,[低温SKU数目标]
+      ,[低温SKU数实际]
+      ,[低温SKU数达成%]
+      ,[Row_Attr]
+  FROM [rpt].[Sales_销售代表月度指标达成日报]
+  WHERE Manager_Display !='' OR SalesPerson !=''
+</returntable>
+  <returnrows></returnrows>
+  <orderby>Region,Director,Manager,RN</orderby>
+</note>  

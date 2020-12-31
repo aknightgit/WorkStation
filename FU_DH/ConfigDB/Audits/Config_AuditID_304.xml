@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>  
+<note>  
+  <query>
+<![CDATA[
+SELECT COUNT(1) 
+FROM [rpt].[Sales_销售门店进货日报] a
+WHERE a.Update_Time>=CAST(GETDATE() AS DATE)
+AND EXISTS (SELECT TOP 1 1 FROM dm.Fct_YH_JXT_Daily WHERE Datekey=CONVERT(VARCHAR(8),GETDATE()-1,112))
+;
+]]></query>
+  <to>ak.wang@foodunion.com.cn</to> 
+  <cc></cc>   
+  <from>powerbi@shapetime.cn</from>  
+  <title>YH销售门店进销日报 #Date#</title>  
+  <body>
+ <![CDATA[  
+	YH销售门店进销日报 <br/>
+	当前日期：#Date# (销售数据到D-1)<br/>
+	数据来源：YH供零在线“门店进销退查询” <br/>
+	明细：<br/>
+	<br/>
+]]></body>
+  <returntable>
+SELECT 
+  [销售]
+  ,[省份]
+  ,[门店区域]
+  ,[门店编码]
+  ,[门店名称]
+  ,[SKU_ID]
+  ,[规格]
+  ,[产品名称]
+  ,[最近3日进货数量]
+  ,[最近3日销售数量]
+  ,[最近3日销售金额]
+  ,[昨日销售数量]
+  ,[昨日销售金额]
+  ,[Row_Attr]
+FROM [rpt].[Sales_销售门店进货日报]
+WHERE [最近3日进货数量]>0
+</returntable>
+  <returnrows></returnrows>
+  <orderby>[销售],[门店区域],[门店编码]</orderby>
+</note>  

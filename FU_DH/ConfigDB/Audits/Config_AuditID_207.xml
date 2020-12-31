@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>  
+<note>  
+  <query>
+<![CDATA[
+SELECT COUNT(1) FROM DM.FCT_order where Channel_ID=0;
+]]></query>
+  <to>ak.wang@foodunion.com.cn;FUNCHINA.BI@foodunion.com.cn</to> 
+  <cc>FUNCHINA.BI@foodunion.com.cn</cc>   
+  <from>powerbi@shapetime.cn</from>  
+  <title>[Notification] 订单存在未mapping的Channel_ID，请检查</title>  
+  <body>
+ <![CDATA[
+      SELECT sd_id,* FROM ods.ods.OMS_Order_Info <br/>
+      WHERE deal_code IN ( SELECT Trans_No FROM DM.FCT_order where Channel_ID=0 ) ORDER BY 1 <br/>
+      以及修改 [dm].[SP_Fct_Order_Update]中的Channel_ID定义，添加未map的Channel_ID  <br/>
+      <br/>
+]]></body>
+  <returntable></returntable>
+  <returnrows></returnrows>
+  <orderby></orderby>
+</note>  

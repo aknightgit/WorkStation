@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>  
+<note>  
+  <query>
+<![CDATA[
+SELECT COUNT(1) FROM [dm].[Dim_Channel] WHERE [Create_Time]>DATEADD(DAY,-3,CAST(GETDATE() AS DATE)) AND (Channel_FIN IS NULL OR SubChannel_FIN IS NULL);
+]]></query>
+  <to>ak.wang@foodunion.com.cn;FUNCHINA.BI@foodunion.com.cn</to> 
+  <cc></cc>   
+  <from>powerbi@shapetime.cn</from>  
+  <title>[Notification] New Channel_FIN, SubChannel_FIN are not assigned</title>  
+  <body>
+ <![CDATA[
+	[dm].[Dim_Channel]表近三天有新增Channel没有分配 Channel_FIN,SubChannel_FIN。<br/>
+	可能需要如下手动处理：<br/>	
+]]></body>
+  <returntable>SELECT * FROM [dm].[Dim_Channel] WHERE [Create_Time]>DATEADD(DAY,-3,CAST(GETDATE() AS DATE)) AND (Channel_FIN IS NULL OR SubChannel_FIN IS NULL)</returntable>
+  <returnrows></returnrows>
+  <orderby></orderby>
+</note>

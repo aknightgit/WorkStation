@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>  
+<note>  
+  <query>
+	<![CDATA[
+SELECT 
+CASE WHEN COUNT(1)>0 THEN 0 ELSE 1 END
+FROM [dm].Fct_YH_Sales_Inventory WITH(NOLOCK)
+WHERE Calendar_DT = CONVERT(VARCHAR(8),GETDATE()-1,112);
+
+	]]></query>
+  <to></to> 
+  <cc></cc>   
+  <from></from>  
+  <title>[Notification] YH昨日销售数据未Ready</title>  
+  <body>
+  <![CDATA[
+  #### YH昨日销售数据还没有Ready！
+  今天YH报表刷新延迟，正在查看原因，请耐心等待片刻~
+	![screenshot](https://www.paycom.com/blog/wp-content/uploads/2016/11/FLSA-Delay.png)
+	
+  ]]></body>
+  <returntable></returntable>
+  <returnrows></returnrows>
+  <orderby></orderby>
+</note>  
