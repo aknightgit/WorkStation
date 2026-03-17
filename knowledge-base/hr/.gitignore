@@ -1,0 +1,7 @@
+# Generated runtime data
+chroma_db/
+hr_core.db
+
+# Python cache
+__pycache__/
+*.pyc

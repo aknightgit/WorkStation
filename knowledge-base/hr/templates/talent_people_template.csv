@@ -1,0 +1,2 @@
+person_id,full_name,person_type,title,department,level,location,phone,email,source_channel,status
+p001,张三,candidate,数据工程师,数据平台,P6,上海,13800000000,zhangsan@example.com,内推,active

@@ -1,0 +1,2 @@
+from_node_id,to_node_id,relation_type,weight
+team_data,role_bi_engineer,owns_role,1
