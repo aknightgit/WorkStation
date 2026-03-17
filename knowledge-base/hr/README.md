@@ -4,22 +4,27 @@
 
 ✅ 已完成基础能力：
 
-1. **结构化数据库（SQLite）**
-   - 路径：`knowledge-base/hr/hr_core.db`
+1. **结构化数据库（MariaDB）**
+   - 数据库名：`HumanResource`
    - 覆盖：人才池、技能标签、招聘流程、知识文档索引、人才地图（节点/边）
+   - Schema：`knowledge-base/hr/sql/talent_schema_mariadb.sql`
 
-2. **向量数据库（Chroma 本地持久化）**
+2. **结构化数据库（SQLite，本地备用）**
+   - 路径：`knowledge-base/hr/hr_core.db`
+   - Schema：`knowledge-base/hr/sql/talent_schema.sql`
+
+3. **向量数据库（Chroma 本地持久化）**
    - 路径：`knowledge-base/hr/chroma_db/chroma.sqlite3`
    - Collections：
      - `talent_profiles`（人才画像/简历/评估）
      - `enterprise_kb`（流程、文化、规范）
      - `talent_map`（组织关系/人才地图描述）
 
-3. **离线语义检索能力**
+4. **离线语义检索能力**
    - 脚本：`knowledge-base/hr/scripts/hr_platform.py`
    - 使用本地 hash embedding（无需外部 API key）
 
-4. **目录与模板**
+5. **目录与模板**
    - 自动创建 HR 文档目录树
    - 模板：`knowledge-base/hr/templates/*.csv`
 
@@ -27,11 +32,19 @@
 
 ## 快速开始
 
-### 1) 初始化（只需一次）
+### 1) 初始化（MariaDB + Chroma）
 
 ```bash
-python3 knowledge-base/hr/scripts/hr_platform.py init
+python3 knowledge-base/hr/scripts/hr_platform.py init \
+  --structured-backend mariadb \
+  --db-host <mariadb_host> \
+  --db-port 3306 \
+  --db-user <user> \
+  --db-password <password> \
+  --db-name HumanResource
 ```
+
+> 也可通过环境变量传参：`HR_DB_HOST/HR_DB_PORT/HR_DB_USER/HR_DB_PASSWORD/HR_DB_NAME`
 
 ### 2) 导入文档到向量库
 
@@ -65,38 +78,25 @@ python3 knowledge-base/hr/scripts/hr_platform.py search \
 ```
 hr/
 ├── 人才资料/
-│   ├── 候选人简历/
-│   ├── 员工档案/
-│   └── 面试评估/
 ├── 企业流程/
-│   ├── 入职流程/
-│   ├── 离职流程/
-│   ├── 晋升流程/
-│   └── 调薪流程/
 ├── 招聘管理/
-│   ├── 职位描述/
-│   ├── 招聘渠道/
-│   └── 面试题库/
 ├── 员工手册/
-│   ├── 公司简介/
-│   ├── 行为准则/
-│   └── 福利政策/
 ├── 制度规范/
-│   ├── 考勤制度/
-│   ├── 绩效考核/
-│   └── 奖惩条例/
 ├── chroma_db/
 ├── sql/
-│   └── talent_schema.sql
+│   ├── talent_schema.sql
+│   └── talent_schema_mariadb.sql
 ├── scripts/
-│   └── hr_platform.py
+│   ├── hr_platform.py
+│   └── init_mariadb_hr.py
 ├── templates/
-└── hr_core.db
+├── .gitignore
+└── hr_core.db (sqlite fallback)
 ```
 
 ---
 
 ## 说明
 
-- 这是“基础设施层”搭建，下一步是你们把真实 HR 文档/简历/制度导入。
-- 当前向量库可先离线跑通流程，后续如果要更高精度，可切换到 OpenAI/MiniMax embedding。
+- 这是“基础设施层”搭建，下一步是导入真实 HR 文档/简历/制度。
+- 向量库当前为离线可用方案；后续可切换 OpenAI/MiniMax embedding 提升语义质量。

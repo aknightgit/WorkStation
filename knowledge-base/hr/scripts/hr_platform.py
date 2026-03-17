@@ -24,12 +24,14 @@ from pathlib import Path
 from typing import Iterable, List, Dict
 
 import chromadb
+import pymysql
 
 
 ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = ROOT / "hr_core.db"
 CHROMA_PATH = ROOT / "chroma_db"
 SCHEMA_SQL = ROOT / "sql" / "talent_schema.sql"
+SCHEMA_MARIADB_SQL = ROOT / "sql" / "talent_schema_mariadb.sql"
 
 DEFAULT_COLLECTIONS = [
     "talent_profiles",
@@ -111,6 +113,43 @@ def init_sqlite() -> None:
         conn.executescript(f.read())
     conn.commit()
     conn.close()
+
+
+def _parse_sql_statements(sql_text: str) -> List[str]:
+    statements: List[str] = []
+    buf: List[str] = []
+    for line in sql_text.splitlines():
+        s = line.strip()
+        if not s or s.startswith("--"):
+            continue
+        buf.append(line)
+        if s.endswith(";"):
+            statements.append("\n".join(buf).strip())
+            buf = []
+    if buf:
+        statements.append("\n".join(buf).strip())
+    return statements
+
+
+def init_mariadb(host: str, port: int, user: str, password: str, database: str = "HumanResource") -> None:
+    sql_text = SCHEMA_MARIADB_SQL.read_text(encoding="utf-8")
+    sql_text = sql_text.replace("`HumanResource`", f"`{database}`")
+    statements = _parse_sql_statements(sql_text)
+
+    conn = pymysql.connect(
+        host=host,
+        port=port,
+        user=user,
+        password=password,
+        charset="utf8mb4",
+        autocommit=True,
+    )
+    try:
+        with conn.cursor() as cur:
+            for stmt in statements:
+                cur.execute(stmt)
+    finally:
+        conn.close()
 
 
 def get_client() -> chromadb.PersistentClient:
@@ -245,12 +284,27 @@ def write_templates() -> None:
         )
 
 
-def cmd_init(_: argparse.Namespace) -> None:
+def cmd_init(args: argparse.Namespace) -> None:
     ensure_dirs()
-    init_sqlite()
+
+    backend = args.structured_backend
+    if backend in {"sqlite", "both"}:
+        init_sqlite()
+
+    if backend in {"mariadb", "both"}:
+        if not args.db_host or not args.db_user or args.db_password is None:
+            raise SystemExit("mariadb init requires --db-host --db-user --db-password (or HR_DB_* env vars)")
+        init_mariadb(
+            host=args.db_host,
+            port=args.db_port,
+            user=args.db_user,
+            password=args.db_password,
+            database=args.db_name,
+        )
+
     init_collections(DEFAULT_COLLECTIONS)
     write_templates()
-    print(f"[ok] initialized dirs + sqlite + chroma at {ROOT}")
+    print(f"[ok] initialized dirs + structured({backend}) + chroma at {ROOT}")
 
 
 def cmd_ingest(args: argparse.Namespace) -> None:
@@ -298,6 +352,12 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(required=True)
 
     p_init = sub.add_parser("init", help="initialize base infrastructure")
+    p_init.add_argument("--structured-backend", choices=["sqlite", "mariadb", "both"], default="sqlite")
+    p_init.add_argument("--db-host", default=os.getenv("HR_DB_HOST"))
+    p_init.add_argument("--db-port", type=int, default=int(os.getenv("HR_DB_PORT", "3306")))
+    p_init.add_argument("--db-user", default=os.getenv("HR_DB_USER"))
+    p_init.add_argument("--db-password", default=os.getenv("HR_DB_PASSWORD"))
+    p_init.add_argument("--db-name", default=os.getenv("HR_DB_NAME", "HumanResource"))
     p_init.set_defaults(func=cmd_init)
 
     p_ingest = sub.add_parser("ingest", help="ingest docs into vector collection")

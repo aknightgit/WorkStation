@@ -4,7 +4,8 @@
 
 - [x] 本地向量数据库 Chroma 持久化目录
 - [x] 人才/知识/地图 3 个 collection 初始化逻辑
-- [x] 结构化 SQLite 数据库 schema（人才池 + 地图）
+- [x] 结构化 MariaDB schema（`HumanResource`）
+- [x] 结构化 SQLite fallback schema（本地调试）
 - [x] 文档分块 + 向量写入 + 语义检索 CLI
 - [x] CSV 模板文件（可直接填充后导入）
 
@@ -12,10 +13,22 @@
 
 ## 操作命令
 
-### 初始化
+### 初始化（推荐：MariaDB）
 
 ```bash
-python3 knowledge-base/hr/scripts/hr_platform.py init
+python3 knowledge-base/hr/scripts/hr_platform.py init \
+  --structured-backend mariadb \
+  --db-host <mariadb_host> \
+  --db-port 3306 \
+  --db-user <user> \
+  --db-password <password> \
+  --db-name HumanResource
+```
+
+### 只初始化本地 SQLite（调试）
+
+```bash
+python3 knowledge-base/hr/scripts/hr_platform.py init --structured-backend sqlite
 ```
 
 ### 导入（文档 -> 向量）
@@ -46,9 +59,14 @@ python3 knowledge-base/hr/scripts/hr_platform.py search \
 ## 关键路径
 
 - 向量库：`knowledge-base/hr/chroma_db/chroma.sqlite3`
-- 结构化库：`knowledge-base/hr/hr_core.db`
-- 数据模型：`knowledge-base/hr/sql/talent_schema.sql`
-- 命令脚本：`knowledge-base/hr/scripts/hr_platform.py`
+- 结构化库（MariaDB）：`HumanResource`（远端实例）
+- 结构化库（SQLite fallback）：`knowledge-base/hr/hr_core.db`
+- 数据模型：
+  - `knowledge-base/hr/sql/talent_schema_mariadb.sql`
+  - `knowledge-base/hr/sql/talent_schema.sql`
+- 命令脚本：
+  - `knowledge-base/hr/scripts/hr_platform.py`
+  - `knowledge-base/hr/scripts/init_mariadb_hr.py`
 
 ---
 
@@ -56,5 +74,5 @@ python3 knowledge-base/hr/scripts/hr_platform.py search \
 
 1. 先导入企业流程/员工手册（知识库）
 2. 再导入简历/评估表（人才池）
-3. 最后维护组织关系边（人才地图）
-4. 再接上飞书入口，做问答和人才检索助手
+3. 维护组织关系边（人才地图）
+4. 接飞书入口，提供人才检索+制度问答
