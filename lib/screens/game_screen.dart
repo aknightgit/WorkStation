@@ -26,6 +26,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   int _currentPlayerIndex = 0;
   Tile? _lastDrawnTile;
   Tile? _pendingTile;
+  int? _pendingNextPlayerIndex;
+  bool _isResolvingPending = false;
 
   Map<String, bool> _availableActions = {
     'chow': false,
@@ -87,6 +89,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       _mustDiscardAfterClaim = false;
       _lastDrawnTile = null;
       _pendingTile = null;
+      _pendingNextPlayerIndex = null;
+      _isResolvingPending = false;
       _currentPlayerIndex = 0;
       _availableActions = {
         'chow': false,
@@ -152,6 +156,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     setState(() {
       _lastDrawnTile = _currentPlayerIndex == 0 ? tile : null;
       _pendingTile = null;
+      _pendingNextPlayerIndex = null;
       _mustDiscardAfterClaim = false;
     });
 
@@ -181,43 +186,82 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     final nextIndex = (_currentPlayerIndex + 1) % 4;
     setState(() {
       _pendingTile = playedTile;
+      _pendingNextPlayerIndex = nextIndex;
       _lastDrawnTile = null;
       _mustDiscardAfterClaim = false;
-      _currentPlayerIndex = nextIndex;
+      // AI出牌后，先给人类响应窗口（吃/碰/杠/胡）
+      _currentPlayerIndex = 0;
     });
 
-    if (nextIndex == 0) {
-      _checkActions();
-      return;
-    }
-
-    await Future.delayed(const Duration(milliseconds: 500));
-    if (!mounted) return;
-    _doDrawOrPlay();
+    _checkActions();
   }
 
   void _checkActions() {
-    final player = _game.players[_currentPlayerIndex];
-    final hiddenKong = !_mustDiscardAfterClaim && _game.canHiddenKong(player);
-    final selfDrawHu = !_mustDiscardAfterClaim && _game.canHu(
+    // 这里只给人类玩家（0号位）计算动作
+    final player = _game.players[0];
+    final hasPendingTile = _pendingTile != null;
+
+    final canPong = hasPendingTile ? _game.canPong(player, _pendingTile!) : false;
+    final canChow = hasPendingTile ? _game.canChow(player, _pendingTile!) : false;
+    final canExposedKong = hasPendingTile ? _game.canExposedKong(player, _pendingTile!) : false;
+    final canRon = hasPendingTile ? _game.canRonWithTile(player, _pendingTile!) : false;
+
+    // 暗杠/自摸只允许在“自己摸牌后的回合”触发，不在响应他人出牌窗口触发
+    final canHiddenKong = !hasPendingTile && !_mustDiscardAfterClaim && _game.canHiddenKong(player);
+    final canSelfDrawHu = !hasPendingTile && !_mustDiscardAfterClaim && _game.canHu(
       player,
       newTile: _lastDrawnTile,
       isSelfDrawn: _lastDrawnTile != null,
     );
 
-    final canPong = _pendingTile != null ? _game.canPong(player, _pendingTile!) : false;
-    final canChow = _pendingTile != null && _currentPlayerIndex == 0
-        ? _game.canChow(player, _pendingTile!)
-        : false;
-    final canExposedKong = _pendingTile != null ? _game.canExposedKong(player, _pendingTile!) : false;
-    final canRon = _pendingTile != null ? _game.canRonWithTile(player, _pendingTile!) : false;
-
     setState(() {
       _availableActions['pong'] = canPong;
       _availableActions['chow'] = canChow;
-      _availableActions['kong'] = canExposedKong || hiddenKong;
-      _availableActions['hu'] = _pendingTile != null ? canRon : selfDrawHu;
+      _availableActions['kong'] = hasPendingTile ? canExposedKong : canHiddenKong;
+      _availableActions['hu'] = hasPendingTile ? canRon : canSelfDrawHu;
     });
+
+    if (hasPendingTile && !(canPong || canChow || canExposedKong || canRon)) {
+      _autoPassPendingTile();
+    }
+  }
+
+  Future<void> _autoPassPendingTile() async {
+    if (_isResolvingPending || _pendingTile == null) return;
+    _isResolvingPending = true;
+
+    await Future.delayed(const Duration(milliseconds: 250));
+    if (!mounted) return;
+
+    // 期间若玩家已经操作（如吃/碰/胡），则不再自动过牌
+    if (_pendingTile != null) {
+      await _passPendingTileToNextPlayer();
+    }
+
+    _isResolvingPending = false;
+  }
+
+  Future<void> _passPendingTileToNextPlayer() async {
+    final nextIndex = _pendingNextPlayerIndex;
+    if (nextIndex == null) return;
+
+    setState(() {
+      _pendingTile = null;
+      _pendingNextPlayerIndex = null;
+      _lastDrawnTile = null;
+      _mustDiscardAfterClaim = false;
+      _currentPlayerIndex = nextIndex;
+      _availableActions = {
+        'chow': false,
+        'pong': false,
+        'kong': false,
+        'hu': false,
+      };
+    });
+
+    await Future.delayed(const Duration(milliseconds: 120));
+    if (!mounted) return;
+    _doDrawOrPlay();
   }
 
   Future<void> _nextTurn() async {
@@ -227,8 +271,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     setState(() {
       _currentPlayerIndex = (_currentPlayerIndex + 1) % 4;
       _pendingTile = null;
+      _pendingNextPlayerIndex = null;
       _lastDrawnTile = null;
       _mustDiscardAfterClaim = false;
+      _availableActions = {
+        'chow': false,
+        'pong': false,
+        'kong': false,
+        'hu': false,
+      };
     });
     _doDrawOrPlay();
   }
@@ -241,7 +292,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
     setState(() {
       _lastDrawnTile = null;
-      _pendingTile = tile;
+      _pendingTile = null;
+      _pendingNextPlayerIndex = null;
       _mustDiscardAfterClaim = false;
     });
 
@@ -261,8 +313,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
     setState(() {
       _pendingTile = null;
+      _pendingNextPlayerIndex = null;
       _lastDrawnTile = null;
       _mustDiscardAfterClaim = true;
+      _availableActions = {
+        'chow': false,
+        'pong': false,
+        'kong': false,
+        'hu': false,
+      };
     });
   }
 
@@ -279,8 +338,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
     setState(() {
       _pendingTile = null;
+      _pendingNextPlayerIndex = null;
       _lastDrawnTile = null;
       _mustDiscardAfterClaim = true;
+      _availableActions = {
+        'chow': false,
+        'pong': false,
+        'kong': false,
+        'hu': false,
+      };
     });
   }
 
@@ -290,8 +356,16 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     if (meld == null) return;
 
     setState(() {
+      _pendingTile = null;
+      _pendingNextPlayerIndex = null;
       _lastDrawnTile = null;
       _mustDiscardAfterClaim = false;
+      _availableActions = {
+        'chow': false,
+        'pong': false,
+        'kong': false,
+        'hu': false,
+      };
     });
     _doDrawTile(afterKong: true);
   }
@@ -304,8 +378,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
       setState(() {
         _pendingTile = null;
+        _pendingNextPlayerIndex = null;
         _lastDrawnTile = null;
         _mustDiscardAfterClaim = false;
+        _availableActions = {
+          'chow': false,
+          'pong': false,
+          'kong': false,
+          'hu': false,
+        };
       });
       _doDrawTile(afterKong: true);
       return;
@@ -369,8 +450,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   void _continueGame() {
     setState(() {
       _pendingTile = null;
+      _pendingNextPlayerIndex = null;
       _lastDrawnTile = null;
       _mustDiscardAfterClaim = false;
+      _availableActions = {
+        'chow': false,
+        'pong': false,
+        'kong': false,
+        'hu': false,
+      };
     });
     _nextTurn();
   }
@@ -425,15 +513,18 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   void _skip() {
     final hadPendingTile = _pendingTile != null;
+
+    if (hadPendingTile) {
+      _passPendingTileToNextPlayer();
+      return;
+    }
+
     setState(() {
       _pendingTile = null;
+      _pendingNextPlayerIndex = null;
       _lastDrawnTile = null;
       _mustDiscardAfterClaim = false;
     });
-
-    if (hadPendingTile) {
-      _doDrawTile();
-    }
   }
 
   void _drawCard() {
