@@ -66,14 +66,14 @@ class MahjongTileWidget extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(4),
           border: Border.all(
-            color: isSelected ? Colors.red : Colors.grey,
+            color: isSelected ? Colors.red : Colors.grey.shade600,
             width: isSelected ? 3 : 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 2,
-              offset: const Offset(1, 1),
+              color: Colors.black.withOpacity(0.4), // 增加阴影对比度
+              blurRadius: 4,
+              offset: const Offset(2, 2),
             ),
           ],
         ),
@@ -83,19 +83,32 @@ class MahjongTileWidget extends StatelessWidget {
             colorFilter: isGray 
               ? const ColorFilter.mode(Colors.grey, BlendMode.saturation) 
               : const ColorFilter.mode(Colors.transparent, BlendMode.multiply),
-            child: SvgPicture.asset(
-              'assets/images/tiles/Regular/$imageName.svg',
-              width: size,
-              height: size * 1.5,
-              fit: BoxFit.contain,
-              placeholderBuilder: (context) => Container(
-                color: Colors.white,
-                child: Center(
-                  child: Text(
-                    tile.displayName,
-                    style: TextStyle(
-                      fontSize: size * 0.4,
-                      fontWeight: FontWeight.bold,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white,
+                    Colors.grey.shade100,
+                  ],
+                ),
+              ),
+              child: SvgPicture.asset(
+                'assets/images/tiles/Regular/$imageName.svg',
+                width: size,
+                height: size * 1.5,
+                fit: BoxFit.contain,
+                placeholderBuilder: (context) => Container(
+                  color: Colors.white,
+                  child: Center(
+                    child: Text(
+                      tile.displayName,
+                      style: TextStyle(
+                        fontSize: size * 0.4,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
                     ),
                   ),
                 ),
@@ -180,9 +193,13 @@ class HandTilesWidget extends StatelessWidget {
 
     return SizedBox(
       height: tileSize * 1.6,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: tileWidgets,
+      child: Center(
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          shrinkWrap: true,
+          center: true, // 居中对齐
+          children: tileWidgets,
+        ),
       ),
     );
   }
