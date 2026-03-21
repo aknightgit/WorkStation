@@ -1,0 +1,42 @@
+name: mahjong_game
+description: "🀄 联机麻将游戏 - 实时多人对战"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.0.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.2
+  # 状态管理
+  provider: ^6.0.5
+  # 本地存储
+  shared_preferences: ^2.2.0
+  # WebSocket (后续联机用)
+  web_socket_channel: ^2.4.0
+  # JSON序列化
+  json_annotation: ^4.8.1
+  # SVG支持
+  flutter_svg: ^2.0.9
+  # MySQL客户端
+  mysql1: ^0.19.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  build_runner: ^2.4.0
+  json_serializable: ^6.7.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/tiles/Regular/
+
+  # fonts:
+  #   - family: Mahjong
+  #     fonts:
+  #       - asset: assets/fonts/custom.ttf
