@@ -781,24 +781,101 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
   
+  // 模拟牌墙 - 四方格，牌背朝上，纵深感
   Widget _buildWall() {
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.black26,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        final screenHeight = constraints.maxHeight;
+        
+        // 牌墙参数
+        const int tilesPerSide = 6; // 每边6排
+        const double maxTileSize = 35; // 最远端（最大）
+        const double minTileSize = 25; // 最近端（最小）
+        const double gap = 3;
+        
+        return Stack(
           children: [
-            const Text('🀄 牌墙', style: TextStyle(color: Colors.white70)),
-            const SizedBox(height: 8),
-            Text(
-              '${_game.remainingTiles} 张',
-              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+            // 上边牌墙（北）- 从左到右，由远到近
+            for (int i = 0; i < tilesPerSide; i++)
+              Positioned(
+                top: 150 - (i * 3), // 逐渐向下
+                left: screenWidth * 0.35 + (i * (minTileSize + gap)),
+                child: _buildWallTile(maxTileSize - (i * 2)),
+              ),
+            // 下边牌墙（南）- 从左到右，由近到远
+            for (int i = 0; i < tilesPerSide; i++)
+              Positioned(
+                bottom: 250 + (i * 3),
+                left: screenWidth * 0.35 + (i * (minTileSize + gap)),
+                child: _buildWallTile(maxTileSize - (i * 2)),
+              ),
+            // 左边牌墙（西）- 从上到下
+            for (int i = 0; i < tilesPerSide; i++)
+              Positioned(
+                left: 30 + (i * 3),
+                top: screenHeight * 0.35 + (i * (minTileSize + gap)),
+                child: Transform.rotate(
+                  angle: 1.5708, // 90度
+                  child: _buildWallTile(maxTileSize - (i * 2)),
+                ),
+              ),
+            // 右边牌墙（东）- 从上到下
+            for (int i = 0; i < tilesPerSide; i++)
+              Positioned(
+                right: 30 + (i * 3),
+                top: screenHeight * 0.35 + (i * (minTileSize + gap)),
+                child: Transform.rotate(
+                  angle: 1.5708,
+                  child: _buildWallTile(maxTileSize - (i * 2)),
+                ),
+              ),
+            // 剩余牌数显示
+            Positioned(
+              top: 200,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '🀄 ${_game.remainingTiles}',
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                  ),
+                ),
+              ),
             ),
           ],
+        );
+      },
+    );
+  }
+  
+  // 牌背朝上的牌
+  Widget _buildWallTile(double size) {
+    return Container(
+      width: size,
+      height: size * 1.5,
+      decoration: BoxDecoration(
+        color: Colors.green.shade800,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.green.shade900, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.4),
+            blurRadius: 2,
+            offset: const Offset(1, 1),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Text(
+          '🀇',
+          style: TextStyle(fontSize: size * 0.6, color: Colors.green.shade700),
         ),
       ),
     );
