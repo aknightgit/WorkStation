@@ -120,15 +120,17 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
     _game.rollDice();
     _diceClickCount++;
+    _diceController.stop();
+    _diceController.reset();
 
     if (_diceClickCount == 1) {
-      // 等待第二次点击再掷一次
+      // 第一次掷骰结束，可直接发牌，也可再掷一次
+      _game.diceRolled = true;
+      _isRollingDice = false;
       _waitingSecondRoll = true;
-      _game.diceRolled = false;
     } else {
-      // 已经掷了2次，结束掷骰
-      _diceController.stop();
-      _diceController.reset();
+      // 第二次掷骰结束
+      _game.diceRolled = true;
       _isRollingDice = false;
       _diceClickCount = 0;
       _waitingSecondRoll = false;
@@ -144,7 +146,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     setState(() {
       _diceClickCount = 0;
       _waitingSecondRoll = false;
-      _isRollingDice = true;
+      _isRollingDice = false;
       _isDealing = false;
       _hasDealt = false;
       _mustDiscardAfterClaim = false;
@@ -161,11 +163,22 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _onDiceClick() {
-    if (!_isRollingDice) return;
-    if (_diceClickCount == 0 || _waitingSecondRoll) {
+    if (_isRollingDice) return;
+
+    if (_diceClickCount == 0) {
       setState(() {
-        _waitingSecondRoll = false;
         _game.diceRolled = false;
+        _isRollingDice = true;
+      });
+      _diceController.forward(from: 0);
+      return;
+    }
+
+    if (_waitingSecondRoll) {
+      setState(() {
+        _game.diceRolled = false;
+        _waitingSecondRoll = false;
+        _isRollingDice = true;
       });
       _diceController.forward(from: 0);
     }
@@ -1116,7 +1129,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   Widget _buildDiceSection() {
     final diceLabel = _diceClickCount == 0
         ? '🎲 点击掷骰子'
-        : (_waitingSecondRoll ? '🎲 再掷一次（第二次）' : '🎲 掷骰中...');
+        : (_waitingSecondRoll ? '🎲 可再掷一次（可选）' : '🎲 掷骰中...');
 
     return Center(
       child: GestureDetector(
