@@ -48,7 +48,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _game = widget.game;
 
     _diceController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 400), // 加快4倍
       vsync: this,
     )..addStatusListener(_handleDiceAnimationStatus);
 
