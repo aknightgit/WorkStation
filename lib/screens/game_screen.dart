@@ -678,6 +678,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     final player = _game.players[index];
     final isCurrent = index == _currentPlayerIndex;
     final isDealer = index == _game.dealerIndex;
+    final isLeftRight = index == 0 || index == 2; // 左右家需要特殊显示
 
     return Container(
       padding: const EdgeInsets.all(8),
@@ -717,9 +718,38 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               Text(player.name, style: const TextStyle(color: Colors.white, fontSize: 12)),
             ],
           ),
-          Text('🀄 ${player.handCount}', style: const TextStyle(color: Colors.white70, fontSize: 11)),
+          Text('🀤 ${player.handCount}', style: const TextStyle(color: Colors.white70, fontSize: 11)),
           if (player.meldCount > 0)
             Text('🎯 ${player.meldCount}', style: const TextStyle(color: Colors.orange, fontSize: 11)),
+          
+          // 打出牌的展示 - 在头像下方
+          if (player.playedTiles.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: Colors.black38,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 每行显示4张，打出的牌
+                  for (int i = 0; i < (player.playedTiles.length > 8 ? 8 : player.playedTiles.length); i += 4)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (int j = i; j < i + 4 && j < player.playedTiles.length; j++)
+                          MahjongTileWidget(
+                            tile: player.playedTiles[j],
+                            size: 28, // 手牌的2/3大小
+                            isGray: false,
+                          ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -946,34 +976,44 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(10),
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // 门口牌（吃碰杠）
           if (myPlayer.allMelds.isNotEmpty)
-            SizedBox(
-              height: 35,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: myPlayer.allMelds.map((meld) => Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: Row(
-                    children: meld.map((t) => MahjongTileWidget(
-                      tile: t,
-                      size: 25,
-                      isGray: true,
-                    )).toList(),
-                  ),
-                )).toList(),
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: SizedBox(
+                height: 40,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: myPlayer.allMelds.map((meld) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 3),
+                    child: Row(
+                      children: meld.map((t) => MahjongTileWidget(
+                        tile: t,
+                        size: 30,
+                        isGray: false,
+                      )).toList(),
+                    ),
+                  )).toList(),
+                ),
               ),
             ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 8),
+          // 手牌 - 完整显示，增加对比度
           HandTilesWidget(
             tiles: myPlayer.handTiles,
-            tileSize: 45,
+            tileSize: 50, // 增大尺寸
             selectable: _canHumanDiscard,
             lastDrawnTile: _lastDrawnTile,
             onTileTap: _playTile,
           ),
+          const SizedBox(height: 8),
         ],
       ),
     );
