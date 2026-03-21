@@ -230,13 +230,29 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     final playedTile = _game.aiPlayTile(player);
     if (playedTile == null) return;
 
-    final nextIndex = (_currentPlayerIndex + 1) % 4;
+    // 记录打出的牌
     setState(() {
       _pendingTile = playedTile;
       _lastDrawnTile = null;
+    });
+
+    // 检查所有其他玩家是否可以响应（吃/碰/杠/胡）
+    final nextIndex = (_currentPlayerIndex + 1) % 4;
+    setState(() {
       _mustDiscardAfterClaim = false;
       _currentPlayerIndex = nextIndex;
     });
+
+    // 立即检查玩家0是否可以直接响应（别人打牌时）
+    if (nextIndex != 0) {
+      _checkActions();
+      // 如果玩家0可以响应，暂停游戏等待玩家操作
+      if (_availableActions.values.any((v) => v)) {
+        // 有可用的响应，等待玩家操作，不继续AI回合
+        return;
+      }
+      // 如果玩家0不能响应，继续游戏
+    }
 
     if (nextIndex == 0) {
       _checkActions();
@@ -249,7 +265,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _checkActions() {
-    final player = _game.players[_currentPlayerIndex];
+    final player = _game.players[0]; // 总是检查人类玩家
+    
+    // 优先响应：检查别人打牌时我是否可以吃/碰/杠/胡
+    final canPong = _pendingTile != null ? _game.canPong(player, _pendingTile!) : false;
+    final canChow = _pendingTile != null ? _game.canChow(player, _pendingTile!) : false;
+    final canExposedKong = _pendingTile != null ? _game.canExposedKong(player, _pendingTile!) : false;
+    final canRon = _pendingTile != null ? _game.canRonWithTile(player, _pendingTile!) : false;
+    
+    // 自己摸牌后的响应
     final hiddenKong = !_mustDiscardAfterClaim && _game.canHiddenKong(player);
     final selfDrawHu = !_mustDiscardAfterClaim && _game.canHu(
       player,
@@ -257,19 +281,21 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       isSelfDrawn: _lastDrawnTile != null,
     );
 
-    final canPong = _pendingTile != null ? _game.canPong(player, _pendingTile!) : false;
-    final canChow = _pendingTile != null && _currentPlayerIndex == 0
-        ? _game.canChow(player, _pendingTile!)
-        : false;
-    final canExposedKong = _pendingTile != null ? _game.canExposedKong(player, _pendingTile!) : false;
-    final canRon = _pendingTile != null ? _game.canRonWithTile(player, _pendingTile!) : false;
-
     setState(() {
       _availableActions['pong'] = canPong;
       _availableActions['chow'] = canChow;
       _availableActions['kong'] = canExposedKong || hiddenKong;
-      _availableActions['hu'] = _pendingTile != null ? canRon : selfDrawHu;
+      _availableActions['hu'] = canRon || selfDrawHu;
     });
+  }
+  
+  // 检查是否有可用的响应（别人打牌时我可以吃/碰/杠/胡）
+  bool _hasResponseAvailable() {
+    return _pendingTile != null && 
+        (_availableActions['chow'] == true || 
+         _availableActions['pong'] == true || 
+         _availableActions['kong'] == true || 
+         _availableActions['hu'] == true);
   }
 
   Future<void> _nextTurn() async {
@@ -613,8 +639,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 child: _buildMyHand(),
               ),
 
-              // 右侧动作菜单
-              if (_currentPlayerIndex == 0 && !_isRollingDice && !_isDealing)
+              // 右侧动作菜单 - 自己回合 或 有响应可使用时显示
+              if ((_currentPlayerIndex == 0 || _hasResponseAvailable()) && !_isRollingDice && !_isDealing)
                 _buildRightActionMenu(),
 
               // 当前玩家提示
