@@ -67,16 +67,21 @@ class MahjongTileWidget extends StatelessWidget {
         width: size,
         height: size * 1.5,
         decoration: BoxDecoration(
-          color: isGray ? Colors.grey.shade700 : Colors.white, // 白色底增加对比度
-          borderRadius: BorderRadius.circular(6),
+          color: isGray ? Colors.grey.shade700 : const Color(0xFFF8F8F8),
+          borderRadius: BorderRadius.circular(5),
           border: Border.all(
-            color: isSelected ? Colors.red : Colors.black,
-            width: isSelected ? 3 : 1,
+            color: isSelected ? Colors.red : Colors.grey.shade600,
+            width: isSelected ? 2.5 : 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.5), // 增加阴影对比度
-              blurRadius: 6,
+              color: Colors.white.withOpacity(0.6),
+              blurRadius: 2,
+              offset: const Offset(-1, -1),
+            ),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.35),
+              blurRadius: 4,
               offset: const Offset(2, 3),
             ),
           ],
@@ -94,7 +99,7 @@ class MahjongTileWidget extends StatelessWidget {
                   end: Alignment.bottomCenter,
                   colors: [
                     Colors.white,
-                    Colors.grey.shade100,
+                    const Color(0xFFEFEFEF),
                   ],
                 ),
               ),
