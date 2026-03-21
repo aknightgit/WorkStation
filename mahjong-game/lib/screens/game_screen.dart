@@ -1022,28 +1022,29 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   // 梯形麻将桌布
   Widget _buildMahjongTable() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final screenWidth = constraints.maxWidth;
-        final screenHeight = constraints.maxHeight;
-        final tableHeight = screenHeight * 0.65;
-        final bottomWidth = screenWidth;
-        final topWidth = screenWidth * 0.75;
-        
-        return Positioned(
-          left: (screenWidth - bottomWidth) / 2,
-          bottom: 0,
-          child: CustomPaint(
-            size: Size(bottomWidth, tableHeight),
-            painter: TrapezoidPainter(
-              topWidth: topWidth,
-              bottomWidth: bottomWidth,
-              topColor: const Color(0xFF2E7D32),
-              bottomColor: const Color(0xFF1B5E20),
+    return Positioned.fill(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final screenWidth = constraints.maxWidth;
+          final screenHeight = constraints.maxHeight;
+          final tableHeight = screenHeight * 0.65;
+          final bottomWidth = screenWidth;
+          final topWidth = screenWidth * 0.75;
+
+          return Align(
+            alignment: Alignment.bottomCenter,
+            child: CustomPaint(
+              size: Size(bottomWidth, tableHeight),
+              painter: TrapezoidPainter(
+                topWidth: topWidth,
+                bottomWidth: bottomWidth,
+                topColor: const Color(0xFF2E7D32),
+                bottomColor: const Color(0xFF1B5E20),
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
   
