@@ -9,6 +9,7 @@ class MahjongTileWidget extends StatelessWidget {
   final bool isSelected;
   final bool isGray;
   final bool selectable;
+  final bool showBack;
   final VoidCallback? onTap;
 
   const MahjongTileWidget({
@@ -18,10 +19,12 @@ class MahjongTileWidget extends StatelessWidget {
     this.isSelected = false,
     this.isGray = false,
     this.selectable = false,
+    this.showBack = false,
     this.onTap,
   });
 
   String _getTileImageName() {
+    if (showBack) return 'Regular-Back';
     String name = '';
     switch (tile.suit) {
       case TileSuit.wan:
@@ -95,25 +98,36 @@ class MahjongTileWidget extends StatelessWidget {
                   ],
                 ),
               ),
-              child: SvgPicture.asset(
-                'assets/images/tiles/Regular/$imageName.svg',
-                width: size,
-                height: size * 1.5,
-                fit: BoxFit.contain,
-                placeholderBuilder: (context) => Container(
-                  color: Colors.white,
-                  child: Center(
-                    child: Text(
-                      tile.displayName,
-                      style: TextStyle(
-                        fontSize: size * 0.4,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+              child: (imageName == 'Regular-Blank' && !showBack)
+                  ? Center(
+                      child: Text(
+                        tile.displayName,
+                        style: TextStyle(
+                          fontSize: size * 0.4,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    )
+                  : SvgPicture.asset(
+                      'assets/images/tiles/Regular/$imageName.svg',
+                      width: size,
+                      height: size * 1.5,
+                      fit: BoxFit.contain,
+                      placeholderBuilder: (context) => Container(
+                        color: Colors.white,
+                        child: Center(
+                          child: Text(
+                            tile.displayName,
+                            style: TextStyle(
+                              fontSize: size * 0.4,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              ),
             ),
           ),
         ),
