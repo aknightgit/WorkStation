@@ -1381,8 +1381,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 _buildActionBtn('杠', Colors.teal, _kong, enabled: _availableActions['kong'] ?? false, size: 'small'),
               ],
             ),
-            const SizedBox(height: 8),
-            _buildActionBtn('过', Colors.grey, _skip, enabled: _pendingTile != null, size: 'small'),
+
           ],
         ),
       ),
