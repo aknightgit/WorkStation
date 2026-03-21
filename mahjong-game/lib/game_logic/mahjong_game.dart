@@ -418,6 +418,14 @@ class MahjongGame {
     return chow + pong;
   }
 
+  // 计算包牌赔付倍数
+  int calculateBaoMultiplier(Player winner, Player loser) {
+    final count = getChowPongCount(winner, loser);
+    if (count >= 4) return 5; // 包四家
+    if (count >= 3) return 3; // 包三家
+    return 1;
+  }
+
   void applyDrawMultiplier() {
     multiplier = min(multiplier * 2, 8);
   }
