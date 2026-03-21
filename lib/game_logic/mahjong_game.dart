@@ -114,8 +114,8 @@ class MahjongGame {
   }
 
   void rollDice() {
-    // 使用时间种子确保每次随机
-    final random = Random(DateTime.now().microsecondsSinceEpoch);
+    // 使用系统随机，避免固定点数
+    final random = Random();
     diceValues[0] = random.nextInt(6) + 1;
     diceValues[1] = random.nextInt(6) + 1;
     if (diceValues[0] == diceValues[1]) {
@@ -174,6 +174,12 @@ class MahjongGame {
 
       final tile = tiles[wallIndex++];
       if (tile.isHua) {
+        // 若当局百搭为花牌，则该花牌可入手，不强制杠花
+        if (wildTile != null && tile.type == wildTile!.type) {
+          player.addTile(tile);
+          return tile;
+        }
+        // 自动杠花补牌，补到花继续补
         player.drawFlowerTile(tile);
         continue;
       }
