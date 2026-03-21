@@ -923,39 +923,39 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       builder: (context, constraints) {
         final w = constraints.maxWidth;
         final h = constraints.maxHeight;
-        final size = (w * 0.055).clamp(20.0, 32.0);
-        final rowCount = ((w * 0.6) / (size + 2)).floor().clamp(10, 16);
-        final colCount = ((h * 0.3) / (size + 2)).floor().clamp(8, 14);
+        const stacksPerSide = 17;
+        const gap = 2.0;
+
+        final sizeByWidth = (w * 0.62 - gap * (stacksPerSide - 1)) / stacksPerSide;
+        final sizeByHeight = (h * 0.36 - gap * (stacksPerSide - 1)) / stacksPerSide;
+        final size = sizeByWidth.clamp(16.0, 28.0) < sizeByHeight
+            ? sizeByWidth.clamp(16.0, 28.0)
+            : sizeByHeight.clamp(16.0, 28.0);
 
         return Stack(
           children: [
-            // 上边牌墙
             Positioned(
-              top: h * 0.18,
-              left: w * 0.18,
-              right: w * 0.18,
-              child: Center(child: _buildWallRow(rowCount, size)),
+              top: h * 0.16,
+              left: w * 0.14,
+              right: w * 0.14,
+              child: Center(child: _buildWallRow(stacksPerSide, size)),
             ),
-            // 下边牌墙
             Positioned(
-              bottom: h * 0.3,
-              left: w * 0.18,
-              right: w * 0.18,
-              child: Center(child: _buildWallRow(rowCount, size)),
+              bottom: h * 0.28,
+              left: w * 0.14,
+              right: w * 0.14,
+              child: Center(child: _buildWallRow(stacksPerSide, size)),
             ),
-            // 左边牌墙
             Positioned(
-              left: w * 0.08,
-              top: h * 0.28,
-              child: _buildWallColumn(colCount, size),
+              left: w * 0.1,
+              top: h * 0.24,
+              child: _buildWallColumn(stacksPerSide, size),
             ),
-            // 右边牌墙
             Positioned(
-              right: w * 0.08,
-              top: h * 0.28,
-              child: _buildWallColumn(colCount, size),
+              right: w * 0.1,
+              top: h * 0.24,
+              child: _buildWallColumn(stacksPerSide, size),
             ),
-            // 剩余牌数显示
             Positioned(
               top: h * 0.26,
               left: 0,
@@ -1027,115 +1027,75 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
-  // 牌桌中央：各家打出的牌
+  // 牌桌中央：各家打出的牌（中央方阵）
   Widget _buildPlayedTiles() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final screenWidth = constraints.maxWidth;
-        
+        final w = constraints.maxWidth;
+        final tileSize = (w * 0.04).clamp(18.0, 26.0);
+
         return Stack(
           children: [
-            // 自己的打出的牌（下方）
             if (_game.players[0].playedTiles.isNotEmpty)
-              Positioned(
-                bottom: 100,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: _buildPlayedRow(_game.players[0], 0),
-                ),
+              Align(
+                alignment: const Alignment(0, 0.35),
+                child: _buildPlayedGrid(_game.players[0], tileSize, rotate: 0),
               ),
-            // 上家的打出的牌（上方）
             if (_game.players[3].playedTiles.isNotEmpty)
-              Positioned(
-                top: 280,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: _buildPlayedRow(_game.players[3], 3),
-                ),
+              Align(
+                alignment: const Alignment(0, -0.35),
+                child: _buildPlayedGrid(_game.players[3], tileSize, rotate: 0),
               ),
-            // 左家的打出的牌（左侧）
             if (_game.players[2].playedTiles.isNotEmpty)
-              Positioned(
-                left: 100,
-                top: screenWidth * 0.4,
-                child: _buildPlayedColumn(_game.players[2], 2),
+              Align(
+                alignment: const Alignment(-0.6, 0),
+                child: _buildPlayedGrid(_game.players[2], tileSize, rotate: 1.5708),
               ),
-            // 右家的打出的牌（右侧）
             if (_game.players[1].playedTiles.isNotEmpty)
-              Positioned(
-                right: 100,
-                top: screenWidth * 0.4,
-                child: _buildPlayedColumn(_game.players[1], 1),
+              Align(
+                alignment: const Alignment(0.6, 0),
+                child: _buildPlayedGrid(_game.players[1], tileSize, rotate: -1.5708),
               ),
           ],
         );
       },
     );
   }
-  
-  // 横向排列的打出的牌（自己/上家）
-  Widget _buildPlayedRow(Player player, int playerIndex) {
-    final isLastPlayed = _game.lastPlayedTile != null && 
+
+  Widget _buildPlayedGrid(Player player, double tileSize, {double rotate = 0}) {
+    final isLastPlayed = _game.lastPlayedTile != null &&
         player.playedTiles.isNotEmpty &&
         player.playedTiles.last.id == _game.lastPlayedTile!.id;
-    
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+
+    const columns = 6;
+    const spacing = 2.0;
+    final tiles = player.playedTiles;
+
+    final grid = Container(
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: Colors.black26,
         borderRadius: BorderRadius.circular(8),
         border: isLastPlayed ? Border.all(color: Colors.red, width: 2) : null,
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (int i = 0; i < player.playedTiles.length; i++)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 1),
-              child: MahjongTileWidget(
-                tile: player.playedTiles[i],
-                size: 25, // 手牌2/3
-                isSelected: i == player.playedTiles.length - 1 && isLastPlayed, // 最后一张红框
-              ),
-            ),
-        ],
+      child: SizedBox(
+        width: columns * tileSize + (columns - 1) * spacing,
+        child: Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: List.generate(tiles.length, (i) {
+            return MahjongTileWidget(
+              tile: tiles[i],
+              size: tileSize,
+              isSelected: i == tiles.length - 1 && isLastPlayed,
+            );
+          }),
+        ),
       ),
     );
-  }
-  
-  // 纵向排列的打出的牌（左家/右家）
-  Widget _buildPlayedColumn(Player player, int playerIndex) {
-    final isLastPlayed = _game.lastPlayedTile != null && 
-        player.playedTiles.isNotEmpty &&
-        player.playedTiles.last.id == _game.lastPlayedTile!.id;
-    
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.black26,
-        borderRadius: BorderRadius.circular(8),
-        border: isLastPlayed ? Border.all(color: Colors.red, width: 2) : null,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (int i = 0; i < player.playedTiles.length; i++)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 1),
-              child: Transform.rotate(
-                angle: playerIndex == 2 ? 1.5708 : -1.5708, // 垂直显示
-                child: MahjongTileWidget(
-                  tile: player.playedTiles[i],
-                  size: 25,
-                  isSelected: i == player.playedTiles.length - 1 && isLastPlayed,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
+
+    if (rotate == 0) return grid;
+    return Transform.rotate(angle: rotate, child: grid);
   }
   
   Widget _buildDiceSection() {
