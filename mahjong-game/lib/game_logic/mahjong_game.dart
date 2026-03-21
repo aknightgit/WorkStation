@@ -114,10 +114,9 @@ class MahjongGame {
   }
 
   void rollDice() {
-    // 使用系统随机，避免固定点数
-    final random = Random();
-    diceValues[0] = random.nextInt(6) + 1;
-    diceValues[1] = random.nextInt(6) + 1;
+    // 使用同一随机源，避免重复种子
+    diceValues[0] = _random.nextInt(6) + 1;
+    diceValues[1] = _random.nextInt(6) + 1;
     if (diceValues[0] == diceValues[1]) {
       roundMultiplier = (diceValues[0] == 1 || diceValues[0] == 4) ? 4 : 2;
     } else {
@@ -160,6 +159,20 @@ class MahjongGame {
     players[dealerIndex].handTiles.add(tiles[wallIndex++]);
 
     for (final p in players) {
+      bool replaced = true;
+      while (replaced) {
+        replaced = false;
+        final idx = p.handTiles.indexWhere((t) => t.isHua && (wildTile == null || t.type != wildTile!.type));
+        if (idx >= 0) {
+          final flower = p.handTiles.removeAt(idx);
+          p.drawFlowerTile(flower);
+          final repl = drawTile(p, afterKong: true);
+          if (repl == null) {
+            break;
+          }
+          replaced = true;
+        }
+      }
       p.sortHand();
     }
   }
