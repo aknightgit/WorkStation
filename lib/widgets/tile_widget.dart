@@ -10,6 +10,7 @@ class MahjongTileWidget extends StatelessWidget {
   final bool isGray;
   final bool selectable;
   final bool showBack;
+  final bool useModernFace;
   final VoidCallback? onTap;
 
   const MahjongTileWidget({
@@ -20,6 +21,7 @@ class MahjongTileWidget extends StatelessWidget {
     this.isGray = false,
     this.selectable = false,
     this.showBack = false,
+    this.useModernFace = true,
     this.onTap,
   });
 
@@ -59,8 +61,40 @@ class MahjongTileWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    String imageName = _getTileImageName();
-    
+    final imageName = _getTileImageName();
+
+    Widget faceChild;
+    if (showBack) {
+      faceChild = SvgPicture.asset(
+        'assets/images/tiles/Regular/$imageName.svg',
+        width: size,
+        height: size * 1.5,
+        fit: BoxFit.contain,
+      );
+    } else if (useModernFace) {
+      faceChild = _buildModernFace();
+    } else {
+      faceChild = SvgPicture.asset(
+        'assets/images/tiles/Regular/$imageName.svg',
+        width: size,
+        height: size * 1.5,
+        fit: BoxFit.contain,
+        placeholderBuilder: (context) => Container(
+          color: Colors.white,
+          child: Center(
+            child: Text(
+              tile.displayName,
+              style: TextStyle(
+                fontSize: size * 0.4,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return GestureDetector(
       onTap: selectable ? onTap : null,
       child: Container(
@@ -89,57 +123,98 @@ class MahjongTileWidget extends StatelessWidget {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(3),
           child: ColorFiltered(
-            colorFilter: isGray 
-              ? const ColorFilter.mode(Colors.grey, BlendMode.saturation) 
-              : const ColorFilter.mode(Colors.transparent, BlendMode.multiply),
+            colorFilter: isGray
+                ? const ColorFilter.mode(Colors.grey, BlendMode.saturation)
+                : const ColorFilter.mode(Colors.transparent, BlendMode.multiply),
             child: Container(
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
                     Colors.white,
-                    const Color(0xFFEFEFEF),
+                    Color(0xFFEFEFEF),
                   ],
                 ),
               ),
-              child: (imageName == 'Regular-Blank' && !showBack)
-                  ? Center(
-                      child: Text(
-                        tile.displayName,
-                        style: TextStyle(
-                          fontSize: size * 0.4,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    )
-                  : SvgPicture.asset(
-                      'assets/images/tiles/Regular/$imageName.svg',
-                      width: size,
-                      height: size * 1.5,
-                      fit: BoxFit.contain,
-                      placeholderBuilder: (context) => Container(
-                        color: Colors.white,
-                        child: Center(
-                          child: Text(
-                            tile.displayName,
-                            style: TextStyle(
-                              fontSize: size * 0.4,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+              child: faceChild,
             ),
           ),
         ),
       ),
     );
   }
+
+  Widget _buildModernFace() {
+    final color = _modernTextColor();
+    if (tile.suit == TileSuit.wan ||
+        tile.suit == TileSuit.tong ||
+        tile.suit == TileSuit.tiao) {
+      final suitChar = tile.suit == TileSuit.wan
+          ? '万'
+          : (tile.suit == TileSuit.tong ? '筒' : '条');
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '${tile.number}',
+              style: TextStyle(
+                fontSize: size * 0.7,
+                fontWeight: FontWeight.w800,
+                color: color,
+                height: 1,
+              ),
+            ),
+            Text(
+              suitChar,
+              style: TextStyle(
+                fontSize: size * 0.32,
+                fontWeight: FontWeight.w700,
+                color: color,
+                height: 1,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Center(
+      child: Text(
+        tile.displayName,
+        style: TextStyle(
+          fontSize: size * 0.6,
+          fontWeight: FontWeight.w800,
+          color: color,
+          height: 1,
+        ),
+      ),
+    );
+  }
+
+  Color _modernTextColor() {
+    switch (tile.suit) {
+      case TileSuit.wan:
+        return const Color(0xFFD32F2F);
+      case TileSuit.tong:
+        return const Color(0xFF1565C0);
+      case TileSuit.tiao:
+        return const Color(0xFF2E7D32);
+      case TileSuit.feng:
+        return const Color(0xFF5D4037);
+      case TileSuit.jian:
+        if (tile.number == 1) return const Color(0xFFD32F2F); // 中
+        if (tile.number == 2) return const Color(0xFF2E7D32); // 发
+        return const Color(0xFF1565C0); // 白
+      case TileSuit.hua:
+        return const Color(0xFF6A1B9A);
+      default:
+        return Colors.black87;
+    }
+  }
 }
+
 
 /// 牌池组件
 class TilePoolWidget extends StatelessWidget {
