@@ -28,9 +28,6 @@ class GameHomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final game = MahjongGame();
-    game.initGame();
-    
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -52,6 +49,8 @@ class GameHomeScreen extends StatelessWidget {
               const SizedBox(height: 60),
               ElevatedButton.icon(
                 onPressed: () {
+                  final game = MahjongGame();
+                  game.initGame();
                   Navigator.push(context, MaterialPageRoute(builder: (_) => GameScreen(game: game)));
                 },
                 icon: const Icon(Icons.person),
