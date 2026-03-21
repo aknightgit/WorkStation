@@ -114,8 +114,10 @@ class MahjongGame {
   }
 
   void rollDice() {
-    diceValues[0] = _random.nextInt(6) + 1;
-    diceValues[1] = _random.nextInt(6) + 1;
+    // 使用时间种子确保每次随机
+    final random = Random(DateTime.now().microsecondsSinceEpoch);
+    diceValues[0] = random.nextInt(6) + 1;
+    diceValues[1] = random.nextInt(6) + 1;
     if (diceValues[0] == diceValues[1]) {
       roundMultiplier = (diceValues[0] == 1 || diceValues[0] == 4) ? 4 : 2;
     } else {

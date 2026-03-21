@@ -146,7 +146,11 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _onDiceClick() {
-    if (!_game.diceRolled && _isRollingDice) {
+    if (_isRollingDice && _diceClickCount < 2) {
+      // 重置计数器以便再次掷骰
+      setState(() {
+        _game.diceRolled = false;
+      });
       _diceController.forward(from: 0);
     }
   }
@@ -654,15 +658,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           right: 0,
           child: Center(child: _buildPlayerAvatar(1)),
         ),
-        // 左家 (西家) - 下移到顶部1/3
+        // 左家 (西家) - 再下移30%
         Positioned(
-          top: 180,
+          top: 280,
           left: 20,
           child: _buildPlayerAvatar(2),
         ),
-        // 自己 (东家) - 下移到顶部1/3
+        // 自己 (东家) - 再下移30%
         Positioned(
-          top: 180,
+          top: 280,
           right: 20,
           child: _buildPlayerAvatar(0),
         ),
@@ -975,41 +979,56 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
+  // 玩家操作菜单 - 右下角，摸最大，其他围绕
   Widget _buildRightActionMenu() {
     return Positioned(
       right: 20,
-      top: 200,
+      bottom: 20,
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.black87,
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(20),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildActionBtn('摸', Colors.blue, _drawCard, enabled: _canDraw),
-            const SizedBox(height: 4),
-            _buildActionBtn('吃', Colors.orange, _chow, enabled: _availableActions['chow'] ?? false),
-            _buildActionBtn('碰', Colors.blue, _pong, enabled: _availableActions['pong'] ?? false),
-            _buildActionBtn('胡', Colors.red, _hu, enabled: _availableActions['hu'] ?? false),
-            _buildActionBtn('杠', Colors.teal, _kong, enabled: _availableActions['kong'] ?? false),
-            _buildActionBtn('过', Colors.grey, _skip, enabled: _pendingTile != null),
+            // 摸 - 最大，在中间
+            _buildActionBtn('摸', Colors.red, _drawCard, enabled: _canDraw, size: 'large'),
+            const SizedBox(height: 8),
+            // 其他按钮围绕在摸周围
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildActionBtn('吃', Colors.orange, _chow, enabled: _availableActions['chow'] ?? false, size: 'small'),
+                const SizedBox(width: 4),
+                _buildActionBtn('碰', Colors.blue, _pong, enabled: _availableActions['pong'] ?? false, size: 'small'),
+                const SizedBox(width: 4),
+                _buildActionBtn('胡', Colors.yellow, _hu, enabled: _availableActions['hu'] ?? false, size: 'small'),
+                const SizedBox(width: 4),
+                _buildActionBtn('杠', Colors.teal, _kong, enabled: _availableActions['kong'] ?? false, size: 'small'),
+              ],
+            ),
+            const SizedBox(height: 8),
+            _buildActionBtn('过', Colors.grey, _skip, enabled: _pendingTile != null, size: 'small'),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildActionBtn(String text, Color color, VoidCallback onPressed, {bool enabled = true}) {
+  Widget _buildActionBtn(String text, Color color, VoidCallback onPressed, {bool enabled = true, String size = 'small'}) {
+    final isLarge = size == 'large';
     return ElevatedButton(
       onPressed: enabled ? onPressed : null,
       style: ElevatedButton.styleFrom(
         backgroundColor: enabled ? color : Colors.grey,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        minimumSize: const Size(50, 36),
+        padding: isLarge 
+            ? const EdgeInsets.symmetric(horizontal: 24, vertical: 16)
+            : const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        minimumSize: isLarge ? const Size(70, 50) : const Size(40, 30),
       ),
-      child: Text(text, style: const TextStyle(fontSize: 14)),
+      child: Text(text, style: TextStyle(fontSize: isLarge ? 18 : 12, color: Colors.white)),
     );
   }
 }
