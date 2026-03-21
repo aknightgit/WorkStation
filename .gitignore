@@ -1,0 +1,9 @@
+# Flutter build artifacts
+mahjong-game/build/
+mahjong-game/.dart_tool/
+mahjong-game/.flutter-plugins
+mahjong-game/.flutter-plugins-dependencies
+mahjong-game/.packages
+
+# Misc
+.DS_Store

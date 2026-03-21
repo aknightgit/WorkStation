@@ -13,7 +13,7 @@ DB_CONFIG = {
     'port': 33061,
     'user': 'openclaw',
     'password': '0penC1aw',
-    'database': 'changqingge',
+    'database': 'openclaw',
     'charset': 'utf8mb4'
 }
 

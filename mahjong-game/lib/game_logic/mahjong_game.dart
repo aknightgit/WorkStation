@@ -144,16 +144,19 @@ class MahjongGame {
   }
 
   void _dealTiles() {
+    // 标准发牌：每人3轮×4张=12张
     for (int r = 0; r < 3; r++) {
       for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 3; j++) {
+        for (int j = 0; j < 4; j++) {
           players[i].handTiles.add(tiles[wallIndex++]);
         }
       }
     }
+    // 每人再发1张（13张）
     for (int i = 0; i < 4; i++) {
       players[i].handTiles.add(tiles[wallIndex++]);
     }
+    // 庄家补一张（14张）
     players[dealerIndex].handTiles.add(tiles[wallIndex++]);
 
     for (final p in players) {

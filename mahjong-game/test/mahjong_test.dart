@@ -29,26 +29,26 @@ void main() {
       expect(result, true, reason: '应能胡牌');
     });
     
-    test('对子胡牌', () {
+    test('七对胡牌', () {
       final tiles = [
         Tile(type: TileType.wan1, id: 1),
         Tile(type: TileType.wan1, id: 2),
         Tile(type: TileType.wan2, id: 3),
-        Tile(type: TileType.wan3, id: 4),
-        Tile(type: TileType.wan4, id: 5),
-        Tile(type: TileType.wan5, id: 6),
-        Tile(type: TileType.wan6, id: 7),
-        Tile(type: TileType.wan7, id: 8),
-        Tile(type: TileType.wan8, id: 9),
-        Tile(type: TileType.wan9, id: 10),
-        Tile(type: TileType.tong1, id: 11),
-        Tile(type: TileType.tong1, id: 12),
-        Tile(type: TileType.tong2, id: 13),
-        Tile(type: TileType.tong3, id: 14),
+        Tile(type: TileType.wan2, id: 4),
+        Tile(type: TileType.wan3, id: 5),
+        Tile(type: TileType.wan3, id: 6),
+        Tile(type: TileType.wan4, id: 7),
+        Tile(type: TileType.wan4, id: 8),
+        Tile(type: TileType.wan5, id: 9),
+        Tile(type: TileType.wan5, id: 10),
+        Tile(type: TileType.wan6, id: 11),
+        Tile(type: TileType.wan6, id: 12),
+        Tile(type: TileType.wan7, id: 13),
+        Tile(type: TileType.wan7, id: 14),
       ];
       
       final result = HuJudge.canHu(tiles);
-      expect(result, true, reason: '应能胡牌');
+      expect(result, true, reason: '七对应能胡牌');
     });
     
     test('不满足胡牌条件', () {

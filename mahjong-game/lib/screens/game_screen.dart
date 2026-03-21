@@ -564,6 +564,12 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               // 玩家座位
               _buildPlayerSeats(),
 
+              // 对手手牌（牌背）
+              _buildOpponentHands(),
+
+              // 门口牌（吃碰杠）
+              _buildOpponentMelds(),
+
               // 牌墙
               _buildWall(),
               // 牌桌中央：打出的牌
@@ -607,29 +613,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 child: _buildDealerInfo(),
               ),
 
-              // 待处理牌
-              if (_pendingTile != null)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: 150,
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.yellow,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text('${_game.lastPlayedBy?.name ?? "某玩家"}打出: '),
-                          MahjongTileWidget(tile: _pendingTile!, size: 30),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
 
               // 人类玩家手牌
               Positioned(
@@ -672,31 +655,31 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   Widget _buildPlayerSeats() {
     return Stack(
       children: [
-        // 上家 (北家)
+        // 对家 (西家) - 顶部
         Positioned(
           top: 20,
           left: 0,
           right: 0,
-          child: Center(child: _buildPlayerAvatar(3)),
+          child: Center(child: _buildPlayerAvatar(2)),
         ),
-        // 下家 (南家)
+        // 自己 (东家) - 底部
         Positioned(
           bottom: 220,
           left: 0,
           right: 0,
-          child: Center(child: _buildPlayerAvatar(1)),
+          child: Center(child: _buildPlayerAvatar(0)),
         ),
-        // 左家 (西家) - 再下移30%
+        // 左家 (北家)
         Positioned(
           top: 280,
           left: 20,
-          child: _buildPlayerAvatar(2),
+          child: _buildPlayerAvatar(3),
         ),
-        // 自己 (东家) - 再下移30%
+        // 右家 (南家)
         Positioned(
           top: 280,
           right: 20,
-          child: _buildPlayerAvatar(0),
+          child: _buildPlayerAvatar(1),
         ),
       ],
     );
@@ -706,7 +689,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     final player = _game.players[index];
     final isCurrent = index == _currentPlayerIndex;
     final isDealer = index == _game.dealerIndex;
-    final isLeftRight = index == 0 || index == 2; // 左右家需要特殊显示
 
     return Container(
       padding: const EdgeInsets.all(8),
@@ -753,6 +735,149 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         ],
       ),
     );
+  }
+
+  // 对手手牌（牌背）
+  Widget _buildOpponentHands() {
+    return Stack(
+      children: [
+        // 对家（上方） - 玩家2
+        Positioned(
+          top: 110,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: _buildBackRow(_game.players[2].handCount, 18),
+          ),
+        ),
+        // 左家（左侧） - 玩家3
+        Positioned(
+          left: 40,
+          top: 250,
+          child: _buildBackColumn(_game.players[3].handCount, 16, rotate: true),
+        ),
+        // 右家（右侧） - 玩家1
+        Positioned(
+          right: 40,
+          top: 250,
+          child: _buildBackColumn(_game.players[1].handCount, 16, rotate: true),
+        ),
+      ],
+    );
+  }
+
+  // 门口牌（吃碰杠）
+  Widget _buildOpponentMelds() {
+    return Stack(
+      children: [
+        // 对家门口牌
+        if (_game.players[2].allMelds.isNotEmpty)
+          Positioned(
+            top: 150,
+            left: 0,
+            right: 0,
+            child: Center(child: _buildMeldRow(_game.players[2], 22)),
+          ),
+        // 左家门口牌
+        if (_game.players[3].allMelds.isNotEmpty)
+          Positioned(
+            left: 80,
+            top: 300,
+            child: _buildMeldColumn(_game.players[3], 20, rotate: true),
+          ),
+        // 右家门口牌
+        if (_game.players[1].allMelds.isNotEmpty)
+          Positioned(
+            right: 80,
+            top: 300,
+            child: _buildMeldColumn(_game.players[1], 20, rotate: true),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildBackRow(int count, double size) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(count.clamp(0, 14), (i) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 1),
+        child: MahjongTileWidget(
+          tile: Tile(type: TileType.wan1, id: -1),
+          size: size,
+          showBack: true,
+        ),
+      )),
+    );
+  }
+
+  Widget _buildBackColumn(int count, double size, {bool rotate = false}) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(count.clamp(0, 14), (i) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 1),
+        child: rotate
+            ? Transform.rotate(
+                angle: 1.5708,
+                child: MahjongTileWidget(
+                  tile: Tile(type: TileType.wan1, id: -1),
+                  size: size,
+                  showBack: true,
+                ),
+              )
+            : MahjongTileWidget(
+                tile: Tile(type: TileType.wan1, id: -1),
+                size: size,
+                showBack: true,
+              ),
+      )),
+    );
+  }
+
+  Widget _buildMeldRow(Player player, double size) {
+    final tiles = <Widget>[];
+    for (final meld in player.exposedMelds) {
+      for (final t in meld) {
+        tiles.add(Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 1),
+          child: MahjongTileWidget(tile: t, size: size),
+        ));
+      }
+    }
+    for (final meld in player.concealedMelds) {
+      for (final t in meld) {
+        tiles.add(Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 1),
+          child: MahjongTileWidget(tile: t, size: size, showBack: true),
+        ));
+      }
+    }
+    return Row(mainAxisSize: MainAxisSize.min, children: tiles);
+  }
+
+  Widget _buildMeldColumn(Player player, double size, {bool rotate = false}) {
+    final tiles = <Widget>[];
+    void addTile(Tile t, {bool back = false}) {
+      tiles.add(Padding(
+        padding: const EdgeInsets.symmetric(vertical: 1),
+        child: rotate
+            ? Transform.rotate(
+                angle: 1.5708,
+                child: MahjongTileWidget(tile: t, size: size, showBack: back),
+              )
+            : MahjongTileWidget(tile: t, size: size, showBack: back),
+      ));
+    }
+    for (final meld in player.exposedMelds) {
+      for (final t in meld) {
+        addTile(t, back: false);
+      }
+    }
+    for (final meld in player.concealedMelds) {
+      for (final t in meld) {
+        addTile(t, back: true);
+      }
+    }
+    return Column(mainAxisSize: MainAxisSize.min, children: tiles);
   }
 
   // 梯形麻将桌布
@@ -951,7 +1076,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               child: MahjongTileWidget(
                 tile: player.playedTiles[i],
                 size: 25, // 手牌2/3
-                isGray: playerIndex != 0, // 别人是牌背
                 isSelected: i == player.playedTiles.length - 1 && isLastPlayed, // 最后一张红框
               ),
             ),
@@ -984,7 +1108,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 child: MahjongTileWidget(
                   tile: player.playedTiles[i],
                   size: 25,
-                  isGray: playerIndex != 0,
                   isSelected: i == player.playedTiles.length - 1 && isLastPlayed,
                 ),
               ),
