@@ -64,16 +64,17 @@ class MahjongTileWidget extends StatelessWidget {
         width: size,
         height: size * 1.5,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(4),
+          color: isGray ? Colors.grey.shade700 : Colors.white, // 白色底增加对比度
+          borderRadius: BorderRadius.circular(6),
           border: Border.all(
-            color: isSelected ? Colors.red : Colors.grey.shade600,
+            color: isSelected ? Colors.red : Colors.black,
             width: isSelected ? 3 : 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.4), // 增加阴影对比度
-              blurRadius: 4,
-              offset: const Offset(2, 2),
+              color: Colors.black.withOpacity(0.5), // 增加阴影对比度
+              blurRadius: 6,
+              offset: const Offset(2, 3),
             ),
           ],
         ),
