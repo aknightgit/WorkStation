@@ -344,13 +344,45 @@ class MahjongGame {
     final payments = <Player, int>{};
 
     if (isSelfDrawn) {
+      // 自摸结算
+      // 找到赢家与所有其他玩家的包牌关系
       for (final player in players) {
-        if (player != winner) {
+        if (player == winner) continue;
+        
+        final baoMultiplier = calculateBaoMultiplier(winner, player);
+        
+        if (baoMultiplier >= 5) {
+          // 包四家：对方直接付×5，其他人不付
+          payments[player] = totalPoints * 5;
+        } else if (baoMultiplier >= 3) {
+          // 包三家：互包方付×3，其他输家付×1
+          payments[player] = totalPoints * 3;
+        } else {
+          // 无包牌关系，付×1
           payments[player] = totalPoints;
         }
       }
     } else if (lastPlayedBy != null && lastPlayedBy != winner) {
-      payments[lastPlayedBy!] = totalPoints;
+      // 放冲结算
+      final uploader = lastPlayedBy!;
+      final uploaderBao = calculateBaoMultiplier(winner, uploader);
+      
+      if (uploaderBao > 1) {
+        // 互包玩家互相放冲 → 2倍
+        payments[uploader] = totalPoints * 2;
+      } else {
+        payments[uploader] = totalPoints;
+      }
+      
+      // 其他有互包关系的输家，赔付 = 放冲者输掉的点数
+      for (final player in players) {
+        if (player == winner || player == uploader) continue;
+        
+        final baoMultiplier = calculateBaoMultiplier(winner, player);
+        if (baoMultiplier > 1) {
+          payments[player] = payments[uploader]!;
+        }
+      }
     }
 
     return SettlementResult(
