@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../models/tile_model.dart';
 
 /// 麻将牌面组件
@@ -50,8 +49,7 @@ class MahjongTileWidget extends StatelessWidget {
         else if (tile.number == 3) name = 'Regular-Chun';
         break;
       case TileSuit.hua:
-        if (tile.number == 1) name = 'Regular-Front';
-        else name = 'Regular-Blank';
+        name = 'Regular-Front';
         break;
       default:
         name = 'Regular-Back';
@@ -65,33 +63,22 @@ class MahjongTileWidget extends StatelessWidget {
 
     Widget faceChild;
     if (showBack) {
-      faceChild = SvgPicture.asset(
-        'assets/images/tiles/Regular/$imageName.svg',
+      faceChild = Image.asset(
+        'assets/images/tiles/Regular/$imageName.png',
         width: size,
         height: size * 1.5,
         fit: BoxFit.contain,
+        errorBuilder: (context, error, stack) => _buildFallback(),
       );
     } else if (useModernFace) {
       faceChild = _buildModernFace();
     } else {
-      faceChild = SvgPicture.asset(
-        'assets/images/tiles/Regular/$imageName.svg',
+      faceChild = Image.asset(
+        'assets/images/tiles/Regular/$imageName.png',
         width: size,
         height: size * 1.5,
         fit: BoxFit.contain,
-        placeholderBuilder: (context) => Container(
-          color: Colors.white,
-          child: Center(
-            child: Text(
-              tile.displayName,
-              style: TextStyle(
-                fontSize: size * 0.4,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-          ),
-        ),
+        errorBuilder: (context, error, stack) => _buildFallback(),
       );
     }
 
@@ -140,6 +127,19 @@ class MahjongTileWidget extends StatelessWidget {
               child: faceChild,
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFallback() {
+    return Center(
+      child: Text(
+        tile.displayName,
+        style: TextStyle(
+          fontSize: size * 0.4,
+          fontWeight: FontWeight.bold,
+          color: Colors.black87,
         ),
       ),
     );
