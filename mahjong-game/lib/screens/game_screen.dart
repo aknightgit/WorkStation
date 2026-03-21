@@ -8,13 +8,18 @@ import '../widgets/tile_widget.dart';
 class TrapezoidPainter extends CustomPainter {
   final double topWidth;
   final double bottomWidth;
-  final Color color;
+  final Color topColor;
+  final Color bottomColor;
 
-  TrapezoidPainter({required this.topWidth, required this.bottomWidth, required this.color});
+  TrapezoidPainter({
+    required this.topWidth,
+    required this.bottomWidth,
+    required this.topColor,
+    required this.bottomColor,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = color..style = PaintingStyle.fill;
     final height = size.height;
     final topOffset = (bottomWidth - topWidth) / 2;
 
@@ -25,12 +30,21 @@ class TrapezoidPainter extends CustomPainter {
       ..lineTo(0, height)
       ..close();
 
+    final rect = Rect.fromLTWH(0, 0, bottomWidth, height);
+    final paint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [topColor, bottomColor],
+      ).createShader(rect)
+      ..style = PaintingStyle.fill;
+
     canvas.drawPath(path, paint);
-    
+
     final borderPaint = Paint()
-      ..color = Colors.green.shade800
+      ..color = Colors.green.shade900
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 4;
+      ..strokeWidth = 3;
     canvas.drawPath(path, borderPaint);
   }
 
@@ -909,7 +923,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             painter: TrapezoidPainter(
               topWidth: topWidth,
               bottomWidth: bottomWidth,
-              color: const Color(0xFF2E7D32),
+              topColor: const Color(0xFF2E7D32),
+              bottomColor: const Color(0xFF1B5E20),
             ),
           ),
         );
