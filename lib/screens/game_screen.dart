@@ -4,6 +4,40 @@ import '../models/player_model.dart';
 import '../game_logic/mahjong_game.dart';
 import '../widgets/tile_widget.dart';
 
+// 梯形麻将桌布Painter
+class TrapezoidPainter extends CustomPainter {
+  final double topWidth;
+  final double bottomWidth;
+  final Color color;
+
+  TrapezoidPainter({required this.topWidth, required this.bottomWidth, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color..style = PaintingStyle.fill;
+    final height = size.height;
+    final topOffset = (bottomWidth - topWidth) / 2;
+
+    final path = Path()
+      ..moveTo(topOffset, 0)
+      ..lineTo(topOffset + topWidth, 0)
+      ..lineTo(bottomWidth, height)
+      ..lineTo(0, height)
+      ..close();
+
+    canvas.drawPath(path, paint);
+    
+    final borderPaint = Paint()
+      ..color = Colors.green.shade800
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4;
+    canvas.drawPath(path, borderPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
 class GameScreen extends StatefulWidget {
   final MahjongGame game;
 
@@ -62,19 +96,33 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     super.dispose();
   }
 
+  int _diceClickCount = 0;
+  
   void _handleDiceAnimationStatus(AnimationStatus status) {
-    if (status != AnimationStatus.completed || !_isRollingDice || _game.diceRolled) {
+    if (status != AnimationStatus.completed || !_isRollingDice) {
       return;
     }
 
     _game.rollDice();
-    _diceController.stop();
-    _diceController.reset();
+    _diceClickCount++;
+    
+    if (_diceClickCount < 2) {
+      // 还可以再掷一次
+      _diceController.stop();
+      _diceController.reset();
+      _diceController.forward(from: 0);
+    } else {
+      // 已经掷了2次，结束掷骰
+      _diceController.stop();
+      _diceController.reset();
+      setState(() {
+        _isRollingDice = false;
+        _diceClickCount = 0;
+      });
+    }
 
     if (!mounted) return;
-    setState(() {
-      _isRollingDice = false;
-    });
+    setState(() {});
   }
 
   void _startGame() {
@@ -480,6 +528,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         child: SafeArea(
           child: Stack(
             children: [
+              // 梯形麻将桌布
+              _buildMahjongTable(),
+              
               // 玩家座位
               _buildPlayerSeats(),
 
@@ -511,11 +562,17 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               if (_isDealing) _buildDealingAnimation(),
 
               // 庄家/倍数提示
+              // 庄家/倍数提示 - 右上角
               Positioned(
                 top: 80,
-                left: 0,
-                right: 0,
-                child: Center(child: _buildGameInfo()),
+                right: 20,
+                child: _buildMultiplierDisplay(),
+              ),
+              // 庄家提示 - 左上角
+              Positioned(
+                top: 80,
+                left: 20,
+                child: _buildDealerInfo(),
               ),
 
               // 待处理牌
@@ -597,15 +654,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           right: 0,
           child: Center(child: _buildPlayerAvatar(1)),
         ),
-        // 左家 (西家)
+        // 左家 (西家) - 下移到顶部1/3
         Positioned(
-          top: 200,
+          top: 180,
           left: 20,
           child: _buildPlayerAvatar(2),
         ),
-        // 自己 (东家)
+        // 自己 (东家) - 下移到顶部1/3
         Positioned(
-          top: 200,
+          top: 180,
           right: 20,
           child: _buildPlayerAvatar(0),
         ),
@@ -664,6 +721,32 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
+  // 梯形麻将桌布
+  Widget _buildMahjongTable() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        final screenHeight = constraints.maxHeight;
+        final tableHeight = screenHeight * 0.65;
+        final bottomWidth = screenWidth;
+        final topWidth = screenWidth * 0.75;
+        
+        return Positioned(
+          left: (screenWidth - bottomWidth) / 2,
+          bottom: 0,
+          child: CustomPaint(
+            size: Size(bottomWidth, tableHeight),
+            painter: TrapezoidPainter(
+              topWidth: topWidth,
+              bottomWidth: bottomWidth,
+              color: const Color(0xFF2E7D32),
+            ),
+          ),
+        );
+      },
+    );
+  }
+  
   Widget _buildWall() {
     return Center(
       child: Container(
@@ -757,6 +840,52 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
+  // 倍数显示 - 右上角
+  Widget _buildMultiplierDisplay() {
+    final roundMult = _game.roundMultiplier;
+    final globalMult = _game.multiplier;
+    final totalMult = roundMult * globalMult;
+    
+    Color textColor;
+    if (totalMult >= 8) {
+      textColor = Colors.red;
+    } else if (totalMult >= 4) {
+      textColor = Colors.orange;
+    } else if (totalMult >= 2) {
+      textColor = Colors.yellow;
+    } else {
+      textColor = Colors.white;
+    }
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.black54,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: textColor, width: 2),
+      ),
+      child: Text(
+        '×$totalMult',
+        style: TextStyle(color: textColor, fontSize: 28, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+  
+  // 庄家显示 - 左上角
+  Widget _buildDealerInfo() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(16)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('🎲 庄 ', style: TextStyle(color: Colors.white70, fontSize: 12)),
+          Text(_game.players[_game.dealerIndex].name, style: const TextStyle(color: Colors.yellow, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+  
   Widget _buildGameInfo() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
