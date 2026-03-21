@@ -21,7 +21,7 @@ class MahjongTileWidget extends StatelessWidget {
     this.isGray = false,
     this.selectable = false,
     this.showBack = false,
-    this.useModernFace = true,
+    this.useModernFace = false,
     this.onTap,
   });
 
