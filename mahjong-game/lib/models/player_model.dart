@@ -130,7 +130,12 @@ class Player {
   bool isWuDuSan({Tile? wildTile}) {
     final hand = handTiles.where((t) => !t.isHua).toList();
     
-    // 去掉百搭
+    // 百搭不可存在
+    if (wildTile != null && hand.any((t) => t.type == wildTile.type)) {
+      return false;
+    }
+
+    // 去掉百搭（确保无百搭后）
     final filtered = wildTile != null 
         ? hand.where((t) => t.type != wildTile.type).toList()
         : hand;

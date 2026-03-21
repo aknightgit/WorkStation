@@ -70,6 +70,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   bool _isDealing = false;
   bool _hasDealt = false;
   bool _mustDiscardAfterClaim = false;
+  bool _canRebel = false;
+  bool _rebelDecided = false;
 
   int _currentPlayerIndex = 0;
   Tile? _lastDrawnTile;
@@ -140,8 +142,14 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     setState(() {});
   }
 
-  void _startGame() {
+  void _startGame({int? nextDealerIndex, int? carryMultiplier}) {
     _game.initGame();
+    if (carryMultiplier != null) {
+      _game.multiplier = carryMultiplier;
+    }
+    if (nextDealerIndex != null) {
+      _game.nextDealerIndex = nextDealerIndex;
+    }
 
     setState(() {
       _diceClickCount = 0;
@@ -150,6 +158,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       _isDealing = false;
       _hasDealt = false;
       _mustDiscardAfterClaim = false;
+      _canRebel = false;
+      _rebelDecided = false;
       _lastDrawnTile = null;
       _pendingTile = null;
       _currentPlayerIndex = 0;
@@ -198,10 +208,13 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     await Future.delayed(const Duration(milliseconds: 800));
     if (!mounted) return;
 
+    final canRebel = _game.players[0].isWuDuSan(wildTile: _game.wildTile);
+
     setState(() {
       _isDealing = false;
       _hasDealt = true;
       _currentPlayerIndex = _game.dealerIndex;
+      _canRebel = canRebel && !_rebelDecided;
     });
 
     _doDrawOrPlay();
@@ -350,6 +363,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       _lastDrawnTile = null;
       _pendingTile = tile;
       _mustDiscardAfterClaim = false;
+      if (_canRebel) {
+        _canRebel = false;
+        _rebelDecided = true;
+      }
     });
 
     _nextTurn();
@@ -410,6 +427,44 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       _mustDiscardAfterClaim = false;
     });
     _doDrawTile(afterKong: true);
+  }
+
+  void _rebel() {
+    if (!_canRebel) return;
+    final nextDealer = 0;
+    final nextMultiplier = _game.multiplier * 2 > 8 ? 8 : _game.multiplier * 2;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('我要造反'),
+        content: Text('本局结束，下局翻倍 ×$nextMultiplier\n造反人成为庄家。'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _startGame(nextDealerIndex: nextDealer, carryMultiplier: nextMultiplier);
+            },
+            child: const Text('确认造反'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _declineRebel();
+            },
+            child: const Text('不造反'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _declineRebel() {
+    setState(() {
+      _canRebel = false;
+      _rebelDecided = true;
+    });
   }
 
   void _kong() {
@@ -556,6 +611,12 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   void _drawCard() {
     // 人类玩家摸牌
     if (_canDraw) {
+      if (_canRebel) {
+        setState(() {
+          _canRebel = false;
+          _rebelDecided = true;
+        });
+      }
       _doDrawTile();
     }
   }
@@ -599,6 +660,37 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             children: [
               // 梯形麻将桌布
               _buildMahjongTable(),
+
+              if (_canRebel)
+                Positioned(
+                  top: 120,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.85),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 6,
+                            offset: const Offset(2, 3),
+                          ),
+                        ],
+                      ),
+                      child: const Text(
+                        '我要造反',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               
               // 玩家座位
               _buildPlayerSeats(),
@@ -1375,6 +1467,16 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (_canRebel)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildActionBtn('造反', Colors.red, _rebel, enabled: _canRebel, size: 'small'),
+                  const SizedBox(width: 6),
+                  _buildActionBtn('不造反', Colors.grey, _declineRebel, enabled: _canRebel, size: 'small'),
+                ],
+              ),
+            if (_canRebel) const SizedBox(height: 8),
             // 摸 - 最大，在中间
             _buildActionBtn('摸', Colors.red, _drawCard, enabled: _canDraw, size: 'large'),
             const SizedBox(height: 8),
