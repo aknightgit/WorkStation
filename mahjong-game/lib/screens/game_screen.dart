@@ -1,9 +1,54 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/tile_model.dart';
 import '../models/player_model.dart';
 import '../game_logic/mahjong_game.dart';
 import '../widgets/tile_widget.dart';
+import '../providers/game_provider.dart';
+
+// 梯形麻将桌布Painter
+class TrapezoidPainter extends CustomPainter {
+  final double topWidth;
+  final double bottomWidth;
+  final Color color;
+
+  TrapezoidPainter({
+    required this.topWidth,
+    required this.bottomWidth,
+    required this.color,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    final height = size.height;
+    final topOffset = (bottomWidth - topWidth) / 2;
+
+    final path = Path()
+      ..moveTo(topOffset, 0) // 左上角
+      ..lineTo(topOffset + topWidth, 0) // 右上角
+      ..lineTo(bottomWidth, height) // 右下角
+      ..lineTo(0, height) // 左下角
+      ..close();
+
+    canvas.drawPath(path, paint);
+    
+    // 添加边框
+    final borderPaint = Paint()
+      ..color = Colors.green.shade800
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4;
+    
+    canvas.drawPath(path, borderPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
 
 class GameScreen extends StatefulWidget {
   final MahjongGame game;
@@ -54,7 +99,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _game = widget.game;
 
     _diceController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 400), // 加快4倍
       vsync: this,
     )..addStatusListener(_handleDiceAnimationStatus);
 
@@ -79,14 +124,27 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       return;
     }
 
+    // 每次动画完成都掷一次骰子
     _game.rollDice();
-    _diceController.stop();
-    _diceController.reset();
-
+    
     if (!mounted) return;
-    setState(() {
-      _isRollingDice = false;
-    });
+    
+    // 掷完后刷新UI显示发牌按钮
+    setState(() {});
+    
+    // 如果已经掷了2次，则结束掷骰阶段
+    if (_diceClickCount >= 2) {
+      _diceController.stop();
+      _diceController.reset();
+      setState(() {
+        _isRollingDice = false;
+        _diceClickCount = 0; // 重置计数
+      });
+    } else {
+      // 只掷了1次，还可以再掷一次
+      // 动画控制器已经停止，需要重置以备下次使用
+      _diceController.reset();
+    }
   }
 
   void _startGame() {
@@ -115,17 +173,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     if (!_game.diceRolled && _isRollingDice) {
       _diceClickCount++;
       if (_diceClickCount >= 2) {
-        // 双击后立即掷骰
-        _diceClickCount = 0;
-        _game.rollDice();
-        _diceController.stop();
-        _diceController.reset();
-        if (!mounted) return;
-        setState(() {
-          _isRollingDice = false;
-        });
+        // 第2次点击：掷第2次骰子，之后不能再点
+        _diceController.forward(from: 0);
       } else {
-        // 第一次点击只是开始动画
+        // 第1次点击：开始第1次掷骰动画
         _diceController.forward(from: 0);
       }
     }
@@ -595,6 +646,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         child: SafeArea(
           child: Stack(
             children: [
+              // 梯形麻将桌布
+              _buildMahjongTable(),
+
               // 玩家座位
               _buildPlayerSeats(),
 
@@ -625,12 +679,11 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               // 发牌动画
               if (_isDealing) _buildDealingAnimation(),
 
-              // 庄家/倍数提示
+              // 庄家/倍数提示（右上角）
               Positioned(
                 top: 80,
-                left: 0,
-                right: 0,
-                child: Center(child: _buildGameInfo()),
+                right: 20,
+                child: _buildGameInfo(),
               ),
 
               // 翻倍提示（右上角醒目显示）
@@ -715,15 +768,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           right: 0,
           child: Center(child: _buildPlayerAvatar(1)),
         ),
-        // 左家 (西家)
+        // 左家 (西家) - 下移到顶部1/3
         Positioned(
-          top: 200,
+          top: 180,
           left: 20,
           child: _buildPlayerAvatar(2),
         ),
-        // 自己 (东家)
+        // 自己 (东家) - 下移到顶部1/3
         Positioned(
-          top: 200,
+          top: 180,
           right: 20,
           child: _buildPlayerAvatar(0),
         ),
@@ -774,7 +827,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               Text(player.name, style: const TextStyle(color: Colors.white, fontSize: 12)),
             ],
           ),
-          Text('🀄 ${player.handCount}', style: const TextStyle(color: Colors.white70, fontSize: 11)),
+          Text('🀤 ${player.handCount}', style: const TextStyle(color: Colors.white70, fontSize: 11)),
           if (player.meldCount > 0)
             Text('🎯 ${player.meldCount}', style: const TextStyle(color: Colors.orange, fontSize: 11)),
         ],
@@ -810,9 +863,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // 骰子区域
+          // 骰子区域（掷完2次后不可点击）
           GestureDetector(
-            onTap: _onDiceClick,
+            onTap: _diceClickCount >= 2 ? null : _onDiceClick,
             child: Container(
               padding: const EdgeInsets.all(30),
               decoration: BoxDecoration(
@@ -823,7 +876,11 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    _diceClickCount > 0 ? '🎲 点击两次完成' : '🎲 点击掷骰子',
+                    _diceClickCount >= 2 
+                        ? '🎲 已完成两次' 
+                        : _diceClickCount == 1 
+                            ? '🎲 点击再掷一次' 
+                            : '🎲 点击掷骰子',
                     style: const TextStyle(color: Colors.white, fontSize: 20),
                   ),
                   const SizedBox(height: 20),
@@ -857,7 +914,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           ),
           const SizedBox(width: 20),
           // 发牌按钮 - 带跳动特效
-          if (_game.diceRolled && !_hasDealt)
+          if (_game.diceRolled && !_isDealing && !_hasDealt)
             AnimatedBuilder(
               animation: _dealButtonController,
               builder: (context, child) {
@@ -949,56 +1006,43 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
-  // 翻倍提示 - 右上角独立显示，更醒目
+  // 翻倍提示 - 左上角显示，根据倍数变色
   Widget _buildMultiplierDisplay() {
-    if (!_hasDealt) return const SizedBox.shrink();
-    
     final roundMult = _game.roundMultiplier;
     final globalMult = _game.multiplier;
     final totalMult = roundMult * globalMult;
     
-    if (totalMult <= 1) return const SizedBox.shrink();
+    // 根据倍数确定颜色
+    Color textColor;
+    if (totalMult >= 8) {
+      textColor = Colors.red; // 8倍红色
+    } else if (totalMult >= 4) {
+      textColor = Colors.orange; // 4倍橘色
+    } else if (totalMult >= 2) {
+      textColor = Colors.yellow; // 2倍黄色
+    } else {
+      textColor = Colors.white; // 默认白色
+    }
     
     return Positioned(
       top: 20,
-      right: 20,
+      left: 20,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: totalMult >= 8 
-                ? [Colors.red, Colors.deepOrange]
-                : totalMult >= 4 
-                    ? [Colors.orange, Colors.amber]
-                    : [Colors.green, Colors.lightGreen],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(25),
-          boxShadow: [
-            BoxShadow(
-              color: (totalMult >= 8 ? Colors.red : totalMult >= 4 ? Colors.orange : Colors.green)
-                  .withOpacity(0.6),
-              blurRadius: 15,
-              spreadRadius: 3,
-            ),
-          ],
-          border: Border.all(
-            color: Colors.white.withOpacity(0.8),
-            width: 2,
-          ),
+          color: Colors.black54,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: textColor, width: 2),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.star, color: Colors.white, size: 24),
-            const SizedBox(width: 8),
             Text(
-              '本局倍数: ×$totalMult',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
+              '×$totalMult',
+              style: TextStyle(
+                color: textColor,
+                fontSize: 28,
                 fontWeight: FontWeight.bold,
                 shadows: [
                   Shadow(
@@ -1027,9 +1071,33 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 ),
               ),
             ],
-          ],
-        ),
-      ),
+          ),
+        );
+  }
+
+  // 梯形麻将桌布
+  Widget _buildMahjongTable() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        final screenHeight = constraints.maxHeight;
+        final tableHeight = screenHeight * 0.65; // 约2/3高度
+        final bottomWidth = screenWidth;
+        final topWidth = screenWidth * 0.75; // 顶宽约为底宽的3/4
+        
+        return Positioned(
+          left: (screenWidth - bottomWidth) / 2,
+          bottom: 0,
+          child: CustomPaint(
+            size: Size(bottomWidth, tableHeight),
+            painter: TrapezoidPainter(
+              topWidth: topWidth,
+              bottomWidth: bottomWidth,
+              color: const Color(0xFF2E7D32), // 浅绿色
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1143,12 +1211,14 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   // 圆形动作按钮组件 - 带悬停放大和点击特效
   Widget _CircularActionButton({
+    Key? key,
     required String label,
     required Color color,
     required VoidCallback onPressed,
     required bool isSelected,
   }) {
     return _AnimatedCircleButton(
+      key: key,
       label: label,
       color: color,
       onPressed: () {
@@ -1178,6 +1248,7 @@ class _AnimatedCircleButton extends StatefulWidget {
   final bool isSelected;
 
   const _AnimatedCircleButton({
+    super.key,
     required this.label,
     required this.color,
     required this.onPressed,

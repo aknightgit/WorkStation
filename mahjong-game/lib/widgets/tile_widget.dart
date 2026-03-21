@@ -197,7 +197,6 @@ class HandTilesWidget extends StatelessWidget {
         child: ListView(
           scrollDirection: Axis.horizontal,
           shrinkWrap: true,
-          center: true, // 居中对齐
           children: tileWidgets,
         ),
       ),
