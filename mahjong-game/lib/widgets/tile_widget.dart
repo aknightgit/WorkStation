@@ -188,33 +188,47 @@ class HandTilesWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    List<Widget> tileWidgets = [];
-    
-    for (var tile in tiles) {
-      final isLast = lastDrawnTile != null && tile == lastDrawnTile;
-      tileWidgets.add(
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 1),
-          child: MahjongTileWidget(
-            tile: tile,
-            size: tileSize,
-            selectable: selectable,
-            isSelected: isLast,
-            onTap: selectable && onTileTap != null ? () => onTileTap!(tile) : null,
-          ),
-        ),
-      );
-    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final count = tiles.length;
+        const spacing = 2.0;
+        final maxWidth = constraints.maxWidth;
+        double size = tileSize;
 
-    return SizedBox(
-      height: tileSize * 1.6,
-      child: Center(
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          shrinkWrap: true,
-          children: tileWidgets,
-        ),
-      ),
+        if (count > 0) {
+          final needed = count * size + (count - 1) * spacing;
+          if (needed > maxWidth) {
+            size = (maxWidth - (count - 1) * spacing) / count;
+            size = size.clamp(24.0, tileSize);
+          }
+        }
+
+        final tileWidgets = <Widget>[];
+        for (var i = 0; i < tiles.length; i++) {
+          final tile = tiles[i];
+          final isLast = lastDrawnTile != null && tile == lastDrawnTile;
+          tileWidgets.add(
+            Padding(
+              padding: EdgeInsets.only(right: i == tiles.length - 1 ? 0 : spacing),
+              child: MahjongTileWidget(
+                tile: tile,
+                size: size,
+                selectable: selectable,
+                isSelected: isLast,
+                onTap: selectable && onTileTap != null ? () => onTileTap!(tile) : null,
+              ),
+            ),
+          );
+        }
+
+        return SizedBox(
+          height: size * 1.6,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: tileWidgets,
+          ),
+        );
+      },
     );
   }
 }

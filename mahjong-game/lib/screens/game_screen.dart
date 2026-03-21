@@ -97,6 +97,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   int _diceClickCount = 0;
+  bool _waitingSecondRoll = false;
   
   void _handleDiceAnimationStatus(AnimationStatus status) {
     if (status != AnimationStatus.completed || !_isRollingDice) {
@@ -105,20 +106,18 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
     _game.rollDice();
     _diceClickCount++;
-    
-    if (_diceClickCount < 2) {
-      // 还可以再掷一次
-      _diceController.stop();
-      _diceController.reset();
-      _diceController.forward(from: 0);
+
+    if (_diceClickCount == 1) {
+      // 等待第二次点击再掷一次
+      _waitingSecondRoll = true;
+      _game.diceRolled = false;
     } else {
       // 已经掷了2次，结束掷骰
       _diceController.stop();
       _diceController.reset();
-      setState(() {
-        _isRollingDice = false;
-        _diceClickCount = 0;
-      });
+      _isRollingDice = false;
+      _diceClickCount = 0;
+      _waitingSecondRoll = false;
     }
 
     if (!mounted) return;
@@ -129,6 +128,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _game.initGame();
 
     setState(() {
+      _diceClickCount = 0;
+      _waitingSecondRoll = false;
       _isRollingDice = true;
       _isDealing = false;
       _hasDealt = false;
@@ -146,9 +147,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _onDiceClick() {
-    if (_isRollingDice && _diceClickCount < 2) {
-      // 重置计数器以便再次掷骰
+    if (!_isRollingDice) return;
+    if (_diceClickCount == 0 || _waitingSecondRoll) {
       setState(() {
+        _waitingSecondRoll = false;
         _game.diceRolled = false;
       });
       _diceController.forward(from: 0);
@@ -653,35 +655,44 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildPlayerSeats() {
-    return Stack(
-      children: [
-        // 对家 (西家) - 顶部
-        Positioned(
-          top: 20,
-          left: 0,
-          right: 0,
-          child: Center(child: _buildPlayerAvatar(2)),
-        ),
-        // 自己 (东家) - 底部
-        Positioned(
-          bottom: 220,
-          left: 0,
-          right: 0,
-          child: Center(child: _buildPlayerAvatar(0)),
-        ),
-        // 左家 (北家)
-        Positioned(
-          top: 280,
-          left: 20,
-          child: _buildPlayerAvatar(3),
-        ),
-        // 右家 (南家)
-        Positioned(
-          top: 280,
-          right: 20,
-          child: _buildPlayerAvatar(1),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final h = constraints.maxHeight;
+        final topY = 20.0;
+        final bottomY = h * 0.2;
+        final sideTop = h * 0.55; // 左右两家下移
+
+        return Stack(
+          children: [
+            // 对家 (西家) - 顶部
+            Positioned(
+              top: topY,
+              left: 0,
+              right: 0,
+              child: Center(child: _buildPlayerAvatar(2)),
+            ),
+            // 自己 (东家) - 底部
+            Positioned(
+              bottom: bottomY,
+              left: 0,
+              right: 0,
+              child: Center(child: _buildPlayerAvatar(0)),
+            ),
+            // 左家 (北家)
+            Positioned(
+              top: sideTop,
+              left: 20,
+              child: _buildPlayerAvatar(3),
+            ),
+            // 右家 (南家)
+            Positioned(
+              top: sideTop,
+              right: 20,
+              child: _buildPlayerAvatar(1),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -910,54 +921,43 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   Widget _buildWall() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final screenWidth = constraints.maxWidth;
-        final screenHeight = constraints.maxHeight;
-        
-        // 牌墙参数
-        const int tilesPerSide = 6; // 每边6排
-        const double maxTileSize = 35; // 最远端（最大）
-        const double minTileSize = 25; // 最近端（最小）
-        const double gap = 3;
-        
+        final w = constraints.maxWidth;
+        final h = constraints.maxHeight;
+        final size = (w * 0.055).clamp(20.0, 32.0);
+        final rowCount = ((w * 0.6) / (size + 2)).floor().clamp(10, 16);
+        final colCount = ((h * 0.3) / (size + 2)).floor().clamp(8, 14);
+
         return Stack(
           children: [
-            // 上边牌墙（北）- 从左到右，由远到近
-            for (int i = 0; i < tilesPerSide; i++)
-              Positioned(
-                top: 150 - (i * 3), // 逐渐向下
-                left: screenWidth * 0.35 + (i * (minTileSize + gap)),
-                child: _buildWallTile(maxTileSize - (i * 2)),
-              ),
-            // 下边牌墙（南）- 从左到右，由近到远
-            for (int i = 0; i < tilesPerSide; i++)
-              Positioned(
-                bottom: 250 + (i * 3),
-                left: screenWidth * 0.35 + (i * (minTileSize + gap)),
-                child: _buildWallTile(maxTileSize - (i * 2)),
-              ),
-            // 左边牌墙（西）- 从上到下
-            for (int i = 0; i < tilesPerSide; i++)
-              Positioned(
-                left: 30 + (i * 3),
-                top: screenHeight * 0.35 + (i * (minTileSize + gap)),
-                child: Transform.rotate(
-                  angle: 1.5708, // 90度
-                  child: _buildWallTile(maxTileSize - (i * 2)),
-                ),
-              ),
-            // 右边牌墙（东）- 从上到下
-            for (int i = 0; i < tilesPerSide; i++)
-              Positioned(
-                right: 30 + (i * 3),
-                top: screenHeight * 0.35 + (i * (minTileSize + gap)),
-                child: Transform.rotate(
-                  angle: 1.5708,
-                  child: _buildWallTile(maxTileSize - (i * 2)),
-                ),
-              ),
+            // 上边牌墙
+            Positioned(
+              top: h * 0.18,
+              left: w * 0.18,
+              right: w * 0.18,
+              child: Center(child: _buildWallRow(rowCount, size)),
+            ),
+            // 下边牌墙
+            Positioned(
+              bottom: h * 0.3,
+              left: w * 0.18,
+              right: w * 0.18,
+              child: Center(child: _buildWallRow(rowCount, size)),
+            ),
+            // 左边牌墙
+            Positioned(
+              left: w * 0.08,
+              top: h * 0.28,
+              child: _buildWallColumn(colCount, size),
+            ),
+            // 右边牌墙
+            Positioned(
+              right: w * 0.08,
+              top: h * 0.28,
+              child: _buildWallColumn(colCount, size),
+            ),
             // 剩余牌数显示
             Positioned(
-              top: 200,
+              top: h * 0.26,
               left: 0,
               right: 0,
               child: Center(
@@ -979,29 +979,50 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       },
     );
   }
-  
-  // 牌背朝上的牌
-  Widget _buildWallTile(double size) {
-    return Container(
-      width: size,
-      height: size * 1.5,
-      decoration: BoxDecoration(
-        color: Colors.green.shade800,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.green.shade900, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.4),
-            blurRadius: 2,
-            offset: const Offset(1, 1),
-          ),
-        ],
-      ),
-      child: Center(
-        child: Text(
-          '🀇',
-          style: TextStyle(fontSize: size * 0.6, color: Colors.green.shade700),
+
+  Widget _buildWallRow(int count, double size) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(
+        count,
+        (i) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 1),
+          child: _buildWallStack(size),
         ),
+      ),
+    );
+  }
+
+  Widget _buildWallColumn(int count, double size) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(
+        count,
+        (i) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 1),
+          child: Transform.rotate(
+            angle: 1.5708,
+            child: _buildWallStack(size),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWallStack(double size) {
+    final backTile = MahjongTileWidget(
+      tile: Tile(type: TileType.wan1, id: -1),
+      size: size,
+      showBack: true,
+    );
+    return SizedBox(
+      width: size,
+      height: size * 1.5 * 2 + 2,
+      child: Stack(
+        children: [
+          Positioned(top: 0, child: backTile),
+          Positioned(top: size * 0.35, child: backTile),
+        ],
       ),
     );
   }
@@ -1118,6 +1139,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
   
   Widget _buildDiceSection() {
+    final diceLabel = _diceClickCount == 0
+        ? '🎲 点击掷骰子'
+        : (_waitingSecondRoll ? '🎲 再掷一次（第二次）' : '🎲 掷骰中...');
+
     return Center(
       child: GestureDetector(
         onTap: _onDiceClick,
@@ -1130,8 +1155,14 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('🎲 点击掷骰子', style: TextStyle(color: Colors.white, fontSize: 20)),
-              const SizedBox(height: 20),
+              Text(diceLabel, style: const TextStyle(color: Colors.white, fontSize: 20)),
+              const SizedBox(height: 14),
+              if (_diceClickCount > 0)
+                Text(
+                  '点数：${_game.diceValues[0]} + ${_game.diceValues[1]}',
+                  style: const TextStyle(color: Colors.white70, fontSize: 16),
+                ),
+              const SizedBox(height: 16),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
