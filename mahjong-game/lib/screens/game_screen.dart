@@ -355,9 +355,16 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _nextTurn();
   }
 
+  Player _actingPlayer() {
+    if (_pendingTile != null && _hasResponseAvailable()) {
+      return _game.players[0];
+    }
+    return _game.players[_currentPlayerIndex];
+  }
+
   void _chow() {
     if (_pendingTile == null) return;
-    final player = _game.players[_currentPlayerIndex];
+    final player = _actingPlayer();
     final fromPlayer = _game.lastPlayedBy;
     final meld = _game.chow(player, _pendingTile!);
     if (meld == null) return;
@@ -367,6 +374,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     }
 
     setState(() {
+      _currentPlayerIndex = 0;
       _pendingTile = null;
       _lastDrawnTile = null;
       _mustDiscardAfterClaim = true;
@@ -375,7 +383,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   void _pong() {
     if (_pendingTile == null) return;
-    final player = _game.players[_currentPlayerIndex];
+    final player = _actingPlayer();
     final fromPlayer = _game.lastPlayedBy;
     final meld = _game.pong(player, _pendingTile!);
     if (meld == null) return;
@@ -385,6 +393,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     }
 
     setState(() {
+      _currentPlayerIndex = 0;
       _pendingTile = null;
       _lastDrawnTile = null;
       _mustDiscardAfterClaim = true;
@@ -392,7 +401,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _hiddenKong() {
-    final player = _game.players[_currentPlayerIndex];
+    final player = _actingPlayer();
     final meld = _game.hiddenKong(player);
     if (meld == null) return;
 
@@ -404,12 +413,13 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _kong() {
-    final player = _game.players[_currentPlayerIndex];
+    final player = _actingPlayer();
     if (_pendingTile != null && _game.canExposedKong(player, _pendingTile!)) {
       final meld = _game.exposedKong(player, _pendingTile!);
       if (meld == null) return;
 
       setState(() {
+        _currentPlayerIndex = 0;
         _pendingTile = null;
         _lastDrawnTile = null;
         _mustDiscardAfterClaim = false;
@@ -424,7 +434,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _hu() {
-    final player = _game.players[_currentPlayerIndex];
+    final player = _actingPlayer();
     final huTile = _lastDrawnTile ?? _pendingTile;
     final isSelfDrawn = _pendingTile == null;
     final isKaiGang = _game.justDrewAfterKong && isSelfDrawn;
