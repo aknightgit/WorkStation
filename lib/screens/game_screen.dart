@@ -923,7 +923,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       builder: (context, constraints) {
         final w = constraints.maxWidth;
         final h = constraints.maxHeight;
-        const stacksPerSide = 17;
+        const stacksPerSide = 18;
         const gap = 2.0;
 
         final sizeByWidth = (w * 0.62 - gap * (stacksPerSide - 1)) / stacksPerSide;
