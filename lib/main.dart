@@ -132,7 +132,7 @@ class GameHomeScreen extends StatelessWidget {
     
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const GameScreen()),
+      MaterialPageRoute(builder: (_) => GameScreen(game: context.read<GameProvider>().game)),
     );
   }
 
