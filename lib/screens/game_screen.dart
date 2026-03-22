@@ -220,7 +220,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _doDrawOrPlay();
   }
 
-  void _doDrawOrPlay() {
+  Future<void> _doDrawOrPlay() async {
     if (!mounted) return;
 
     if (_currentPlayerIndex == 0) {
@@ -287,10 +287,14 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
     // 立即检查玩家0是否可以直接响应（别人打牌时）
     if (nextIndex != 0) {
+      // 确保状态更新后再检查
+      await Future.delayed(const Duration(milliseconds: 50));
       _checkActions();
       // 如果玩家0可以响应，暂停游戏等待玩家操作
       if (_availableActions.values.any((v) => v)) {
         // 有可用的响应，等待玩家操作，不继续AI回合
+        if (!mounted) return;
+        setState(() {});
         return;
       }
       // 如果玩家0不能响应，继续游戏
