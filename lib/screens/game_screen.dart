@@ -872,9 +872,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         // Scale 1.5x: 18→27, 16→24
         return Stack(
           children: [
-            // 对家（上方） - 玩家2 - 靠近上边缘
+            // 对家（上方） - 玩家2 - 靠近上边缘，下移10%
             Positioned(
-              top: tableTop + 4,
+              top: tableTop + h * 0.10 + 4,
               left: w * 0.12,
               right: w * 0.12,
               child: Center(
