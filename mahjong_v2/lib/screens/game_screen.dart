@@ -23,59 +23,125 @@ class _GameScreenState extends State<GameScreen> {
         builder: (context, constraints) {
           final w = constraints.maxWidth;
           final h = constraints.maxHeight;
+          
+          // 经典绿呢桌面参数
+          final tableWidth = w * 0.88;
+          final tableHeight = h * 0.72;
+          final tileW = w * 0.038;
+          final tileH = tileW * 1.4;
+          
           return Stack(
             children: [
-              // 背景
-              Container(color: const Color(0xFF0D1B2A)),
-              
-              // 桌面区域
-              Center(
-                child: Container(
-                  width: w * 0.92,
-                  height: h * 0.75,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Color(0xFF1B5E20), Color(0xFF0D3D0D)],
-                    ),
-                    border: Border.all(color: const Color(0xFFD4AF37), width: 3),
-                    borderRadius: BorderRadius.circular(8),
+              // 深蓝渐变背景
+              Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0xFF0D1B2A), Color(0xFF1B263B)],
                   ),
                 ),
               ),
               
-              // 牌墙 - 简化版
-              // 上
-              Positioned(left: w * 0.15, right: w * 0.15, top: h * 0.12, child: _buildWallRow(12)),
-              // 下
-              Positioned(left: w * 0.15, right: w * 0.15, bottom: h * 0.18, child: _buildWallRow(12)),
-              // 左
-              Positioned(left: w * 0.08, top: h * 0.25, bottom: h * 0.25, child: _buildWallColumn(10)),
-              // 右
-              Positioned(right: w * 0.08, top: h * 0.25, bottom: h * 0.25, child: _buildWallColumn(10)),
+              // ===== 绿呢桌面 =====
+              Center(
+                child: Container(
+                  width: tableWidth,
+                  height: tableHeight,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xFF1B5E20), Color(0xFF0D3010)],
+                    ),
+                    border: Border.all(color: const Color(0xFFD4AF37), width: 4),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFD4AF37).withOpacity(0.4),
+                        blurRadius: 30,
+                        spreadRadius: 2,
+                      ),
+                      const BoxShadow(
+                        color: Colors.black54,
+                        blurRadius: 20,
+                        offset: Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               
-              // 头像
-              _buildAvatarSimple(w, h, 2, w/2, h*0.06), // 上
-              _buildAvatarSimple(w, h, 3, w*0.08, h*0.45), // 左
-              _buildAvatarSimple(w, h, 1, w*0.92, h*0.45), // 右
-              _buildAvatarSimple(w, h, 0, w/2, h*0.89), // 下
+              // ===== 牌墙 (经典4边布局) =====
+              // 上牌墙
+              Positioned(
+                left: w * 0.10,
+                right: w * 0.10,
+                top: h * 0.08,
+                child: _buildWallRow(14, tileW, tileH),
+              ),
+              // 下牌墙
+              Positioned(
+                left: w * 0.10,
+                right: w * 0.10,
+                bottom: h * 0.10,
+                child: _buildWallRow(14, tileW, tileH),
+              ),
+              // 左牌墙
+              Positioned(
+                left: w * 0.06,
+                top: h * 0.18,
+                bottom: h * 0.22,
+                child: _buildWallCol(10, tileW, tileH),
+              ),
+              // 右牌墙  
+              Positioned(
+                right: w * 0.06,
+                top: h * 0.18,
+                bottom: h * 0.22,
+                child: _buildWallCol(10, tileW, tileH),
+              ),
               
-              // 骰子/发牌
+              // ===== 头像 (4角) =====
+              _buildAvatar('东', Colors.red, w * 0.5, h * 0.05),
+              _buildAvatar('南', Colors.green, w * 0.94, h * 0.42),
+              _buildAvatar('西', Colors.blue, w * 0.5, h * 0.93),
+              _buildAvatar('北', Colors.orange, w * 0.06, h * 0.42),
+              
+              // ===== 骰子区 =====
               if (_game.phase == GamePhase.waiting || _game.phase == GamePhase.diceRolling)
-                Positioned(left: w * 0.4, right: w * 0.4, top: h * 0.35, child: _buildDiceSection()),
+                Positioned(
+                  left: w * 0.42,
+                  right: w * 0.42,
+                  top: h * 0.38,
+                  child: _buildDiceSection(),
+                ),
               
-              // 手牌
+              // ===== 手牌 (底部) =====
               if (_game.phase == GamePhase.playing)
-                Positioned(left: 10, right: 10, bottom: 20, child: _buildMyHand()),
+                Positioned(
+                  left: w * 0.05,
+                  right: w * 0.05,
+                  bottom: h * 0.02,
+                  child: _buildMyHand(tileW * 0.9, tileH * 0.9),
+                ),
               
-              // 操作按钮
+              // ===== 操作按钮 =====
               if (_game.phase == GamePhase.playing)
-                Positioned(right: 10, bottom: 30, child: _buildActionButtons()),
+                Positioned(
+                  right: w * 0.02,
+                  bottom: h * 0.15,
+                  child: _buildActionButtons(),
+                ),
               
-              // 造反按钮
+              // ===== 造反按钮 =====
               if (canRebel)
-                Positioned(top: 60, left: 0, right: 0, child: Center(child: _buildRebelButton())),
+                Positioned(
+                  top: h * 0.06,
+                  left: 0,
+                  right: 0,
+                  child: Center(child: _buildRebelButton()),
+                ),
             ],
           );
         },
@@ -83,149 +149,192 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  Widget _buildWallRow(int count) {
+  // 牌墙行
+  Widget _buildWallRow(int count, double w, double h) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(count, (i) => Container(
-        width: 28, height: 36,
+        width: w, height: h,
         margin: const EdgeInsets.symmetric(horizontal: 1),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(colors: [Color(0xFF2E7D32), Color(0xFF1B5E20)]),
-          borderRadius: BorderRadius.circular(3),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF2E7D32), Color(0xFF1B5E20)],
+          ),
+          borderRadius: BorderRadius.circular(4),
           border: Border.all(color: const Color(0xFFD4AF37), width: 1),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 2, offset: const Offset(1, 1)),
+          ],
         ),
       )),
     );
   }
 
-  Widget _buildWallColumn(int count) {
+  // 牌墙列
+  Widget _buildWallCol(int count, double w, double h) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: List.generate(count, (i) => Container(
-        width: 28, height: 36,
+        width: w, height: h,
         margin: const EdgeInsets.symmetric(vertical: 1),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(colors: [Color(0xFF2E7D32), Color(0xFF1B5E20)]),
-          borderRadius: BorderRadius.circular(3),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF2E7D32), Color(0xFF1B5E20)],
+          ),
+          borderRadius: BorderRadius.circular(4),
           border: Border.all(color: const Color(0xFFD4AF37), width: 1),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 2, offset: const Offset(1, 1)),
+          ],
         ),
       )),
     );
   }
 
-  Widget _buildAvatarSimple(double w, double h, int index, double left, double top) {
-    final names = ['东家', '南家', '西家', '北家'];
-    final colors = [Colors.red, Colors.green, Colors.blue, Colors.yellow];
+  // 头像
+  Widget _buildAvatar(String name, Color color, double x, double y) {
     return Positioned(
-      left: left is double ? left - 20 : 20,
-      top: top is double ? top - 15 : 20,
+      left: x - 18,
+      top: y - 18,
       child: Container(
-        width: 40, height: 40,
+        width: 36, height: 36,
         decoration: BoxDecoration(
-          color: colors[index],
+          color: color,
           shape: BoxShape.circle,
           border: Border.all(color: Colors.white, width: 2),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 4)],
         ),
-        child: Center(child: Text('${index+1}', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold))),
+        child: Center(child: Text(name, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold))),
       ),
     );
   }
 
+  // 骰子区
   Widget _buildDiceSection() {
     return Column(
       children: [
         GestureDetector(
           onTap: _onDiceTap,
           child: Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.black87,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: const Color(0xFFD4AF37), width: 2),
+              boxShadow: [
+                BoxShadow(color: const Color(0xFFD4AF37).withOpacity(0.3), blurRadius: 10),
+              ],
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 _buildDice(_game.diceValues[0]),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 _buildDice(_game.diceValues[1]),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         if (_game.phase == GamePhase.diceRolling)
-          GestureDetector(
-            onTap: _onDealTap,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [Color(0xFFD4AF37), Color(0xFFB8860B)]),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Text('发牌', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
-            ),
-          ),
+          _buildDealBtn(),
       ],
     );
   }
 
   Widget _buildDice(int v) {
     return Container(
-      width: 50, height: 50,
+      width: 44, height: 44,
       decoration: BoxDecoration(
         color: const Color(0xFFFFF8E1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0xFFD4AF37), width: 2),
       ),
-      child: Center(child: Text('$v', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black87))),
+      child: Center(child: Text('$v', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87))),
     );
   }
 
-  Widget _buildMyHand() {
+  Widget _buildDealBtn() {
+    return GestureDetector(
+      onTap: _onDealTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(colors: [Color(0xFFD4AF37), Color(0xFFB8860B)]),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [BoxShadow(color: const Color(0xFFD4AF37).withOpacity(0.5), blurRadius: 8)],
+        ),
+        child: const Text('发牌', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+      ),
+    );
+  }
+
+  // 手牌
+  Widget _buildMyHand(double w, double h) {
     final player = _game.players[0];
     return Container(
-      height: 60,
+      height: h + 10,
+      decoration: BoxDecoration(
+        color: Colors.black26,
+        borderRadius: BorderRadius.circular(8),
+      ),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: player.handTiles.length,
-        itemBuilder: (context, i) => GestureDetector(
+        itemBuilder: (ctx, i) => GestureDetector(
           onTap: () => _playTile(i),
           child: Container(
-            width: 36, height: 50,
-            margin: const EdgeInsets.symmetric(horizontal: 1),
+            width: w,
+            height: h,
+            margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 2),
             decoration: BoxDecoration(
               color: selectedTileIndex == i ? Colors.yellow[200] : Colors.white,
               borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: const Color(0xFFD4AF37)),
+              border: Border.all(color: const Color(0xFFD4AF37), width: 1),
             ),
-            child: Center(child: Text(player.handTiles[i].displayName, style: const TextStyle(fontSize: 10))),
+            child: Center(child: Text(player.handTiles[i].displayName, style: const TextStyle(fontSize: 9))),
           ),
         ),
       ),
     );
   }
 
+  // 操作按钮
   Widget _buildActionButtons() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _actionBtn('摸', Colors.red, _game.pendingTile == null, _drawTile),
-        _actionBtn('吃', Colors.orange, canChow, () {}),
-        _actionBtn('碰', Colors.cyan, canPong, () {}),
-        _actionBtn('杠', Colors.purple, canKong, () {}),
-        _actionBtn('胡', Colors.yellow, canHu, () {}),
-      ],
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: Colors.black54,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFD4AF37)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _btn('摸', Colors.red, _game.pendingTile == null, _drawTile),
+          _btn('吃', Colors.orange, canChow, () {}),
+          _btn('碰', Colors.cyan, canPong, () {}),
+          _btn('杠', Colors.purple, canKong, () {}),
+          _btn('胡', Colors.yellow[700]!, canHu, () {}),
+        ],
+      ),
     );
   }
 
-  Widget _actionBtn(String label, Color color, bool enabled, VoidCallback onPressed) {
+  Widget _btn(String label, Color c, bool en, VoidCallback on) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: ElevatedButton(
-        onPressed: enabled ? onPressed : null,
-        style: ElevatedButton.styleFrom(backgroundColor: enabled ? color : Colors.grey[700], minimumSize: const Size(50, 32)),
-        child: Text(label, style: const TextStyle(fontSize: 14, color: Colors.white)),
+        onPressed: en ? on : null,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: en ? c : Colors.grey[700],
+          minimumSize: const Size(48, 32),
+        ),
+        child: Text(label, style: const TextStyle(fontSize: 12, color: Colors.white)),
       ),
     );
   }
@@ -234,9 +343,13 @@ class _GameScreenState extends State<GameScreen> {
     return GestureDetector(
       onTap: _rebel,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white, width: 2)),
-        child: const Text('我要造反', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.red,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white, width: 2),
+        ),
+        child: const Text('我要造反', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
       ),
     );
   }
@@ -244,10 +357,7 @@ class _GameScreenState extends State<GameScreen> {
   void _onDiceTap() {
     setState(() { isRolling = true; });
     Future.delayed(const Duration(milliseconds: 500), () {
-      setState(() {
-        _game.rollDice();
-        isRolling = false;
-      });
+      setState(() { _game.rollDice(); isRolling = false; });
     });
   }
 
@@ -259,16 +369,16 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _drawTile() {
-    final player = _game.players[_game.currentPlayerIndex];
-    _game.drawTile(player);
+    final p = _game.players[_game.currentPlayerIndex];
+    _game.drawTile(p);
     setState(() {});
   }
 
   void _playTile(int i) {
-    final player = _game.players[0];
-    final tile = player.handTiles[i];
-    _game.playTile(player, tile);
-    _game.pendingTile = tile;
+    final p = _game.players[0];
+    final t = p.handTiles[i];
+    _game.playTile(p, t);
+    _game.pendingTile = t;
     selectedTileIndex = null;
     setState(() {});
   }
