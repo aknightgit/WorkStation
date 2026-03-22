@@ -1409,9 +1409,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final h = constraints.maxHeight;
-          final tableTop = h * 0.4;
-          final tableHeight = h * 0.6;
-          final centerY = tableTop + tableHeight * 0.42;
+          final tableTop = h * 0.0;
+          final tableHeight = h * 1.0;
+          final centerY = tableTop + tableHeight * 0.48;
           final alignment = Alignment(0, (centerY / h) * 2 - 1);
 
           final totalMult = _game.roundMultiplier * _game.multiplier;
