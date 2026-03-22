@@ -1020,13 +1020,12 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         builder: (context, constraints) {
           final screenWidth = constraints.maxWidth;
           final screenHeight = constraints.maxHeight;
-          final tableHeight = screenHeight * 0.65;
+          final tableHeight = screenHeight * 0.55;
           final bottomWidth = screenWidth;
-          final topWidth = screenWidth * 0.88;
-          final topOffset = (bottomWidth - topWidth) / 2; // 梯形上边距
+          final topWidth = screenWidth * 0.90;
+          final topOffset = (bottomWidth - topWidth) / 2;
 
-          return Align(
-            alignment: Alignment.bottomCenter,
+          return Center(
             child: CustomPaint(
               size: Size(bottomWidth, tableHeight),
               painter: TrapezoidPainter(
