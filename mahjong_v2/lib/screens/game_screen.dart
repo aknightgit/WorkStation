@@ -24,8 +24,9 @@ class _GameScreenState extends State<GameScreen> {
   bool canRebel = false;
 
   static const int stacksPerSide = 18;
-  static const double tileWidth = 24.0;
-  static const double tileHeight = 32.0;
+  // 手牌放大3倍
+  static const double tileWidth = 72.0; // 原24 * 3
+  static const double tileHeight = 96.0; // 原32 * 3
 
   @override
   void initState() {
@@ -180,8 +181,9 @@ class _GameScreenState extends State<GameScreen> {
               final w = constraints.maxWidth;
               final h = constraints.maxHeight;
               
-              final tableHeight = h * 0.55;
-              final tableTop = h * 0.40;
+              // 桌布底部固定，高度增加1/3
+              final tableHeight = h * 0.73; // 原0.55，增加1/3
+              final tableTop = h * 0.27; // 底部固定在0.27位置
               final bottomWidth = w * 0.95;
               final topWidth = w * 0.75;
               
@@ -202,11 +204,15 @@ class _GameScreenState extends State<GameScreen> {
                     ),
                   ),
                   
-                  // 牌墙
-                  Positioned(left: w * 0.12, right: w * 0.12, top: tableTop + 10, child: _buildWallRow(stacksPerSide)),
-                  Positioned(left: w * 0.12, right: w * 0.12, bottom: h - (tableTop + tableHeight) + 10, child: _buildWallRow(stacksPerSide)),
-                  Positioned(left: w * 0.08, top: tableTop + tableHeight * 0.15, bottom: h - (tableTop + tableHeight) + tableHeight * 0.15, child: _buildWallColumn(stacksPerSide)),
-                  Positioned(right: w * 0.08, top: tableTop + tableHeight * 0.15, bottom: h - (tableTop + tableHeight) + tableHeight * 0.15, child: _buildWallColumn(stacksPerSide)),
+                  // 牌墙 - 在梯形内部，平行于边缘
+                  // 上牌墙（平行于上边）
+                  Positioned(left: w * 0.18, right: w * 0.18, top: tableTop + 20, child: _buildWallRow(stacksPerSide)),
+                  // 下牌墙（平行于下边）
+                  Positioned(left: w * 0.18, right: w * 0.18, bottom: h - (tableTop + tableHeight) + 20, child: _buildWallRow(stacksPerSide)),
+                  // 左牌墙（平行于左边）
+                  Positioned(left: w * 0.10, top: tableTop + tableHeight * 0.12, bottom: h - (tableTop + tableHeight) + tableHeight * 0.12, child: _buildWallColumn(stacksPerSide)),
+                  // 右牌墙（平行于右边）
+                  Positioned(right: w * 0.10, top: tableTop + tableHeight * 0.12, bottom: h - (tableTop + tableHeight) + tableHeight * 0.12, child: _buildWallColumn(stacksPerSide)),
                   
                   // 弃牌区
                   Positioned(left: w * 0.20, right: w * 0.20, top: tableTop + tableHeight * 0.25, bottom: tableTop + tableHeight * 0.75, child: _buildDiscardArea()),
@@ -378,23 +384,51 @@ class _GameScreenState extends State<GameScreen> {
       );
     }
     
-    // 掷骰子阶段
+    // 掷骰子阶段 - 大骰子动画
     return GestureDetector(
       onTap: _onDiceTap,
-      child: Container(
-        padding: const EdgeInsets.all(20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 100),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.black54, 
-          borderRadius: BorderRadius.circular(16),
-          border: isRolling ? Border.all(color: Colors.yellow, width: 2) : null,
+          color: Colors.black87, 
+          borderRadius: BorderRadius.circular(20),
+          border: isRolling ? Border.all(color: Colors.yellow, width: 3) : Border.all(color: Colors.white30, width: 2),
+          boxShadow: isRolling ? [BoxShadow(color: Colors.yellow.withOpacity(0.5), blurRadius: 20)] : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('${_game.diceValues[0]}', style: const TextStyle(fontSize: 48, color: Colors.white)),
-            const SizedBox(width: 16),
-            Text('${_game.diceValues[1]}', style: const TextStyle(fontSize: 48, color: Colors.white)),
+            // 第一个大骰子
+            _buildDice(_game.diceValues[0]),
+            const SizedBox(width: 24),
+            // 第二个大骰子
+            _buildDice(_game.diceValues[1]),
           ],
+        ),
+      ),
+    );
+  }
+  
+  // 构建单个大骰子
+  Widget _buildDice(int value) {
+    return Container(
+      width: 80,
+      height: 80,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.black, width: 2),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 4, offset: const Offset(2, 2))],
+      ),
+      child: Center(
+        child: Text(
+          '$value',
+          style: const TextStyle(
+            fontSize: 48,
+            fontWeight: FontWeight.bold,
+            color: Colors.red,
+          ),
         ),
       ),
     );
