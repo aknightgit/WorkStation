@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../game_logic/mahjong_game.dart';
+import 'package:mahjong_v2/game_logic/mahjong_game.dart';
 
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key});

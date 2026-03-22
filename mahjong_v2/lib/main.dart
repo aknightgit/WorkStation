@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'game_screen.dart';
+import 'package:mahjong_v2/screens/game_screen.dart';
 
 void main() {
   runApp(const MahjongApp());
