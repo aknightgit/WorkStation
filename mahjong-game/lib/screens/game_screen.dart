@@ -609,24 +609,38 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _drawCard() {
-    // 人类玩家摸牌
-    if (_canDraw) {
-      if (_canRebel) {
-        setState(() {
-          _canRebel = false;
-          _rebelDecided = true;
-        });
-      }
-      _doDrawTile();
+    // 人类玩家摸牌（若有别人打出的牌，摸=过）
+    if (!_canDraw) return;
+
+    if (_pendingTile != null) {
+      setState(() {
+        _pendingTile = null;
+        _availableActions['chow'] = false;
+        _availableActions['pong'] = false;
+        _availableActions['kong'] = false;
+        _availableActions['hu'] = false;
+      });
     }
+
+    if (_canRebel) {
+      setState(() {
+        _canRebel = false;
+        _rebelDecided = true;
+      });
+    }
+    _doDrawTile();
   }
 
   bool get _canDraw {
     if (_currentPlayerIndex != 0 || !_hasDealt || _isRollingDice || _isDealing || !_game.diceRolled) {
       return false;
     }
-    if (_pendingTile != null || _lastDrawnTile != null || _mustDiscardAfterClaim) {
+    if (_lastDrawnTile != null || _mustDiscardAfterClaim) {
       return false;
+    }
+    // 有别人打出的牌时，允许用“摸”当“过”
+    if (_pendingTile != null) {
+      return true;
     }
     return _game.players[0].handTiles.length % 3 == 1;
   }
@@ -1038,8 +1052,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               painter: TrapezoidPainter(
                 topWidth: topWidth,
                 bottomWidth: bottomWidth,
-                topColor: const Color(0xFF2E7D32),
-                bottomColor: const Color(0xFF1B5E20),
+                topColor: const Color(0xFFDCE5F1),
+                bottomColor: const Color(0xFFB8C7D9),
               ),
             ),
           );
