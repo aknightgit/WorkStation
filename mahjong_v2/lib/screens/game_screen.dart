@@ -159,10 +159,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               
               // ===== 操作按钮 =====
               if (_game.phase == GamePhase.playing)
-                Positioned(
-                  right: 10, bottom: 30,
-                  child: _buildActionButtons(),
-                ),
+                _buildActionButtons(),
               
               // ===== 造反按钮 =====
               if (canRebel)
@@ -318,30 +315,100 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
+  // 环绕式操作菜单 - 摸大圆 + 吃/碰/杠/胡环绕右侧
   Widget _buildActionButtons() {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFD4AF37))),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _btn('摸', Colors.red, _game.pendingTile == null, _drawTile),
-          _btn('吃', Colors.orange, canChow, () {}),
-          _btn('碰', Colors.cyan, canPong, () {}),
-          _btn('杠', Colors.purple, canKong, () {}),
-          _btn('胡', Colors.yellow[700]!, canHu, () {}),
-        ],
+    final btnSize = 70.0; // 摸按钮大小
+    final subBtnSize = btnSize * 0.5; // 子按钮大小 (一半)
+    final orbitRadius = btnSize * 0.7; // 环绕半径
+    
+    return Positioned(
+      right: 10,
+      bottom: 30,
+      child: SizedBox(
+        width: btnSize * 2,
+        height: btnSize * 2,
+        child: Stack(
+          children: [
+            // 摸 - 大圆形按钮（中心）
+            Positioned(
+              left: btnSize * 0.5,
+              top: btnSize * 0.5,
+              child: GestureDetector(
+                onTap: _game.pendingTile == null ? _drawTile : null,
+                child: Container(
+                  width: btnSize,
+                  height: btnSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _game.pendingTile == null ? Colors.red : Colors.grey[700],
+                    border: Border.all(color: Colors.white, width: 3),
+                    boxShadow: [
+                      BoxShadow(color: Colors.red.withOpacity(0.5), blurRadius: 10),
+                    ],
+                  ),
+                  child: const Center(
+                    child: Text('摸', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+                  ),
+                ),
+              ),
+            ),
+            // 吃 - 环绕在摸的右侧
+            Positioned(
+              left: btnSize * 0.5 + orbitRadius,
+              top: btnSize * 0.5,
+              child: _buildOrbitBtn('吃', Colors.orange, canChow, subBtnSize, () {}),
+            ),
+            // 碰 - 吃上方
+            Positioned(
+              left: btnSize * 0.5 + orbitRadius * 0.9,
+              top: btnSize * 0.5 - orbitRadius * 0.4,
+              child: _buildOrbitBtn('碰', Colors.cyan, canPong, subBtnSize, () {}),
+            ),
+            // 杠 - 吃下方
+            Positioned(
+              left: btnSize * 0.5 + orbitRadius * 0.9,
+              top: btnSize * 0.5 + orbitRadius * 0.4,
+              child: _buildOrbitBtn('杠', Colors.purple, canKong, subBtnSize, () {}),
+            ),
+            // 胡 - 最外侧
+            Positioned(
+              left: btnSize * 0.5 + orbitRadius * 1.1,
+              top: btnSize * 0.5,
+              child: _buildOrbitBtn('胡', Colors.yellow[700]!, canHu, subBtnSize, () {}),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _btn(String label, Color c, bool en, VoidCallback on) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: ElevatedButton(
-        onPressed: en ? on : null,
-        style: ElevatedButton.styleFrom(backgroundColor: en ? c : Colors.grey[700], minimumSize: const Size(55, 36)),
-        child: Text(label, style: const TextStyle(fontSize: 14, color: Colors.white)),
+  Widget _buildOrbitBtn(String label, Color color, bool enabled, double size, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: enabled ? color : Colors.grey[700],
+          border: Border.all(
+            color: enabled ? Colors.white : Colors.grey,
+            width: 2,
+          ),
+          boxShadow: enabled ? [
+            BoxShadow(color: color.withOpacity(0.5), blurRadius: 8),
+          ] : null,
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: size * 0.35,
+              fontWeight: FontWeight.bold,
+              color: enabled ? Colors.white : Colors.grey,
+            ),
+          ),
+        ),
       ),
     );
   }
