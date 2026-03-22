@@ -279,7 +279,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     });
 
     // 检查所有其他玩家是否可以响应（吃/碰/杠/胡）
-    final nextIndex = (_currentPlayerIndex + 1) % 4;
+    final nextIndex = (_currentPlayerIndex + 3) % 4; // 逆时针
     setState(() {
       _mustDiscardAfterClaim = false;
       _currentPlayerIndex = nextIndex;
@@ -349,7 +349,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     if (!mounted) return;
 
     setState(() {
-      _currentPlayerIndex = (_currentPlayerIndex + 1) % 4;
+      _currentPlayerIndex = (_currentPlayerIndex + 3) % 4; // 逆时针
       _pendingTile = null;
       _lastDrawnTile = null;
       _mustDiscardAfterClaim = false;
