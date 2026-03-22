@@ -27,9 +27,6 @@ class HuJudge {
       if (_checkMelds(remain)) return true;
     }
     
-    // 七对子
-    if (_checkSevenPairs(hand)) return true;
-    
     // 十三幺
     if (_checkThirteenOrphans(hand)) return true;
     
@@ -115,6 +112,42 @@ class HuJudge {
 
 // 点数计算器
 class ScoreCalculator {
+  // 计算牌局倍数（基于骰子组合）
+  static int calculateGameMultiplier(int dice1, int dice2) {
+    final sum = dice1 + dice2;
+    
+    // 14组合（和为5,7,9,11,13,15,17）→ 1倍
+    // 44组合（和为8）→ 4倍
+    // 11组合（和为2）→ 4倍  
+    // 其他相同点数组合 → 2倍
+    // 最高8倍
+    
+    // 特殊情况：11组合 = 4倍
+    if (dice1 == 1 && dice2 == 1) return 4;
+    // 特殊情况：44组合 = 4倍
+    if (dice1 == 4 && dice2 == 4) return 4;
+    // 14组合 = 1倍
+    if (dice1 == 1 || dice2 == 4 || dice1 == 4 || dice2 == 1) return 1;
+    
+    // 其他相同组合（双数对）→ 2倍
+    if (dice1 == dice2) return 2;
+    
+    // 默认1倍
+    return 1;
+  }
+  
+  // 计算最终点数（带牌局倍数）
+  static int calculateFinalScore({
+    required int baseScore,
+    required int gameMultiplier,
+    required int fanMultiplier,
+  }) {
+    // 最终 = 基础分 × 牌局倍数 × 番数倍数
+    // 最高封顶 256
+    int score = baseScore * gameMultiplier * fanMultiplier;
+    return score.clamp(1, 256);
+  }
+  
   // 计算胡牌点数
   static int calculateScore({
     required List<Tile> hand,
