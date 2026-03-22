@@ -390,6 +390,33 @@ class MahjongGame {
   bool hasBaoRelation(int fromPlayer, int toPlayer) {
     return getBaoMultiplier(fromPlayer, toPlayer) > 0;
   }
+  
+  // 造反成功（算作流局的一种）
+  // 下局翻倍 + 换庄
+  void resolveRebelAsDraw(int rebelPlayerIndex) {
+    // 翻倍（最高8倍）
+    globalMultiplier = (globalMultiplier * 2).clamp(1, 8);
+    
+    // 换庄：造反者成为新庄家
+    dealerIndex = rebelPlayerIndex;
+    
+    // 标记为流局
+    phase = GamePhase.scoring;
+    gameEnded = true;
+  }
+  
+  // 流局处理：翻倍 + 换庄
+  void resolveDraw() {
+    // 翻倍（最高8倍）
+    globalMultiplier = (globalMultiplier * 2).clamp(1, 8);
+    
+    // 换庄
+    dealerIndex = (dealerIndex + 1) % 4;
+    
+    // 标记为流局
+    phase = GamePhase.scoring;
+    gameEnded = true;
+  }
 
   // 检查是否可以碰
   bool canPong(Player player) {

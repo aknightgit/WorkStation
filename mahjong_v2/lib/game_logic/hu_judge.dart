@@ -114,20 +114,20 @@ class HuJudge {
 class ScoreCalculator {
   // 计算牌局倍数（基于骰子组合）
   static int calculateGameMultiplier(int dice1, int dice2) {
-    final sum = dice1 + dice2;
-    
-    // 14组合（和为5,7,9,11,13,15,17）→ 1倍
-    // 44组合（和为8）→ 4倍
-    // 11组合（和为2）→ 4倍  
+    // 14组合 → 2倍
+    // 44组合 → 4倍
+    // 11组合 → 4倍  
     // 其他相同点数组合 → 2倍
-    // 最高8倍
+    // 最高8倍封顶
     
-    // 特殊情况：11组合 = 4倍
-    if (dice1 == 1 && dice2 == 1) return 4;
-    // 特殊情况：44组合 = 4倍
+    // 14组合 = 2倍
+    if ((dice1 == 1 && dice2 == 4) || (dice1 == 4 && dice2 == 1)) return 2;
+    
+    // 44组合 = 4倍
     if (dice1 == 4 && dice2 == 4) return 4;
-    // 14组合 = 1倍
-    if (dice1 == 1 || dice2 == 4 || dice1 == 4 || dice2 == 1) return 1;
+    
+    // 11组合 = 4倍
+    if (dice1 == 1 && dice2 == 1) return 4;
     
     // 其他相同组合（双数对）→ 2倍
     if (dice1 == dice2) return 2;
