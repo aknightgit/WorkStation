@@ -1038,8 +1038,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               painter: TrapezoidPainter(
                 topWidth: topWidth,
                 bottomWidth: bottomWidth,
-                topColor: const Color(0xFFDCE5F1),
-                bottomColor: const Color(0xFFB8C7D9),
+                topColor: const Color(0xFF5C7FA5),
+                bottomColor: const Color(0xFF3D5A80),
               ),
             ),
           );
