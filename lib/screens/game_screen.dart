@@ -879,30 +879,43 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   // 对手手牌（牌背）
   Widget _buildOpponentHands() {
-    return Stack(
-      children: [
-        // 对家（上方） - 玩家2
-        Positioned(
-          top: 110,
-          left: 0,
-          right: 0,
-          child: Center(
-            child: _buildBackRow(_game.players[2].handCount, 18),
-          ),
-        ),
-        // 左家（左侧） - 玩家3
-        Positioned(
-          left: 40,
-          top: 250,
-          child: _buildBackColumn(_game.players[3].handCount, 16, rotate: true),
-        ),
-        // 右家（右侧） - 玩家1
-        Positioned(
-          right: 40,
-          top: 250,
-          child: _buildBackColumn(_game.players[1].handCount, 16, rotate: true),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        final h = constraints.maxHeight;
+        final tableTop = h * 0.04;
+        final tableHeight = h * 0.38;
+        final sideWidth = w * 0.06;
+        final sideTop = tableTop + tableHeight * 0.08;
+        final sideBottom = tableTop + tableHeight * 0.85;
+
+        // Scale 1.5x: 18→27, 16→24
+        return Stack(
+          children: [
+            // 对家（上方） - 玩家2 - 靠近上边缘
+            Positioned(
+              top: tableTop + 4,
+              left: w * 0.12,
+              right: w * 0.12,
+              child: Center(
+                child: _buildBackRow(_game.players[2].handCount, 27),
+              ),
+            ),
+            // 左家（左侧） - 玩家3 - 靠近左边缘
+            Positioned(
+              left: w * 0.02,
+              top: sideTop,
+              child: _buildBackColumn(_game.players[3].handCount, 24, rotate: true),
+            ),
+            // 右家（右侧） - 玩家1 - 靠近右边缘
+            Positioned(
+              right: w * 0.02,
+              top: sideTop,
+              child: _buildBackColumn(_game.players[1].handCount, 24, rotate: true),
+            ),
+          ],
+        );
+      },
     );
   }
 
