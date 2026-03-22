@@ -213,23 +213,59 @@ class MahjongGame {
     currentPlayerIndex = (currentPlayerIndex + 3) % 4;
   }
 
-  // 检查是否可以吃
+  // 检查是否可以吃（上家动态）
   bool canChow(Player player) {
     if (pendingTile == null || currentPlayerIndex == 0) return false;
-    // 只能吃上家
+    // 只能吃上家（逆时针方向）
+    // 当前是 playerIndex，上家是 (playerIndex + 1) % 4
     final fromPlayer = (currentPlayerIndex + 1) % 4;
-    if (fromPlayer != 0) return false;
+    // 只有当前玩家是下家时才能吃上家的牌
+    if (player.index != fromPlayer) return false;
     
     final t = pendingTile!;
+    // 只能吃顺子，不能吃字牌
+    if (t.suit == TileSuit.hua) return false;
+    
+    // 找能组成顺子的三张牌
     for (int n = 1; n <= 9; n++) {
       final need1 = Tile(id: -1, type: t.type, number: n, suit: t.suit);
-      final need2 = Tile(id: -1, type: t.type, number: n + 2, suit: t.suit);
-      if (playerHasTiles(player, [need1, need2])) return true;
+      final need2 = Tile(id: -1, type: t.type, number: n + 1, suit: t.suit);
+      final need3 = Tile(id: -1, type: t.type, number: n + 2, suit: t.suit);
+      
+      if (n + 2 > 9) continue; // 超出范围
+      
+      if (_playerHasTiles(player, [need1, need2, need3])) {
+        return true;
+      }
     }
     return false;
   }
 
-  bool playerHasTiles(Player player, List<Tile> need) {
+  // 获取可以吃的组合
+  List<List<Tile>> getChowCombos(Player player) {
+    if (pendingTile == null || currentPlayerIndex == 0) return [];
+    
+    final fromPlayer = (currentPlayerIndex + 1) % 4;
+    if (player.index != fromPlayer) return [];
+    
+    final t = pendingTile!;
+    if (t.suit == TileSuit.hua) return [];
+    
+    final combos = <List<Tile>>[];
+    for (int n = 1; n <= 9; n++) {
+      if (n + 2 > 9) continue;
+      final need1 = Tile(id: -1, type: t.type, number: n, suit: t.suit);
+      final need2 = Tile(id: -1, type: t.type, number: n + 1, suit: t.suit);
+      final need3 = Tile(id: -1, type: t.type, number: n + 2, suit: t.suit);
+      
+      if (_playerHasTiles(player, [need1, need2, need3])) {
+        combos.add([need1, need2, need3]);
+      }
+    }
+    return combos;
+  }
+
+  bool _playerHasTiles(Player player, List<Tile> need) {
     final hand = List<Tile>.from(player.handTiles);
     for (final n in need) {
       final idx = hand.indexWhere((t) => t.type == n.type && t.number == n.number);
@@ -248,13 +284,53 @@ class MahjongGame {
 
   // 检查是否可以杠
   bool canKong(Player player) {
-    if (pendingTile == null) return false;
-    final t = pendingTile!;
-    // 明杠
-    if (player.handTiles.where((tile) => tile.type == t.type && tile.number == t.number).length == 3) {
-      return true;
+    // 明杠：手里有三张，碰哪家打出的牌
+    if (pendingTile != null) {
+      final t = pendingTile!;
+      if (player.handTiles.where((tile) => tile.type == t.type && tile.number == t.number).length >= 3) {
+        return true;
+      }
     }
-    return false;
+    
+    // 暗杠：手里有四张相同的牌
+    return canHiddenKong(player);
+  }
+  
+  // 检查暗杠
+  bool canHiddenKong(Player player) {
+    final counts = <String, int>{};
+    for (final t in player.handTiles) {
+      final key = '${t.type}_${t.number}';
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+    return counts.values.any((c) => c == 4);
+  }
+  
+  // 获取可以杠的牌
+  List<Tile> getKongableTiles(Player player) {
+    final result = <Tile>[];
+    
+    // 明杠
+    if (pendingTile != null) {
+      final t = pendingTile!;
+      if (player.handTiles.where((tile) => tile.type == t.type && tile.number == t.number).length >= 3) {
+        result.add(t);
+      }
+    }
+    
+    // 暗杠
+    final counts = <String, List<Tile>>{};
+    for (final t in player.handTiles) {
+      final key = '${t.type}_${t.number}';
+      counts[key] = [...(counts[key] ?? []), t];
+    }
+    for (final tiles in counts.values) {
+      if (tiles.length == 4) {
+        result.add(tiles.first);
+      }
+    }
+    
+    return result;
   }
 
   // 检查是否可以胡
