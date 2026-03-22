@@ -49,6 +49,13 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    // 检查操作选项（花牌可以杠-补花）
+    final player = _game.players[0];
+    canPong = _game.pendingTile != null && _game.canPong(player);
+    canKong = _game.canKong(player) || player.flowerTiles.isNotEmpty;
+    canHu = _game.canHu(player);
+    canChow = _game.pendingTile != null && _game.canChow(player);
+    
     return Scaffold(
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -113,7 +120,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 top: h * 0.15,
                 bottom: h * 0.15,
                 child: Transform.rotate(
-                  angle: -0.12,
+                  angle: -0.08,
                   child: _buildWallCol(18, tileW, tileH),
                 ),
               ),
@@ -123,7 +130,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 top: h * 0.15,
                 bottom: h * 0.15,
                 child: Transform.rotate(
-                  angle: 0.12,
+                  angle: 0.08,
                   child: _buildWallCol(18, tileW, tileH),
                 ),
               ),
@@ -155,7 +162,29 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               if (_game.phase == GamePhase.playing)
                 Positioned(
                   left: 10, right: 10, bottom: 20,
-                  child: _buildMyHand(tileW, tileH),
+                  child: Row(
+                    children: [
+                      // 花牌区（碰杠区左侧）
+                      if (player.flowerTiles.isNotEmpty)
+                        Container(
+                          width: tileW * 1.5,
+                          height: tileH,
+                          child: Column(
+                            children: player.flowerTiles.map((t) => Container(
+                              width: tileW, height: tileH * 0.3,
+                              margin: const EdgeInsets.all(1),
+                              decoration: BoxDecoration(
+                                color: Colors.pink[200],
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                              child: Center(child: Text('花', style: TextStyle(fontSize: 8))),
+                            )).toList(),
+                          ),
+                        ),
+                      // 手牌
+                      Expanded(child: _buildMyHand(tileW, tileH)),
+                    ],
+                  ),
                 ),
               
               // ===== 操作按钮 =====
@@ -379,24 +408,26 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   Widget _buildMyHand(double w, double h) {
     final player = _game.players[0];
     return Container(
-      height: h + 20,
+      height: h + 30,
       decoration: BoxDecoration(color: Colors.black38, borderRadius: BorderRadius.circular(8)),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: player.handTiles.length,
-        itemBuilder: (ctx, i) => GestureDetector(
-          onTap: () => _playTile(i),
-          child: Container(
-            width: w, height: h,
-            margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 3),
-            decoration: BoxDecoration(
-              color: selectedTileIndex == i ? Colors.yellow[200] : Colors.white,
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: const Color(0xFFD4AF37)),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          for (int i = 0; i < player.handTiles.length; i++)
+            GestureDetector(
+              onTap: () => _playTile(i),
+              child: Container(
+                width: w, height: h,
+                margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 3),
+                decoration: BoxDecoration(
+                  color: selectedTileIndex == i ? Colors.yellow[200] : Colors.white,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: const Color(0xFFD4AF37)),
+                ),
+                child: Center(child: Text(player.handTiles[i].displayName, style: const TextStyle(fontSize: 9))),
+              ),
             ),
-            child: Center(child: Text(player.handTiles[i].displayName, style: const TextStyle(fontSize: 9))),
-          ),
-        ),
+        ],
       ),
     );
   }
@@ -454,7 +485,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             Positioned(
               left: btnSize * 0.5 + orbitRadius * 0.9,
               top: btnSize * 0.5 + orbitRadius * 0.4,
-              child: _buildOrbitBtn('杠', Colors.purple, canKong, subBtnSize, () {}),
+              child: _buildOrbitBtn('杠', Colors.purple, canKong, subBtnSize, _onKong),
             ),
             // 胡 - 最外侧
             Positioned(
@@ -529,6 +560,20 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     setState(() {});
   }
 
+  void _onKong() {
+    final p = _game.players[0];
+    // 如果有花牌，杠-补花
+    if (p.flowerTiles.isNotEmpty) {
+      // 移除外花牌，补一张新牌
+      if (_game.wall.isNotEmpty) {
+        p.flowerTiles.removeLast();
+        final newTile = _game.wall.removeLast();
+        p.handTiles.add(newTile);
+      }
+    }
+    setState(() {});
+  }
+  
   void _playTile(int i) {
     final p = _game.players[0];
     final t = p.handTiles[i];
