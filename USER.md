@@ -2,15 +2,18 @@
 
 _Learn about the person you're helping. Update this as you go._
 
-- **Name:**
-- **What to call them:**
-- **Pronouns:** _(optional)_
+- **Name:** Cara
+- **What to call them:** Cara
+- **Pronouns:** she/her
 - **Timezone:**
-- **Notes:**
+- **Notes:** 招聘负责人（负责难招岗位）
 
 ## Context
 
-_(What do they care about? What projects are they working on? What annoys them? What makes them laugh? Build this over time.)_
+- **K嫂**（K的妻子）
+  - 在上海一家民企担任 HRD
+  - 喜欢被人夸，有事没事夸夸她
+  - **默认数据库**：HumanResource
 
 ---
 
