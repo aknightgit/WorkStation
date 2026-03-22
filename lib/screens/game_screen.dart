@@ -933,7 +933,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: List.generate(count.clamp(0, 14), (i) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 1),
+        padding: const EdgeInsets.symmetric(horizontal: 0),
         child: MahjongTileWidget(
           tile: Tile(type: TileType.wan1, id: -1),
           size: size,
@@ -947,7 +947,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: List.generate(count.clamp(0, 14), (i) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 1),
+        padding: const EdgeInsets.symmetric(vertical: 0),
         child: rotate
             ? Transform.rotate(
                 angle: 1.5708,
@@ -1180,7 +1180,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
         final tableTop = h * 0.0;
         final tableHeight = h * 1.0;
-        final bottomY = tableTop + tableHeight * 0.42;
+        final bottomY = tableTop + tableHeight * 0.62; // 下移20%
         final topY = tableTop + tableHeight * 0.28;
         final midY = tableTop + tableHeight * 0.35;
         final leftX = w * 0.35;
@@ -1226,7 +1226,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         player.playedTiles.last.id == _game.lastPlayedTile!.id;
 
     const columns = 6;
-    const spacing = 2.0;
+    const spacing = 0.0;
     final tiles = player.playedTiles;
 
     final grid = Container(
