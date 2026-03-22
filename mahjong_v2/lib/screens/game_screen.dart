@@ -78,13 +78,12 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           
           return Stack(
             children: [
-              // 浅蓝色渐变灰背景
+              // 木纹背景
               Container(
                 decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Color(0xFFB0C4DE), Color(0xFF708090)],
+                  image: DecorationImage(
+                    image: AssetImage('assets/backgrounds/light_wood.png'),
+                    fit: BoxFit.cover,
                   ),
                 ),
               ),
