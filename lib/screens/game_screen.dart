@@ -763,7 +763,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               Positioned(
                 left: 0,
                 right: 0,
-                bottom: 20,
+                bottom: 12,
                 child: _buildMyHand(),
               ),
 
@@ -1071,8 +1071,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         const stacksPerSide = 18;
         const gap = 2.0;
 
-        final sizeByWidth = (w * 0.62 - gap * (stacksPerSide - 1)) / stacksPerSide;
-        final sizeByHeight = (h * 0.36 - gap * (stacksPerSide - 1)) / stacksPerSide;
+        final tableTop = h * 0.35;
+        final tableHeight = h * 0.65;
+        final wallWidth = w * 0.68;
+        final wallHeight = tableHeight * 0.42;
+        final wallLeft = (w - wallWidth) / 2;
+        final wallTop = tableTop + tableHeight * 0.08;
+
+        final sizeByWidth = (wallWidth - gap * (stacksPerSide - 1)) / stacksPerSide;
+        final sizeByHeight = (wallHeight - gap * (stacksPerSide - 1)) / stacksPerSide;
         final size = sizeByWidth.clamp(16.0, 28.0) < sizeByHeight
             ? sizeByWidth.clamp(16.0, 28.0)
             : sizeByHeight.clamp(16.0, 28.0);
@@ -1080,29 +1087,41 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         return Stack(
           children: [
             Positioned(
-              top: h * 0.16,
-              left: w * 0.14,
-              right: w * 0.14,
-              child: Center(child: _buildWallRow(stacksPerSide, size)),
+              left: wallLeft,
+              top: wallTop,
+              width: wallWidth,
+              height: wallHeight,
+              child: Stack(
+                children: [
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: Center(child: _buildWallRow(stacksPerSide, size)),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Center(child: _buildWallRow(stacksPerSide, size)),
+                  ),
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    child: _buildWallColumn(stacksPerSide, size),
+                  ),
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    bottom: 0,
+                    child: _buildWallColumn(stacksPerSide, size),
+                  ),
+                ],
+              ),
             ),
             Positioned(
-              bottom: h * 0.28,
-              left: w * 0.14,
-              right: w * 0.14,
-              child: Center(child: _buildWallRow(stacksPerSide, size)),
-            ),
-            Positioned(
-              left: w * 0.1,
-              top: h * 0.24,
-              child: _buildWallColumn(stacksPerSide, size),
-            ),
-            Positioned(
-              right: w * 0.1,
-              top: h * 0.24,
-              child: _buildWallColumn(stacksPerSide, size),
-            ),
-            Positioned(
-              top: h * 0.26,
+              top: wallTop + wallHeight * 0.02,
               left: 0,
               right: 0,
               child: Center(
@@ -1177,28 +1196,43 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     return LayoutBuilder(
       builder: (context, constraints) {
         final w = constraints.maxWidth;
+        final h = constraints.maxHeight;
         final tileSize = (w * 0.04).clamp(18.0, 26.0);
+
+        final tableTop = h * 0.35;
+        final tableHeight = h * 0.65;
+        final bottomY = tableTop + tableHeight * 0.62;
+        final topY = tableTop + tableHeight * 0.32;
+        final midY = tableTop + tableHeight * 0.47;
+        final leftX = w * 0.28;
+        final rightX = w * 0.72;
+
+        Alignment alignFor(double x, double y) {
+          final ax = (x / w) * 2 - 1;
+          final ay = (y / h) * 2 - 1;
+          return Alignment(ax, ay);
+        }
 
         return Stack(
           children: [
             if (_game.players[0].playedTiles.isNotEmpty)
               Align(
-                alignment: const Alignment(0, 0.35),
+                alignment: alignFor(w / 2, bottomY),
                 child: _buildPlayedGrid(_game.players[0], tileSize, rotate: 0),
               ),
             if (_game.players[3].playedTiles.isNotEmpty)
               Align(
-                alignment: const Alignment(0, -0.35),
+                alignment: alignFor(w / 2, topY),
                 child: _buildPlayedGrid(_game.players[3], tileSize, rotate: 0),
               ),
             if (_game.players[2].playedTiles.isNotEmpty)
               Align(
-                alignment: const Alignment(-0.6, 0),
+                alignment: alignFor(leftX, midY),
                 child: _buildPlayedGrid(_game.players[2], tileSize, rotate: 1.5708),
               ),
             if (_game.players[1].playedTiles.isNotEmpty)
               Align(
-                alignment: const Alignment(0.6, 0),
+                alignment: alignFor(rightX, midY),
                 child: _buildPlayedGrid(_game.players[1], tileSize, rotate: -1.5708),
               ),
           ],
