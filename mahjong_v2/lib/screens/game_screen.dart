@@ -226,35 +226,120 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   // 滚动骰子动画
+  // 精美3D骰子动画组件
   Widget _buildDiceWithAnimation() {
     return GestureDetector(
       onTap: isRolling ? null : _onDiceTap,
-      child: AnimatedBuilder(
-        animation: _diceRotateAnimation,
-        builder: (context, child) {
-          return Transform.rotate(
-            angle: isRolling ? _diceRotateAnimation.value : 0,
-            child: child,
-          );
-        },
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.black87,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFD4AF37), width: 3),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildDiceFace(_displayDice[0]),
-              const SizedBox(width: 20),
-              _buildDiceFace(_displayDice[1]),
-            ],
-          ),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.black87,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFD4AF37), width: 3),
+          boxShadow: [
+            BoxShadow(color: Colors.black54, blurRadius: 20, offset: const Offset(0, 10)),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _build3DDice(_displayDice[0], 0),
+            const SizedBox(width: 24),
+            _build3DDice(_displayDice[1], 1),
+          ],
         ),
       ),
     );
+  }
+
+  // 3D骰子
+  Widget _build3DDice(int value, int index) {
+    return AnimatedBuilder(
+      animation: _diceRotateAnimation,
+      builder: (context, child) {
+        // 弹跳 + 旋转效果
+        final progress = isRolling ? _diceRotateAnimation.value : 0.0;
+        final bounce = isRolling ? (1 - (progress * 2 - 1).abs()) * 30 : 0.0;
+        final rotation = isRolling ? progress * 6.28 : 0.0; // 完整旋转
+        
+        return Transform(
+          transform: Matrix4.identity()
+            ..translate(0.0, -bounce)
+            ..rotateZ(rotation),
+          alignment: Alignment.center,
+          child: Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white,
+                  const Color(0xFFEEEEEE),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.black87, width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.4),
+                  blurRadius: 8,
+                  offset: const Offset(2, 4),
+                ),
+              ],
+            ),
+            child: Center(
+              child: _buildDiceDots(value),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // 骰子点数（带点数样式）
+  Widget _buildDiceDots(int value) {
+    return Container(
+      width: 50,
+      height: 50,
+      child: Stack(
+        children: _getDots(value),
+      ),
+    );
+  }
+
+  List<Widget> _getDots(int value) {
+    final dots = <Widget>[];
+    final dotSize = 12.0;
+    final color = Colors.red;
+    
+    // 点位定义
+    final positions = {
+      1: [(0.5, 0.5)],
+      2: [(0.2, 0.2), (0.8, 0.8)],
+      3: [(0.2, 0.2), (0.5, 0.5), (0.8, 0.8)],
+      4: [(0.2, 0.2), (0.2, 0.8), (0.8, 0.2), (0.8, 0.8)],
+      5: [(0.2, 0.2), (0.2, 0.8), (0.5, 0.5), (0.8, 0.2), (0.8, 0.8)],
+      6: [(0.2, 0.2), (0.2, 0.5), (0.2, 0.8), (0.8, 0.2), (0.8, 0.5), (0.8, 0.8)],
+    };
+    
+    for (final pos in positions[value] ?? []) {
+      dots.add(Positioned(
+        left: pos.$1 * 50 - dotSize / 2,
+        top: pos.$2 * 50 - dotSize / 2,
+        child: Container(
+          width: dotSize,
+          height: dotSize,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 2)],
+          ),
+        ),
+      ));
+    }
+    return dots;
   }
 
   Widget _buildDiceFace(int v) {
