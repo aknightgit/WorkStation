@@ -1,2 +1,3 @@
-These tile PNG assets were generated for this project and are released under CC0 1.0.
-More info: https://creativecommons.org/publicdomain/zero/1.0/
+Tile assets: FluffyStuff/riichi-mahjong-tiles (CC0)
+https://github.com/FluffyStuff/riichi-mahjong-tiles
+Back.png customized with green pattern (generated).
