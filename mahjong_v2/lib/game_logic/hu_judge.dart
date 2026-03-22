@@ -65,8 +65,8 @@ class HuJudge {
       if (_checkMelds(remain)) return true;
     }
     
-    // 尝试组成顺子 (ABC)
-    if (first.suit != TileSuit.hua) {
+    // 尝试组成顺子 (ABC) - 只能对数牌
+    if (first.suit != TileSuit.hua && first.type != TileType.wind && first.type != TileType.dragon) {
       for (int n = 1; n <= 7; n++) {
         final a = Tile(id: -1, type: first.type, number: n, suit: first.suit);
         final b = Tile(id: -1, type: first.type, number: n + 1, suit: first.suit);
@@ -92,147 +92,43 @@ class HuJudge {
     return true;
   }
   
-  // 七对子检测
-  static bool _checkSevenPairs(List<Tile> hand) {
-    if (hand.length != 14) return false;
-    
-    final counts = <int, int>{};
-    for (final t in hand) {
-      counts[t.id] = (counts[t.id] ?? 0) + 1;
-    }
-    return counts.values.every((c) => c == 2);
-  }
-  
   // 十三幺检测
   static bool _checkThirteenOrphans(List<Tile> hand) {
     if (hand.length != 14) return false;
-    return false; // TODO: 完善十三幺检测
-  }
-}
-
-// 点数计算器
-class ScoreCalculator {
-  // 计算牌局倍数（基于骰子组合）
-  static int calculateGameMultiplier(int dice1, int dice2) {
-    // 14组合 → 2倍
-    // 44组合 → 4倍
-    // 11组合 → 4倍  
-    // 其他相同点数组合 → 2倍
-    // 最高8倍封顶
     
-    // 14组合 = 2倍
-    if ((dice1 == 1 && dice2 == 4) || (dice1 == 4 && dice2 == 1)) return 2;
+    // 必须有：1,9万 1,9筒 1,9条 + 东南西北中发白 + 其中一张成对
+    final orphans = {1, 9};
+    final honors = {1, 2, 3, 4, 5, 6, 7}; // 东南西北中发白
     
-    // 44组合 = 4倍
-    if (dice1 == 4 && dice2 == 4) return 4;
+    final counts = <int, int>{};
+    for (final t in hand) {
+      final key = _getTileKey(t);
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
     
-    // 11组合 = 4倍
-    if (dice1 == 1 && dice2 == 1) return 4;
+    // 检查是否有13种幺九牌
+    int orphanCount = 0;
+    int honorCount = 0;
+    int pairCount = 0;
     
-    // 其他相同组合（双数对）→ 2倍
-    if (dice1 == dice2) return 2;
-    
-    // 默认1倍
-    return 1;
-  }
-  
-  // 计算最终点数（带牌局倍数）
-  static int calculateFinalScore({
-    required int baseScore,
-    required int gameMultiplier,
-    required int fanMultiplier,
-  }) {
-    // 最终 = 基础分 × 牌局倍数 × 番数倍数
-    // 最高封顶 256
-    int score = baseScore * gameMultiplier * fanMultiplier;
-    return score.clamp(1, 256);
-  }
-  
-  // 计算胡牌点数
-  static int calculateScore({
-    required List<Tile> hand,
-    required List<Tile> melds,
-    required List<Tile> flowerTiles,
-    required bool isZimo,
-    required bool isGangKai,
-    required bool isMenQing,
-    required bool hasWild,
-  }) {
-    // 1. 固定点数牌型（优先级最高）
-    if (isQingYiSe(hand, melds)) return 10;
-    if (isFengYiSe(hand, melds)) return 20;
-    if (isFengPeng(hand, melds)) return 40;
-    if (isNoFlowerZiMo(hand, melds, flowerTiles, isZimo)) return 10;
-    if (isGangKai) return 10;
-    
-    // 2. 公式计算
-    int base = 2;
-    base += flowerTiles.length; // 花牌数
-    base += _calculateMeldPoints(melds); // 组合牌点数
-    
-    // 3. 额外翻倍
-    double multiplier = 1.0;
-    if (!hasWild) multiplier *= 2; // 无百搭 ×2
-    if (isMenQing) multiplier *= 2; // 门清 ×2
-    
-    return (base * multiplier).round();
-  }
-  
-  // 计算组合牌点数
-  static int _calculateMeldPoints(List<Tile> melds) {
-    int points = 0;
-    for (final meld in melds) {
-      if (meld.type == TileType.wind) {
-        points += 1; // 风牌刻子
-      } else if (meld.type == TileType.dragon) {
-        points += 2; // 箭牌刻子
+    for (final t in hand) {
+      if (t.suit != TileSuit.hua) {
+        if (t.suit == TileSuit.wan || t.suit == TileSuit.tong || t.suit == TileSuit.tiao) {
+          if (orphans.contains(t.number)) {
+            orphanCount++;
+            if (counts[_getTileKey(t)] == 2) pairCount++;
+          }
+        } else if (t.type == TileType.wind || t.type == TileType.dragon) {
+          honorCount++;
+          if (counts[_getTileKey(t)] == 2) pairCount++;
+        }
       }
     }
-    return points;
-  }
-  
-  // 清一色检测
-  static bool isQingYiSe(List<Tile> hand, List<Tile> melds) {
-    final suits = <TileSuit>{};
-    for (final t in hand) {
-      if (t.suit != TileSuit.hua) suits.add(t.suit);
-    }
-    for (final t in melds) {
-      if (t.suit != TileSuit.hua) suits.add(t.suit);
-    }
-    return suits.length == 1 && suits.contains(TileSuit.wan);
-  }
-  
-  // 风一色检测
-  static bool isFengYiSe(List<Tile> hand, List<Tile> melds) {
-    for (final t in hand) {
-      if (t.type != TileType.wind && t.suit != TileSuit.hua) return false;
-    }
-    for (final t in melds) {
-      if (t.type != TileType.wind) return false;
-    }
-    return hand.any((t) => t.type == TileType.wind);
-  }
-  
-  // 风碰检测
-  static bool isFengPeng(List<Tile> hand, List<Tile> melds) {
-    // 全部是风牌，且有刻子/杠
-    for (final t in hand) {
-      if (t.type != TileType.wind && t.suit != TileSuit.hua) return false;
-    }
-    // 有刻子或杠
-    return melds.length >= 1;
-  }
-  
-  // 无花自摸检测
-  static bool isNoFlowerZiMo(List<Tile> hand, List<Tile> melds, List<Tile> flowerTiles, bool isZimo) {
-    if (!isZimo) return false;
-    if (flowerTiles.isNotEmpty) return false;
     
-    // 无风向刻/杠
-    for (final t in melds) {
-      if (t.type == TileType.wind) return false;
-    }
-    return true;
+    return orphanCount >= 6 && honorCount >= 7 && pairCount == 1;
+  }
+  
+  static int _getTileKey(Tile t) {
+    return t.suit.index * 100 + t.type.index * 10 + t.number;
   }
 }
