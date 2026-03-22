@@ -1264,25 +1264,90 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
   
   Widget _buildDiceSection() {
+    final dice1 = _game.diceValues[0];
+    final dice2 = _game.diceValues[1];
+    final showDice = _diceClickCount > 0;
+    final canDeal = _game.diceRolled && !_hasDealt;
+
     return Center(
-      child: GestureDetector(
-        onTap: _onDiceClick,
-        child: Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: Colors.black26,
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white24, width: 1.5),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 掷骰按钮/显示区
+          GestureDetector(
+            onTap: _onDiceClick,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: _isRollingDice ? Colors.yellow : Colors.white24,
+                  width: 2,
+                ),
               ),
-            ],
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (showDice) ...[
+                    AnimatedBuilder(
+                      animation: _diceController,
+                      builder: (context, child) {
+                        return Transform.rotate(
+                          angle: _isRollingDice ? _diceController.value * 6.28 : 0,
+                          child: Text('🎲', style: TextStyle(fontSize: 28)),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '$dice1 + $dice2',
+                      style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                    ),
+                    if (_waitingSecondRoll) ...[
+                      const SizedBox(width: 12),
+                      const Text('↻', style: TextStyle(color: Colors.yellow, fontSize: 18)),
+                    ],
+                  ] else ...[
+                    const Icon(Icons.casino, color: Colors.white70, size: 28),
+                    const SizedBox(width: 8),
+                    const Text('掷骰', style: TextStyle(color: Colors.white, fontSize: 18)),
+                  ],
+                ],
+              ),
+            ),
           ),
-        ),
+          const SizedBox(height: 12),
+          // 发牌按钮 - 掷骰后显示，点击后消失
+          if (canDeal)
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  _hasDealt = true;
+                });
+                _startDealing();
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.green.withOpacity(0.4),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: const Text(
+                  '发牌',
+                  style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
