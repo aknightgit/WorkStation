@@ -258,9 +258,12 @@ class _GameScreenState extends State<GameScreen> {
         width: tileWidth, height: tileHeight,
         margin: const EdgeInsets.symmetric(horizontal: 1),
         decoration: BoxDecoration(
-          color: const Color(0xFF2E7D32),
           borderRadius: BorderRadius.circular(3),
           border: Border.all(color: Colors.white24, width: 1),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: Image.asset('assets/images/tiles/Regular/Back.png', fit: BoxFit.cover),
         ),
       )),
     );
@@ -273,9 +276,12 @@ class _GameScreenState extends State<GameScreen> {
         width: tileWidth, height: tileHeight,
         margin: const EdgeInsets.symmetric(vertical: 1),
         decoration: BoxDecoration(
-          color: const Color(0xFF2E7D32),
           borderRadius: BorderRadius.circular(3),
           border: Border.all(color: Colors.white24, width: 1),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: Image.asset('assets/images/tiles/Regular/Back.png', fit: BoxFit.cover),
         ),
       )),
     );
@@ -444,18 +450,60 @@ class _GameScreenState extends State<GameScreen> {
         children: List.generate(player.handTiles.length, (i) => GestureDetector(
           onTap: () => _playTile(i),
           child: Container(
-            width: 28, height: 38,
-            margin: const EdgeInsets.symmetric(horizontal: 1),
+            width: tileWidth,
+            height: tileHeight,
+            margin: const EdgeInsets.symmetric(horizontal: 2),
             decoration: BoxDecoration(
-              color: selectedTileIndex == i ? Colors.yellow[200] : Colors.white,
-              borderRadius: BorderRadius.circular(3),
-              border: Border.all(color: Colors.black26),
+              borderRadius: BorderRadius.circular(4),
+              border: selectedTileIndex == i ? Border.all(color: Colors.yellow, width: 3) : null,
             ),
-            child: Center(child: Text(player.handTiles[i].displayName, style: const TextStyle(fontSize: 8))),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: Image.asset(
+                _getTileImagePath(player.handTiles[i]),
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => Container(
+                  color: Colors.white,
+                  child: Center(child: Text(player.handTiles[i].displayName, style: const TextStyle(fontSize: 10))),
+                ),
+              ),
+            ),
           ),
         )),
       ),
     );
+  }
+  
+  // 获取麻将牌图片路径
+  String _getTileImagePath(Tile tile) {
+    // 文件名格式: Man1.png (万), Pin1.png (筒), Sou1.png (条), Ton.png (东), etc.
+    String prefix;
+    switch (tile.suit) {
+      case TileSuit.wan:
+        prefix = 'Man';
+        break;
+      case TileSuit.tong:
+        prefix = 'Pin';
+        break;
+      case TileSuit.tiao:
+        prefix = 'Sou';
+        break;
+      case TileSuit.hua:
+        if (tile.type == TileType.flower) {
+          return 'assets/images/tiles/Regular/Front.png';
+        }
+        return 'assets/images/tiles/Regular/Blank.png';
+    }
+    
+    if (tile.type == TileType.wind) {
+      final winds = ['Ton', 'Nan', 'Shaa', 'Pei'];
+      return 'assets/images/tiles/Regular/${winds[tile.number - 1]}.png';
+    } else if (tile.type == TileType.dragon) {
+      final dragons = ['Chun', 'Hatsu', 'Haku'];
+      return 'assets/images/tiles/Regular/${dragons[tile.number - 1]}.png';
+    }
+    
+    return 'assets/images/tiles/Regular/$prefix${tile.number}.png';
   }
 
   Widget _buildActionButtons() {
