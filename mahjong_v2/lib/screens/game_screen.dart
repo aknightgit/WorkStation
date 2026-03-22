@@ -181,11 +181,11 @@ class _GameScreenState extends State<GameScreen> {
               final w = constraints.maxWidth;
               final h = constraints.maxHeight;
               
-              // 桌布底部固定，高度增加1/3
-              final tableHeight = h * 0.73; // 原0.55，增加1/3
-              final tableTop = h * 0.27; // 底部固定在0.27位置
-              final bottomWidth = w * 0.95;
-              final topWidth = w * 0.75;
+              // 桌布：居中，约60%屏幕高度
+              final tableHeight = h * 0.60;
+              final tableTop = h * 0.20;
+              final bottomWidth = w * 0.90;
+              final topWidth = w * 0.65;
               
               return Stack(
                 children: [
@@ -204,24 +204,24 @@ class _GameScreenState extends State<GameScreen> {
                     ),
                   ),
                   
-                  // 牌墙 - 在梯形内部，平行于边缘
+                  // 牌墙 - 紧贴梯形四边
                   // 上牌墙（平行于上边）
-                  Positioned(left: w * 0.18, right: w * 0.18, top: tableTop + 20, child: _buildWallRow(stacksPerSide)),
+                  Positioned(left: w * 0.25, right: w * 0.25, top: tableTop + 8, child: _buildWallRow(stacksPerSide)),
                   // 下牌墙（平行于下边）
-                  Positioned(left: w * 0.18, right: w * 0.18, bottom: h - (tableTop + tableHeight) + 20, child: _buildWallRow(stacksPerSide)),
+                  Positioned(left: w * 0.25, right: w * 0.25, bottom: h - (tableTop + tableHeight) + 8, child: _buildWallRow(stacksPerSide)),
                   // 左牌墙（平行于左边）
-                  Positioned(left: w * 0.10, top: tableTop + tableHeight * 0.12, bottom: h - (tableTop + tableHeight) + tableHeight * 0.12, child: _buildWallColumn(stacksPerSide)),
+                  Positioned(left: w * 0.12, top: tableTop + tableHeight * 0.10, bottom: h - (tableTop + tableHeight) + tableHeight * 0.10, child: _buildWallColumn(stacksPerSide)),
                   // 右牌墙（平行于右边）
-                  Positioned(right: w * 0.10, top: tableTop + tableHeight * 0.12, bottom: h - (tableTop + tableHeight) + tableHeight * 0.12, child: _buildWallColumn(stacksPerSide)),
+                  Positioned(right: w * 0.12, top: tableTop + tableHeight * 0.10, bottom: h - (tableTop + tableHeight) + tableHeight * 0.10, child: _buildWallColumn(stacksPerSide)),
                   
-                  // 弃牌区
-                  Positioned(left: w * 0.20, right: w * 0.20, top: tableTop + tableHeight * 0.25, bottom: tableTop + tableHeight * 0.75, child: _buildDiscardArea()),
+                  // 弃牌区 - 中央6x6
+                  Positioned(left: w * 0.25, right: w * 0.25, top: tableTop + tableHeight * 0.30, bottom: tableTop + tableHeight * 0.70, child: _buildDiscardArea()),
                   
-                  // 头像
-                  Positioned(top: 20, left: 0, right: 0, child: Center(child: _buildAvatar(2))),
-                  Positioned(left: 10, top: h * 0.35, child: _buildAvatar(3)),
-                  Positioned(right: 10, top: h * 0.35, child: _buildAvatar(1)),
-                  Positioned(bottom: 30, left: 0, right: 0, child: Center(child: _buildAvatar(0))),
+                  // 头像 - 四角位置
+                  Positioned(top: tableTop - 30, left: 0, right: 0, child: Center(child: _buildAvatar(2))),
+                  Positioned(left: w * 0.08, top: tableTop + tableHeight * 0.4, child: _buildAvatar(3)),
+                  Positioned(right: w * 0.08, top: tableTop + tableHeight * 0.4, child: _buildAvatar(1)),
+                  Positioned(bottom: h - (tableTop + tableHeight) + 8, left: 0, right: 0, child: Center(child: _buildAvatar(0))),
                   
                   // 顶部信息
                   Positioned(top: 80, left: 20, child: _buildDealerInfo()),
@@ -231,9 +231,9 @@ class _GameScreenState extends State<GameScreen> {
                   if (_game.phase == GamePhase.waiting || _game.phase == GamePhase.diceRolling)
                     Positioned(left: w * 0.40, right: w * 0.40, top: tableTop + tableHeight * 0.45, child: _buildDiceSection()),
                   
-                  // 手牌
+                  // 手牌 - 底部居中，紧贴桌布
                   if (_game.phase == GamePhase.playing)
-                    Positioned(left: 20, right: 20, bottom: 40, child: _buildMyHand()),
+                    Positioned(left: 20, right: 20, bottom: h - (tableTop + tableHeight) + 20, child: _buildMyHand()),
                   
                   // 操作按钮
                   if (_game.phase == GamePhase.playing)
