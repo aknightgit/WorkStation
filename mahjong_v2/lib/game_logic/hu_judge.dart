@@ -89,42 +89,6 @@ class HuJudge {
     return true;
   }
   
-  // 十三幺检测
-  static bool _checkThirteenOrphans(List<Tile> hand) {
-    if (hand.length != 14) return false;
-    
-    // 必须有：1,9万 1,9筒 1,9条 + 东南西北中发白 + 其中一张成对
-    final orphans = {1, 9};
-    final honors = {1, 2, 3, 4, 5, 6, 7}; // 东南西北中发白
-    
-    final counts = <int, int>{};
-    for (final t in hand) {
-      final key = _getTileKey(t);
-      counts[key] = (counts[key] ?? 0) + 1;
-    }
-    
-    // 检查是否有13种幺九牌
-    int orphanCount = 0;
-    int honorCount = 0;
-    int pairCount = 0;
-    
-    for (final t in hand) {
-      if (t.suit != TileSuit.hua) {
-        if (t.suit == TileSuit.wan || t.suit == TileSuit.tong || t.suit == TileSuit.tiao) {
-          if (orphans.contains(t.number)) {
-            orphanCount++;
-            if (counts[_getTileKey(t)] == 2) pairCount++;
-          }
-        } else if (t.type == TileType.wind || t.type == TileType.dragon) {
-          honorCount++;
-          if (counts[_getTileKey(t)] == 2) pairCount++;
-        }
-      }
-    }
-    
-    return orphanCount >= 6 && honorCount >= 7 && pairCount == 1;
-  }
-  
   static int _getTileKey(Tile t) {
     return t.suit.index * 100 + t.type.index * 10 + t.number;
   }
