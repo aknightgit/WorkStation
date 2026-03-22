@@ -766,13 +766,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               // 右侧动作菜单 - 自己回合 或 有响应可使用时显示
               if ((_currentPlayerIndex == 0 || _hasResponseAvailable()) && !_isRollingDice && !_isDealing)
                 _buildRightActionMenu(),
-
-              // 当前玩家提示
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 150,
-
             ],
           ),
         ),
