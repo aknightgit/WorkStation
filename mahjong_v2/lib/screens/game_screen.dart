@@ -346,6 +346,39 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   Widget _buildDiceSection() {
+    // 发牌后显示当局倍数
+    if (_game.phase == GamePhase.playing) {
+      final multiplier = _game.globalMultiplier;
+      Color bgColor;
+      if (multiplier >= 8) {
+        bgColor = Colors.red; // 8倍红色
+      } else if (multiplier >= 4) {
+        bgColor = Colors.orange; // 4倍橙色
+      } else if (multiplier >= 2) {
+        bgColor = Colors.yellow; // 2倍黄色
+      } else {
+        bgColor = Colors.black54;
+      }
+      
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(12),
+          border: multiplier >= 8 ? Border.all(color: Colors.white, width: 2) : null,
+        ),
+        child: Text(
+          '×$multiplier',
+          style: TextStyle(
+            fontSize: 36,
+            fontWeight: FontWeight.bold,
+            color: multiplier >= 4 ? Colors.white : Colors.black87,
+          ),
+        ),
+      );
+    }
+    
+    // 掷骰子阶段
     return GestureDetector(
       onTap: _onDiceTap,
       child: Container(
