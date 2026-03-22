@@ -27,9 +27,6 @@ class HuJudge {
       if (_checkMelds(remain)) return true;
     }
     
-    // 十三幺
-    if (_checkThirteenOrphans(hand)) return true;
-    
     return false;
   }
   

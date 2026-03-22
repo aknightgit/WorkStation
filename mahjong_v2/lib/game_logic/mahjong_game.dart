@@ -101,6 +101,11 @@ class MahjongGame {
   // 包关系: baoRelations[fromPlayer][toPlayer] = count
   // 表示 fromPlayer 吃了/碰了 toPlayer 多少口
   Map<int, Map<int, int>> baoRelations = {};
+  
+  // 血战到底：记录已胡牌的玩家
+  List<int> eliminatedPlayers = [];
+  // 当前剩余玩家数
+  int get activePlayerCount => 4 - eliminatedPlayers.length;
 
   MahjongGame() {
     players = [
@@ -422,6 +427,66 @@ class MahjongGame {
     // 标记为流局
     phase = GamePhase.scoring;
     gameEnded = true;
+  }
+  
+  // 血战到底：玩家胡牌
+  // 返回 true 表示游戏结束，false 表示继续
+  bool playerWins(int playerIndex) {
+    eliminatedPlayers.add(playerIndex);
+    
+    // 血战到底：重新计算上家关系
+    // 原来上家变成下家，继续游戏
+    _recalculatePositionsAfterElimination(playerIndex);
+    
+    // 检查是否只剩一家
+    if (activePlayerCount <= 1) {
+      // 游戏结束
+      phase = GamePhase.scoring;
+      gameEnded = true;
+      return true;
+    }
+    
+    // 牌墙已摸完
+    if (wall.isEmpty) {
+      phase = GamePhase.scoring;
+      gameEnded = true;
+      return true;
+    }
+    
+    // 继续游戏（跳过已胡牌的玩家）
+    _nextActivePlayer();
+    return false;
+  }
+  
+  // 血战到底：移除玩家后重新计算位置
+  void _recalculatePositionsAfterElimination(int eliminatedIndex) {
+    // 由于是血战到底，剩下三家继续
+    // 上家/下家关系需要动态计算：
+    // 原来的上家可能变成新的下家
+    // 包关系也会重新计算
+    
+    // 例如：0胡 → 1,2,3继续
+    // 1的上家变成2，下家变成0(已胡)
+    // 2的上家变成0(已胡)，下家变成1
+    // 3的上家变成1，下家变成0(已胡)
+    
+    // 实际上，逆时针顺序保持不变，只是跳过已胡玩家
+    // currentPlayerIndex 不需要改变，会在 _nextActivePlayer 中处理
+  }
+  
+  // 血战到底：移动到下一个活跃玩家
+  void _nextActivePlayer() {
+    for (int i = 0; i < 4; i++) {
+      currentPlayerIndex = (currentPlayerIndex + 3) % 4; // 逆时针
+      if (!eliminatedPlayers.contains(currentPlayerIndex)) {
+        break;
+      }
+    }
+  }
+  
+  // 检查指定玩家是否已胡牌
+  bool isPlayerEliminated(int playerIndex) {
+    return eliminatedPlayers.contains(playerIndex);
   }
 
   // 检查是否可以碰
