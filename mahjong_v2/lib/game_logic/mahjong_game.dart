@@ -259,10 +259,64 @@ class MahjongGame {
       final need3 = Tile(id: -1, type: t.type, number: n + 2, suit: t.suit);
       
       if (_playerHasTiles(player, [need1, need2, need3])) {
+        // 返回的组合包含 pendingTile 在中间位置
+        // 例如吃 5万，手里有 34万/46万 两种组合
         combos.add([need1, need2, need3]);
       }
     }
     return combos;
+  }
+  
+  // 执行吃牌（单组合自动吃）
+  bool doChow(Player player, List<Tile>? selectedTiles) {
+    if (pendingTile == null) return false;
+    final combos = getChowCombos(player);
+    if (combos.isEmpty) return false;
+    
+    List<Tile> combo;
+    
+    if (combos.length == 1) {
+      // 只有一种组合，自动吃
+      combo = combos.first;
+    } else if (selectedTiles != null && selectedTiles.length == 2) {
+      // 多种组合，玩家已选择2张
+      // 找到匹配的组合
+      combo = combos.firstWhere(
+        (c) => _containsTiles(c.sublist(0, 2), selectedTiles),
+        orElse: () => combos.first,
+      );
+    } else {
+      // 多种组合但玩家未选择
+      return false;
+    }
+    
+    // 移除手牌中的两张牌
+    final toRemove = combo.sublist(0, 2);
+    for (final t in toRemove) {
+      final idx = player.handTiles.indexWhere(
+        (x) => x.type == t.type && x.number == t.number,
+      );
+      if (idx >= 0) {
+        player.handTiles.removeAt(idx);
+      }
+    }
+    
+    // 添加吃牌组合到 melds（pendingTile 放中间）
+    player.melds.add(combo);
+    
+    // 吃牌后轮到该玩家摸牌
+    pendingTile = null;
+    return true;
+  }
+  
+  bool _containsTiles(List<Tile> a, List<Tile> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i].type != b[i].type || a[i].number != b[i].number) {
+        return false;
+      }
+    }
+    return true;
   }
 
   bool _playerHasTiles(Player player, List<Tile> need) {
