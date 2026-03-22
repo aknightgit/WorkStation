@@ -24,9 +24,9 @@ class _GameScreenState extends State<GameScreen> {
   bool canRebel = false;
 
   static const int stacksPerSide = 18;
-  // 手牌放大3倍
-  static const double tileWidth = 72.0;
-  static const double tileHeight = 96.0;
+  // 手牌尺寸（根据屏幕调整）
+  static double tileWidth = 40.0;
+  static double tileHeight = 54.0;
   
   // 骰子动画
   double _diceAnimationValue = 0.0;
@@ -213,6 +213,9 @@ class _GameScreenState extends State<GameScreen> {
               final w = constraints.maxWidth;
               final h = constraints.maxHeight;
               
+              // 调整尺寸
+              _adjustSizes(w, h);
+              
               // 桌布：上下撑开100%
               final tableHeight = h;
               final tableTop = 0.0;
@@ -387,6 +390,12 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
+  // 根据屏幕大小调整尺寸
+  void _adjustSizes(double w, double h) {
+    tileWidth = w * 0.045;
+    tileHeight = tileWidth * 1.35;
+  }
+  
   Widget _buildDiceSection() {
     // 发牌后显示当局倍数
     if (_game.phase == GamePhase.playing) {
@@ -456,8 +465,8 @@ class _GameScreenState extends State<GameScreen> {
         return Transform.translate(
           offset: Offset(0, -val * 3),
           child: Container(
-            width: 80,
-            height: 80,
+            width: 50,
+            height: 50,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
@@ -468,7 +477,7 @@ class _GameScreenState extends State<GameScreen> {
               child: Text(
                 '$value',
                 style: const TextStyle(
-                  fontSize: 48,
+                  fontSize: 28,
                   fontWeight: FontWeight.bold,
                   color: Colors.red,
                 ),
