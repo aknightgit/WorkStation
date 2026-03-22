@@ -114,7 +114,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   int _diceClickCount = 0;
   bool _waitingSecondRoll = false;
-  
+
   void _handleDiceAnimationStatus(AnimationStatus status) {
     if (status != AnimationStatus.completed || !_isRollingDice) {
       return;
@@ -308,13 +308,13 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   void _checkActions() {
     final player = _game.players[0]; // 总是检查人类玩家
-    
+
     // 优先响应：检查别人打牌时我是否可以吃/碰/杠/胡
     final canPong = _pendingTile != null ? _game.canPong(player, _pendingTile!) : false;
     final canChow = _pendingTile != null ? _game.canChow(player, _pendingTile!) : false;
     final canExposedKong = _pendingTile != null ? _game.canExposedKong(player, _pendingTile!) : false;
     final canRon = _pendingTile != null ? _game.canRonWithTile(player, _pendingTile!) : false;
-    
+
     // 自己摸牌后的响应
     final hiddenKong = !_mustDiscardAfterClaim && _game.canHiddenKong(player);
     final selfDrawHu = !_mustDiscardAfterClaim && _game.canHu(
@@ -330,13 +330,13 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       _availableActions['hu'] = canRon || selfDrawHu;
     });
   }
-  
+
   // 检查是否有可用的响应（别人打牌时我可以吃/碰/杠/胡）
   bool _hasResponseAvailable() {
-    return _pendingTile != null && 
-        (_availableActions['chow'] == true || 
-         _availableActions['pong'] == true || 
-         _availableActions['kong'] == true || 
+    return _pendingTile != null &&
+        (_availableActions['chow'] == true ||
+         _availableActions['pong'] == true ||
+         _availableActions['kong'] == true ||
          _availableActions['hu'] == true);
   }
 
@@ -638,9 +638,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     if (_lastDrawnTile != null || _mustDiscardAfterClaim) {
       return false;
     }
-    // 有别人打出的牌时，允许用“摸”当“过”
+    // 有别人打出的牌时，禁止摸牌，必须先响应
     if (_pendingTile != null) {
-      return true;
+      return false;
     }
     return _game.players[0].handTiles.length % 3 == 1;
   }
@@ -705,7 +705,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
-              
+
               // 玩家座位
               _buildPlayerSeats(),
 
@@ -772,7 +772,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 left: 0,
                 right: 0,
                 bottom: 150,
-        
+
             ],
           ),
         ),
@@ -1060,7 +1060,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       ),
     );
   }
-  
+
   // 模拟牌墙 - 四方格，牌背朝上，纵深感
   Widget _buildWall() {
     return LayoutBuilder(
@@ -1275,7 +1275,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     if (rotate == 0) return grid;
     return Transform.rotate(angle: rotate, child: grid);
   }
-  
+
   Widget _buildDiceSection() {
     final dice1 = _game.diceValues[0];
     final dice2 = _game.diceValues[1];
@@ -1458,7 +1458,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       ),
     );
   }
-  
+
   // 庄家显示 - 左上角
   Widget _buildDealerInfo() {
     return Container(
@@ -1473,7 +1473,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       ),
     );
   }
-  
+
   Widget _buildGameInfo() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -1626,7 +1626,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       onPressed: enabled ? onPressed : null,
       style: ElevatedButton.styleFrom(
         backgroundColor: enabled ? color : Colors.grey,
-        padding: isLarge 
+        padding: isLarge
             ? const EdgeInsets.symmetric(horizontal: 24, vertical: 16)
             : const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         minimumSize: isLarge ? const Size(70, 50) : const Size(40, 30),
