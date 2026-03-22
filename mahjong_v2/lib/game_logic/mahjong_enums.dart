@@ -71,3 +71,7 @@ enum MahjongHua {
   mh_hua,    // 花
   mh_max,
 }
+
+// 兼容旧代码的类型别名
+typedef TileType = MahjongType;
+typedef TileSuit = MahjongHua;
