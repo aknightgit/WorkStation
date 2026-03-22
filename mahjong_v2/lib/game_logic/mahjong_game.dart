@@ -475,6 +475,19 @@ class MahjongGame {
     
     return result;
   }
+  
+  // 执行杠牌（明杠记录包关系，暗杠不记录）
+  bool doKong(Player player, Tile kongTile, {bool isHidden = false}) {
+    // 明杠：记录包关系（杠别人打出的牌）
+    if (!isHidden && pendingTile != null) {
+      final fromPlayer = player.index; // 杠牌者
+      final toPlayer = currentPlayerIndex; // 打牌者
+      recordBao(fromPlayer, toPlayer);
+    }
+    // 暗杠不记录包关系
+    // TODO: 实际杠牌逻辑（移除手牌、添加meld、从牌墙补牌）
+    return true;
+  }
 
   // 检查是否可以胡
   bool canHu(Player player) {
