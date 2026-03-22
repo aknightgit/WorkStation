@@ -772,20 +772,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 left: 0,
                 right: 0,
                 bottom: 150,
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.green,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '👤 ${_game.players[_currentPlayerIndex].name} 回合',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                  ),
-                ),
-              ),
+        
             ],
           ),
         ),
@@ -797,11 +784,11 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     return LayoutBuilder(
       builder: (context, constraints) {
         final h = constraints.maxHeight;
-        final tableTop = h * 0.4;
-        final tableHeight = h * 0.6;
-        final topY = tableTop - 60;
-        final bottomY = h * 0.14;
-        final sideTop = tableTop + tableHeight * 0.46;
+        final tableTop = h * 0.0;
+        final tableHeight = h * 1.0;
+        final topY = tableTop + tableHeight * 0.02;
+        final bottomY = h * 0.10;
+        final sideTop = tableTop + tableHeight * 0.34;
 
         return Stack(
           children: [
@@ -1040,9 +1027,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         builder: (context, constraints) {
           final screenWidth = constraints.maxWidth;
           final screenHeight = constraints.maxHeight;
-          final tableHeight = screenHeight * 0.6;
+          final tableHeight = screenHeight * 1.0;
           final bottomWidth = screenWidth;
-          final topWidth = screenWidth * 0.78;
+          final topWidth = screenWidth * 0.88;
 
           return Align(
             alignment: Alignment.bottomCenter,
@@ -1068,20 +1055,20 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         final w = constraints.maxWidth;
         final h = constraints.maxHeight;
         const stacksPerSide = 18;
-        const gap = 2.0;
+        const gap = 0.0;
 
-        final tableTop = h * 0.4;
-        final tableHeight = h * 0.6;
-        final wallWidth = w * 0.7;
-        final wallHeight = tableHeight * 0.42;
+        final tableTop = h * 0.0;
+        final tableHeight = h * 1.0;
+        final wallWidth = w * 0.88;
+        final wallHeight = tableHeight * 0.38;
         final wallLeft = (w - wallWidth) / 2;
-        final wallTop = tableTop + tableHeight * 0.07;
+        final wallTop = tableTop + tableHeight * 0.04;
 
         final sizeByWidth = (wallWidth - gap * (stacksPerSide - 1)) / stacksPerSide;
         final sizeByHeight = (wallHeight - gap * (stacksPerSide - 1)) / stacksPerSide;
-        final size = sizeByWidth.clamp(16.0, 28.0) < sizeByHeight
+        final size = (sizeByWidth.clamp(16.0, 28.0) < sizeByHeight
             ? sizeByWidth.clamp(16.0, 28.0)
-            : sizeByHeight.clamp(16.0, 28.0);
+            : sizeByHeight.clamp(16.0, 28.0)) * 2;
 
         return Stack(
           children: [
@@ -1198,13 +1185,13 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         final h = constraints.maxHeight;
         final tileSize = (w * 0.04).clamp(18.0, 26.0);
 
-        final tableTop = h * 0.4;
-        final tableHeight = h * 0.6;
-        final bottomY = tableTop + tableHeight * 0.56;
-        final topY = tableTop + tableHeight * 0.34;
-        final midY = tableTop + tableHeight * 0.45;
-        final leftX = w * 0.33;
-        final rightX = w * 0.67;
+        final tableTop = h * 0.0;
+        final tableHeight = h * 1.0;
+        final bottomY = tableTop + tableHeight * 0.42;
+        final topY = tableTop + tableHeight * 0.28;
+        final midY = tableTop + tableHeight * 0.35;
+        final leftX = w * 0.35;
+        final rightX = w * 0.65;
 
         Alignment alignFor(double x, double y) {
           final ax = (x / w) * 2 - 1;
