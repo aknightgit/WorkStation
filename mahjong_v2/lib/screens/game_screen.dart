@@ -135,7 +135,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               _buildAvatar('北', Colors.orange, w * 0.05, h * 0.5),
               
               // ===== 骰子 + 发牌按钮 =====
-              if (_game.phase == GamePhase.waiting || _game.phase == GamePhase.diceRolling)
+              if (_game.phase == GamePhase.waiting || _game.phase == GamePhase.diceRolling || _game.diceRolled)
                 Positioned(
                   left: w * 0.35,
                   right: w * 0.35,
@@ -144,7 +144,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                     children: [
                       _buildDiceWithAnimation(),
                       const SizedBox(height: 16),
-                      if (_game.phase == GamePhase.diceRolling)
+                      // 发牌按钮 - 骰子掷完后显示
+                      if (_game.diceRolled || _game.phase == GamePhase.diceRolling)
                         _buildDealButton(),
                     ],
                   ),
