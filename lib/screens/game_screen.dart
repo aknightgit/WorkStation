@@ -755,11 +755,11 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               _buildCenterInfo(),
 
 
-              // 人类玩家手牌
+              // 人类玩家手牌 - 桌布底部内侧
               Positioned(
                 left: 0,
                 right: 0,
-                bottom: 12,
+                bottom: 8,
                 child: _buildMyHand(),
               ),
 
