@@ -25,8 +25,11 @@ class _GameScreenState extends State<GameScreen> {
 
   static const int stacksPerSide = 18;
   // 手牌放大3倍
-  static const double tileWidth = 72.0; // 原24 * 3
-  static const double tileHeight = 96.0; // 原32 * 3
+  static const double tileWidth = 72.0;
+  static const double tileHeight = 96.0;
+  
+  // 骰子动画
+  double _diceAnimationValue = 0.0;
 
   @override
   void initState() {
@@ -50,6 +53,35 @@ class _GameScreenState extends State<GameScreen> {
         // 检查当前玩家响应
         _checkActions();
       });
+    });
+  }
+  
+  // 发牌按钮
+  Widget _buildDealButton() {
+    return Center(
+      child: GestureDetector(
+        onTap: _onDealTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(colors: [Color(0xFF4CAF50), Color(0xFF2E7D32)]),
+            borderRadius: BorderRadius.circular(25),
+            boxShadow: [BoxShadow(color: Colors.green.withOpacity(0.5), blurRadius: 10, offset: const Offset(0, 4))],
+          ),
+          child: const Text(
+            '发牌',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+          ),
+        ),
+      ),
+    );
+  }
+  
+  void _onDealTap() {
+    setState(() {
+      _game.deal();
+      canRebel = _game.checkWuDuSan();
+      _checkActions();
     });
   }
 
@@ -181,11 +213,11 @@ class _GameScreenState extends State<GameScreen> {
               final w = constraints.maxWidth;
               final h = constraints.maxHeight;
               
-              // 桌布：居中，约60%屏幕高度
-              final tableHeight = h * 0.60;
-              final tableTop = h * 0.20;
+              // 桌布：上下撑开100%
+              final tableHeight = h;
+              final tableTop = 0.0;
               final bottomWidth = w * 0.90;
-              final topWidth = w * 0.65;
+              final topWidth = w * 0.50;
               
               return Stack(
                 children: [
@@ -204,15 +236,15 @@ class _GameScreenState extends State<GameScreen> {
                     ),
                   ),
                   
-                  // 牌墙 - 紧贴梯形四边
-                  // 上牌墙（平行于上边）
-                  Positioned(left: w * 0.25, right: w * 0.25, top: tableTop + 8, child: _buildWallRow(stacksPerSide)),
-                  // 下牌墙（平行于下边）
-                  Positioned(left: w * 0.25, right: w * 0.25, bottom: h - (tableTop + tableHeight) + 8, child: _buildWallRow(stacksPerSide)),
-                  // 左牌墙（平行于左边）
-                  Positioned(left: w * 0.12, top: tableTop + tableHeight * 0.10, bottom: h - (tableTop + tableHeight) + tableHeight * 0.10, child: _buildWallColumn(stacksPerSide)),
-                  // 右牌墙（平行于右边）
-                  Positioned(right: w * 0.12, top: tableTop + tableHeight * 0.10, bottom: h - (tableTop + tableHeight) + tableHeight * 0.10, child: _buildWallColumn(stacksPerSide)),
+                  // 牌墙 - 离桌布边25%
+                  // 上牌墙
+                  Positioned(left: w * 0.25, right: w * 0.25, top: tableTop + h * 0.08, child: _buildWallRow(stacksPerSide)),
+                  // 下牌墙
+                  Positioned(left: w * 0.25, right: w * 0.25, bottom: h * 0.08, child: _buildWallRow(stacksPerSide)),
+                  // 左牌墙（斜向）
+                  Positioned(left: w * 0.12, top: tableTop + h * 0.25, bottom: h * 0.25, child: Transform.rotate(angle: 0.15, child: _buildWallColumn(stacksPerSide))),
+                  // 右牌墙（斜向）
+                  Positioned(right: w * 0.12, top: tableTop + h * 0.25, bottom: h * 0.25, child: Transform.rotate(angle: -0.15, child: _buildWallColumn(stacksPerSide))),
                   
                   // 弃牌区 - 中央6x6
                   Positioned(left: w * 0.25, right: w * 0.25, top: tableTop + tableHeight * 0.30, bottom: tableTop + tableHeight * 0.70, child: _buildDiscardArea()),
@@ -227,9 +259,13 @@ class _GameScreenState extends State<GameScreen> {
                   Positioned(top: 80, left: 20, child: _buildDealerInfo()),
                   Positioned(top: 80, right: 20, child: _buildMultiplier()),
                   
-                  // 掷骰子
+                  // 掷骰子 + 发牌按钮
                   if (_game.phase == GamePhase.waiting || _game.phase == GamePhase.diceRolling)
                     Positioned(left: w * 0.40, right: w * 0.40, top: tableTop + tableHeight * 0.45, child: _buildDiceSection()),
+                  
+                  // 发牌按钮
+                  if (_game.phase == GamePhase.diceRolling)
+                    Positioned(left: w * 0.40, right: w * 0.40, top: tableTop + tableHeight * 0.45 + 100, child: _buildDealButton()),
                   
                   // 手牌 - 底部居中，紧贴桌布
                   if (_game.phase == GamePhase.playing)
@@ -255,15 +291,12 @@ class _GameScreenState extends State<GameScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(count, (i) => Container(
-        width: tileWidth, height: tileHeight,
+        width: tileWidth * 0.6, height: tileHeight * 0.6,
         margin: const EdgeInsets.symmetric(horizontal: 1),
         decoration: BoxDecoration(
+          color: const Color(0xFF1B5E20), // 深绿色
           borderRadius: BorderRadius.circular(3),
-          border: Border.all(color: Colors.white24, width: 1),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(3),
-          child: Image.asset('assets/images/tiles/Regular/Back.png', fit: BoxFit.cover),
+          border: Border.all(color: Colors.white30, width: 1),
         ),
       )),
     );
@@ -273,15 +306,12 @@ class _GameScreenState extends State<GameScreen> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: List.generate(count, (i) => Container(
-        width: tileWidth, height: tileHeight,
+        width: tileWidth * 0.6, height: tileHeight * 0.6,
         margin: const EdgeInsets.symmetric(vertical: 1),
         decoration: BoxDecoration(
+          color: const Color(0xFF1B5E20), // 深绿色
           borderRadius: BorderRadius.circular(3),
-          border: Border.all(color: Colors.white24, width: 1),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(3),
-          child: Image.asset('assets/images/tiles/Regular/Back.png', fit: BoxFit.cover),
+          border: Border.all(color: Colors.white30, width: 1),
         ),
       )),
     );
@@ -390,11 +420,11 @@ class _GameScreenState extends State<GameScreen> {
       );
     }
     
-    // 掷骰子阶段 - 大骰子动画
+    // 掷骰子阶段 - 跳动的大骰子动画
     return GestureDetector(
       onTap: _onDiceTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 100),
+        duration: Duration(milliseconds: isRolling ? 100 : 300),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.black87, 
@@ -402,6 +432,7 @@ class _GameScreenState extends State<GameScreen> {
           border: isRolling ? Border.all(color: Colors.yellow, width: 3) : Border.all(color: Colors.white30, width: 2),
           boxShadow: isRolling ? [BoxShadow(color: Colors.yellow.withOpacity(0.5), blurRadius: 20)] : null,
         ),
+        transform: isRolling ? Matrix4.identity()..translate(0.0, _diceAnimationValue) : Matrix4.identity(),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -418,25 +449,34 @@ class _GameScreenState extends State<GameScreen> {
   
   // 构建单个大骰子
   Widget _buildDice(int value) {
-    return Container(
-      width: 80,
-      height: 80,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black, width: 2),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 4, offset: const Offset(2, 2))],
-      ),
-      child: Center(
-        child: Text(
-          '$value',
-          style: const TextStyle(
-            fontSize: 48,
-            fontWeight: FontWeight.bold,
-            color: Colors.red,
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: isRolling ? 10 : 0),
+      duration: Duration(milliseconds: isRolling ? 100 : 200),
+      builder: (context, val, child) {
+        return Transform.translate(
+          offset: Offset(0, -val * 3),
+          child: Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.black, width: 2),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 4, offset: Offset(2, 2))],
+            ),
+            child: Center(
+              child: Text(
+                '$value',
+                style: const TextStyle(
+                  fontSize: 48,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red,
+                ),
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
