@@ -8,7 +8,6 @@ class SettlementScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final winners = result['winners'] as List<dynamic>? ?? [];
-    final losers = result['losers'] as List<dynamic>? ?? [];
     final fan = result['fan'] as int? ?? 0;
     final baseScore = result['baseScore'] as int? ?? 2;
     final totalMultiplier = result['multiplier'] as int? ?? 1;
