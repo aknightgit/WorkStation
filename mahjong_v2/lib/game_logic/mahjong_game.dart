@@ -172,41 +172,30 @@ class MahjongGame {
     if (roundMultiplier > 4) roundMultiplier = 4;
   }
 
-  // 发牌
+  // 发牌 - 庄家14张，闲家13张
   void deal() {
-    // 庄家14张，闲家13张（不含花牌）
     for (int i = 0; i < 3; i++) {
       for (int p = 0; p < 4; p++) {
         final idx = (dealerIndex + p) % 4;
         for (int j = 0; j < 4; j++) {
-          _dealOneTileNonFlower(players[idx]);
+          if (wall.isNotEmpty) {
+            players[idx].handTiles.add(wall.removeLast());
+          }
         }
       }
     }
     // 庄家再拿1张
     for (int p = 0; p < 4; p++) {
       final idx = (dealerIndex + p) % 4;
-      _dealOneTileNonFlower(players[idx]);
+      if (wall.isNotEmpty) {
+        players[idx].handTiles.add(wall.removeLast());
+      }
     }
     // 整理手牌
     for (final p in players) {
       p.sortHand();
     }
     phase = GamePhase.playing;
-  }
-  
-  // 发一张非花牌
-  void _dealOneTileNonFlower(Player player) {
-    while (wall.isNotEmpty) {
-      final tile = wall.removeLast();
-      if (tile.isFlower) {
-        // 花牌放到花牌堆
-        player.flowerTiles.add(tile);
-      } else {
-        player.handTiles.add(tile);
-        break;
-      }
-    }
   }
 
   // 摸牌

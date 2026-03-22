@@ -533,7 +533,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     final p = _game.players[0];
     final t = p.handTiles[i];
     _game.playTile(p, t);
-    _game.pendingTile = t;
     selectedTileIndex = null;
     setState(() {});
   }
