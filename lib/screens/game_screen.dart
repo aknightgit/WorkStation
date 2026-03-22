@@ -1023,6 +1023,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           final tableHeight = screenHeight * 1.0;
           final bottomWidth = screenWidth;
           final topWidth = screenWidth * 0.88;
+          final topOffset = (bottomWidth - topWidth) / 2; // 梯形上边距
 
           return Align(
             alignment: Alignment.bottomCenter,
@@ -1052,7 +1053,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
         final tableTop = h * 0.0;
         final tableHeight = h * 1.0;
-        final wallWidth = w * 0.92;
+        final wallWidth = w * 0.84; // 不超过梯形上边宽度
         final wallHeight = tableHeight * 0.40;
         final wallLeft = (w - wallWidth) / 2;
         final wallTop = tableTop + tableHeight * 0.52; // 我的牌墙往下移
