@@ -421,7 +421,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   borderRadius: BorderRadius.circular(4),
                   border: Border.all(color: const Color(0xFFD4AF37)),
                 ),
-                child: Center(child: Text(player.handTiles[i].displayName, style: const TextStyle(fontSize: 9))),
+                child: Image.asset(player.handTiles[i].imagePath, fit: BoxFit.contain, errorBuilder: (_, __, ___) => Center(child: Text(player.handTiles[i].displayName, style: const TextStyle(fontSize: 9)))),
               ),
             ),
         ],

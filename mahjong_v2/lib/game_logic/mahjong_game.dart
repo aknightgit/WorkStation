@@ -10,6 +10,35 @@ class Tile {
 
   Tile({required this.id, required this.type, required this.number, required this.suit, this.isFlower = false, this.isWild = false});
 
+  // 素材路径
+  String get imagePath {
+    if (isFlower) {
+      final flowers = ['Chun', 'Xia', 'Qiu', 'Dong', 'Mei', 'Lan', 'Zhu', 'Ju'];
+      return 'assets/images/tiles/Regular/${flowers[number - 1]}.png';
+    }
+    
+    // 根据suit和number返回对应素材
+    String prefix = '';
+    if (suit == TileSuit.wan) prefix = 'Man';
+    else if (suit == TileSuit.tong) prefix = 'Pin';
+    else if (suit == TileSuit.tiao) prefix = 'Sou';
+    else if (suit == TileSuit.feng) {
+      // 东/南/西/北: Ton/Nan/Shaa/Pei
+      if (number == 1) return 'assets/images/tiles/Regular/Ton.png';
+      if (number == 2) return 'assets/images/tiles/Regular/Nan.png';
+      if (number == 3) return 'assets/images/tiles/Regular/Shaa.png';
+      if (number == 4) return 'assets/images/tiles/Regular/Pei.png';
+    }
+    else if (suit == TileSuit.dragon) {
+      // 白/發/中: Haku/Hatsu/Chun
+      if (number == 1) return 'assets/images/tiles/Regular/Haku.png';
+      if (number == 2) return 'assets/images/tiles/Regular/Hatsu.png';
+      if (number == 3) return 'assets/images/tiles/Regular/Chun.png';
+    }
+    
+    return 'assets/images/tiles/Regular/${prefix}$number.png';
+  }
+
   String get displayName {
     if (suit == TileSuit.hua) return '花';
     final nums = ['一','二','三','四','五','六','七','八','九'];
