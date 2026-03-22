@@ -671,7 +671,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF5C7FA5), Color(0xFF3D5A80)],
+            colors: [Color(0xFF0D1B2A), Color(0xFF1B263B)],
           ),
         ),
         child: SafeArea(
@@ -1020,7 +1020,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         builder: (context, constraints) {
           final screenWidth = constraints.maxWidth;
           final screenHeight = constraints.maxHeight;
-          final tableHeight = screenHeight * 1.0;
+          final tableHeight = screenHeight * 0.65;
           final bottomWidth = screenWidth;
           final topWidth = screenWidth * 0.88;
           final topOffset = (bottomWidth - topWidth) / 2; // 梯形上边距
