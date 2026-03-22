@@ -1546,13 +1546,14 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   // 玩家操作菜单 - 右下角，摸最大，其他围绕
   Widget _buildRightActionMenu() {
     return Positioned(
-      right: 20,
-      bottom: 20,
+      right: 30,
+      bottom: 30,
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.black87,
+          color: Colors.blueGrey.shade800,
           borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white, width: 2),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
