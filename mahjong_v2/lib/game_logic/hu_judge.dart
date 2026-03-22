@@ -88,3 +88,4 @@ class HuJudge {
     }
     return true;
   }
+}

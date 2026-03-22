@@ -581,78 +581,8 @@ class MahjongGame {
     final player = players[dealerIndex];
     return player.isWuDuSan;
   }
-}
 
   // ===== AI对手逻辑 =====
   
   // AI执行一步（吃/碰/摸/打）
-  void aiPlay(int playerIndex) {
-    if (playerIndex == 0) return; // 玩家自己控制
-    
-    final player = players[playerIndex];
-    
-    // 1. 检查能否吃上家的牌
-    if (canChow(player)) {
-      doChow(player, null);
-      // 吃牌后摸牌
-      drawTile(player);
-      aiDiscard(playerIndex);
-      return;
-    }
-    
-    // 2. 检查能否碰
-    if (canPong(player) && pendingTile != null) {
-      doPong(player);
-      // 碰牌后摸牌
-      drawTile(player);
-      aiDiscard(playerIndex);
-      return;
-    }
-    
-    // 3. 检查能否杠
-    if (canKong(player)) {
-      final kongTiles = getKongableTiles(player);
-      if (kongTiles.isNotEmpty) {
-        doKong(player, kongTiles.first, isHidden: false);
-        drawTile(player);
-        aiDiscard(playerIndex);
-        return;
-      }
-    }
-    
-    // 4. 检查能否胡
-    if (canHu(player)) {
-      // AI胡牌
-      playerWins(playerIndex);
-      return;
-    }
-    
-    // 5. 正常摸牌
-    if (pendingTile == null) {
-      drawTile(player);
-      // 摸牌后打牌
-      aiDiscard(playerIndex);
-    }
-  }
-  
-  // AI打牌（简单策略：打孤张或靠张）
-  void aiDiscard(int playerIndex) {
-    final player = players[playerIndex];
-    if (player.handTiles.isEmpty) return;
-    
-    // 简单策略：打第一张
-    // TODO: 更智能的选牌策略
-    final discard = player.handTiles.removeAt(0);
-    player.playedTiles.add(discard);
-    pendingTile = discard;
-    
-    // 轮到下家
-    nextPlayer();
-    
-    // 如果下家是AI，继续
-    if (currentPlayerIndex != 0) {
-      Future.delayed(const Duration(milliseconds: 500), () {
-        aiPlay(currentPlayerIndex);
-      });
-    }
-  }
+}
