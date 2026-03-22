@@ -744,19 +744,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               // 发牌动画
               if (_isDealing) _buildDealingAnimation(),
 
-              // 庄家/倍数提示
-              // 庄家/倍数提示 - 右上角
-              Positioned(
-                top: 80,
-                right: 20,
-                child: _buildMultiplierDisplay(),
-              ),
               // 庄家提示 - 左上角
               Positioned(
                 top: 80,
                 left: 20,
                 child: _buildDealerInfo(),
               ),
+
+              // 中央信息（骰子结果 + 倍数）
+              _buildCenterInfo(),
 
 
               // 人类玩家手牌
@@ -801,9 +797,11 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     return LayoutBuilder(
       builder: (context, constraints) {
         final h = constraints.maxHeight;
-        final topY = 20.0;
-        final bottomY = h * 0.2;
-        final sideTop = h * 0.55; // 左右两家下移
+        final tableTop = h * 0.4;
+        final tableHeight = h * 0.6;
+        final topY = tableTop - 60;
+        final bottomY = h * 0.14;
+        final sideTop = tableTop + tableHeight * 0.46;
 
         return Stack(
           children: [
@@ -824,13 +822,13 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             // 左家 (北家)
             Positioned(
               top: sideTop,
-              left: 20,
+              left: 26,
               child: _buildPlayerAvatar(3),
             ),
             // 右家 (南家)
             Positioned(
               top: sideTop,
-              right: 20,
+              right: 26,
               child: _buildPlayerAvatar(1),
             ),
           ],
@@ -885,7 +883,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           Text('🀤 ${player.handCount}', style: const TextStyle(color: Colors.white70, fontSize: 11)),
           if (player.meldCount > 0)
             Text('🎯 ${player.meldCount}', style: const TextStyle(color: Colors.orange, fontSize: 11)),
-          
+          const SizedBox(height: 2),
+          Text('积分 ${player.totalScore}', style: const TextStyle(color: Colors.white, fontSize: 11)),
         ],
       ),
     );
@@ -1201,11 +1200,11 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
         final tableTop = h * 0.4;
         final tableHeight = h * 0.6;
-        final bottomY = tableTop + tableHeight * 0.62;
-        final topY = tableTop + tableHeight * 0.3;
-        final midY = tableTop + tableHeight * 0.46;
-        final leftX = w * 0.29;
-        final rightX = w * 0.71;
+        final bottomY = tableTop + tableHeight * 0.56;
+        final topY = tableTop + tableHeight * 0.34;
+        final midY = tableTop + tableHeight * 0.45;
+        final leftX = w * 0.33;
+        final rightX = w * 0.67;
 
         Alignment alignFor(double x, double y) {
           final ax = (x / w) * 2 - 1;
@@ -1326,22 +1325,21 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   // 倍数显示 - 右上角
-  Widget _buildMultiplierDisplay() {
-    final roundMult = _game.roundMultiplier;
-    final globalMult = _game.multiplier;
-    final totalMult = roundMult * globalMult;
-    
-    Color textColor;
+  Color _multiplierColor(int totalMult) {
     if (totalMult >= 8) {
-      textColor = Colors.red;
+      return Colors.red;
     } else if (totalMult >= 4) {
-      textColor = Colors.orange;
+      return Colors.orange;
     } else if (totalMult >= 2) {
-      textColor = Colors.yellow;
-    } else {
-      textColor = Colors.white;
+      return Colors.yellow;
     }
-    
+    return Colors.white;
+  }
+
+  Widget _buildMultiplierDisplay() {
+    final totalMult = _game.roundMultiplier * _game.multiplier;
+    final textColor = _multiplierColor(totalMult);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
@@ -1352,6 +1350,46 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       child: Text(
         '×$totalMult',
         style: TextStyle(color: textColor, fontSize: 28, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  Widget _buildCenterInfo() {
+    return Positioned.fill(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final h = constraints.maxHeight;
+          final tableTop = h * 0.4;
+          final tableHeight = h * 0.6;
+          final centerY = tableTop + tableHeight * 0.42;
+          final alignment = Alignment(0, (centerY / h) * 2 - 1);
+
+          final totalMult = _game.roundMultiplier * _game.multiplier;
+          final textColor = _multiplierColor(totalMult);
+          final diceText = _game.diceRolled
+              ? '${_game.diceValues[0]} + ${_game.diceValues[1]}'
+              : '--';
+
+          return Align(
+            alignment: alignment,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.black38,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: textColor, width: 1.5),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('骰子 $diceText', style: const TextStyle(color: Colors.white, fontSize: 14)),
+                  const SizedBox(width: 12),
+                  Text('×$totalMult', style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
