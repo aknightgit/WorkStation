@@ -723,24 +723,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               // 掷骰子动画/按钮
               if (!_hasDealt) _buildDiceSection(),
 
-              // 屏幕中间发牌按钮
-              if (_game.diceRolled && !_isDealing && !_hasDealt)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: 250,
-                  child: Center(
-                    child: ElevatedButton(
-                      onPressed: _startDealing,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.purple,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                      ),
-                      child: const Text('发牌', style: TextStyle(fontSize: 18, color: Colors.white)),
-                    ),
-                  ),
-                ),
-
               // 发牌动画
               if (_isDealing) _buildDealingAnimation(),
 
@@ -1065,10 +1047,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
         final tableTop = h * 0.0;
         final tableHeight = h * 1.0;
-        final wallWidth = w * 0.88;
-        final wallHeight = tableHeight * 0.38;
+        final wallWidth = w * 0.92;
+        final wallHeight = tableHeight * 0.40;
         final wallLeft = (w - wallWidth) / 2;
-        final wallTop = tableTop + tableHeight * 0.04;
+        final wallTop = tableTop + tableHeight * 0.52; // 我的牌墙往下移
 
         final sizeByWidth = (wallWidth - gap * (stacksPerSide - 1)) / stacksPerSide;
         final sizeByHeight = (wallHeight - gap * (stacksPerSide - 1)) / stacksPerSide;
@@ -1302,23 +1284,28 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                       builder: (context, child) {
                         return Transform.rotate(
                           angle: _isRollingDice ? _diceController.value * 6.28 : 0,
-                          child: Text('🎲', style: TextStyle(fontSize: 28)),
+                          child: const Text('🎲', style: TextStyle(fontSize: 60)),
                         );
                       },
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '$dice1 + $dice2',
-                      style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                    const SizedBox(width: 12),
+                    AnimatedBuilder(
+                      animation: _diceController,
+                      builder: (context, child) {
+                        return Transform.rotate(
+                          angle: _isRollingDice ? -_diceController.value * 6.28 : 0,
+                          child: const Text('🎲', style: TextStyle(fontSize: 60)),
+                        );
+                      },
                     ),
                     if (_waitingSecondRoll) ...[
                       const SizedBox(width: 12),
                       const Text('↻', style: TextStyle(color: Colors.yellow, fontSize: 18)),
                     ],
                   ] else ...[
-                    const Icon(Icons.casino, color: Colors.white70, size: 28),
+                    const Icon(Icons.casino, color: Colors.white70, size: 48),
                     const SizedBox(width: 8),
-                    const Text('掷骰', style: TextStyle(color: Colors.white, fontSize: 18)),
+                    const Text('掷骰', style: TextStyle(color: Colors.white, fontSize: 20)),
                   ],
                 ],
               ),
