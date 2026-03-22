@@ -97,6 +97,10 @@ class MahjongGame {
   Tile? lastPlayedTile;
   Tile? pendingTile; // 等待响应的牌
   bool gameEnded = false;
+  
+  // 包关系: baoRelations[fromPlayer][toPlayer] = count
+  // 表示 fromPlayer 吃了/碰了 toPlayer 多少口
+  Map<int, Map<int, int>> baoRelations = {};
 
   MahjongGame() {
     players = [
@@ -304,6 +308,11 @@ class MahjongGame {
     // 添加吃牌组合到 melds（pendingTile 放中间）
     player.melds.add(combo);
     
+    // 记录包关系（上家是被吃的一方）
+    final fromPlayer = player.index; // 吃牌者
+    final toPlayer = (currentPlayerIndex + 1) % 4; // 上家
+    recordBao(fromPlayer, toPlayer);
+    
     // 吃牌后轮到该玩家摸牌
     pendingTile = null;
     return true;
@@ -318,6 +327,40 @@ class MahjongGame {
     }
     return true;
   }
+  
+  // 执行碰牌
+  bool doPong(Player player) {
+    if (pendingTile == null) return false;
+    final t = pendingTile!;
+    
+    // 找到手里的两张相同牌
+    final indices = <int>[];
+    for (int i = 0; i < player.handTiles.length; i++) {
+      if (player.handTiles[i].type == t.type && player.handTiles[i].number == t.number) {
+        indices.add(i);
+        if (indices.length == 2) break;
+      }
+    }
+    
+    if (indices.length < 2) return false;
+    
+    // 移除两张牌
+    for (int i = indices.length - 1; i >= 0; i--) {
+      player.handTiles.removeAt(indices[i]);
+    }
+    
+    // 添加刻子到 melds
+    player.melds.add([t, t, t]);
+    
+    // 记录包关系（打牌者是被碰的一方）
+    final fromPlayer = player.index; // 碰牌者
+    final toPlayer = currentPlayerIndex; // 打牌者
+    recordBao(fromPlayer, toPlayer);
+    
+    // 碰牌后轮到该玩家摸牌
+    pendingTile = null;
+    return true;
+  }
 
   bool _playerHasTiles(Player player, List<Tile> need) {
     final hand = List<Tile>.from(player.handTiles);
@@ -327,6 +370,25 @@ class MahjongGame {
       hand.removeAt(idx);
     }
     return true;
+  }
+  
+  // 记录包关系（吃牌或碰牌后调用）
+  void recordBao(int fromPlayer, int toPlayer) {
+    baoRelations[fromPlayer] ??= {};
+    baoRelations[fromPlayer]![toPlayer] = (baoRelations[fromPlayer]![toPlayer] ?? 0) + 1;
+  }
+  
+  // 获取包倍数（0=无, 3=包三家, 5=包四家）
+  int getBaoMultiplier(int fromPlayer, int toPlayer) {
+    final count = baoRelations[fromPlayer]?[toPlayer] ?? 0;
+    if (count >= 4) return 5; // 包四家
+    if (count >= 3) return 3; // 包三家
+    return 0;
+  }
+  
+  // 检查是否有包关系
+  bool hasBaoRelation(int fromPlayer, int toPlayer) {
+    return getBaoMultiplier(fromPlayer, toPlayer) > 0;
   }
 
   // 检查是否可以碰
