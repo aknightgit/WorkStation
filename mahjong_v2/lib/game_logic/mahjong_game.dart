@@ -197,14 +197,24 @@ class MahjongGame {
     diceValues[1] = Random().nextInt(6) + 1;
     diceRolled = true;
     
-    // 计算回合倍数
-    final sum = diceValues[0] + diceValues[1];
-    roundMultiplier = (sum % 2 == 0) ? sum : 1;
-    if (roundMultiplier > 4) roundMultiplier = 4;
+    // 计算回合倍数（需求文档：双数×2/×4，单数×1）
+    if (diceValues[0] == diceValues[1]) {
+      roundMultiplier = 4; // 对子
+    } else {
+      final sum = diceValues[0] + diceValues[1];
+      roundMultiplier = (sum % 2 == 0) ? 2 : 1;
+    }
   }
 
   // 发牌 - 庄家14张，闲家13张
   void deal() {
+    // 清空上一局
+    for (final p in players) {
+      p.handTiles.clear();
+      p.melds.clear();
+      p.playedTiles.clear();
+      p.flowerTiles.clear();
+    }
     for (int i = 0; i < 3; i++) {
       for (int p = 0; p < 4; p++) {
         final idx = (dealerIndex + p) % 4;
@@ -215,12 +225,16 @@ class MahjongGame {
         }
       }
     }
-    // 庄家再拿1张
+    // 每人再摸1张（13张）
     for (int p = 0; p < 4; p++) {
       final idx = (dealerIndex + p) % 4;
       if (wall.isNotEmpty) {
         players[idx].handTiles.add(wall.removeLast());
       }
+    }
+    // 庄家额外1张（14张）
+    if (wall.isNotEmpty) {
+      players[dealerIndex].handTiles.add(wall.removeLast());
     }
     // 整理手牌
     for (final p in players) {

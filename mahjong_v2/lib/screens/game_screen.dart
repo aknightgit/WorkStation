@@ -542,7 +542,17 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _onDealTap() {
-    setState(() { _game.deal(); canRebel = _game.checkWuDuSan(); });
+    setState(() { 
+      _game.deal(); 
+      canRebel = _game.checkWuDuSan();
+    });
+    // 如果庄家不是玩家，AI先出牌
+    if (_game.currentPlayerIndex != 0) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        _game.aiDiscard(_game.currentPlayerIndex);
+        setState(() {});
+      });
+    }
   }
 
   void _drawTile() {
