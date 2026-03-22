@@ -28,7 +28,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    _diceRotateAnimation = Tween<double>(begin: 0, end: 4 * pi).animate(
+    _diceRotateAnimation = Tween<double>(begin: 0, end: 2 * pi).animate(
       CurvedAnimation(parent: _diceAnimController, curve: Curves.easeOut),
     );
     _diceAnimController.addStatusListener((status) {
@@ -285,7 +285,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       builder: (context, child) {
         // 弹跳 + 旋转效果
         final progress = isRolling ? _diceRotateAnimation.value : 0.0;
-        final bounce = isRolling ? (1 - (progress * 2 - 1).abs()) * 3 : 0.0;
+        final bounce = isRolling ? (1 - (progress * 2 - 1).abs()) * 1.5 : 0.0;
         final rotation = isRolling ? progress * 6.28 : 0.0; // 完整旋转
         
         return Transform(
