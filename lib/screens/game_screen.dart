@@ -1041,9 +1041,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         builder: (context, constraints) {
           final screenWidth = constraints.maxWidth;
           final screenHeight = constraints.maxHeight;
-          final tableHeight = screenHeight * 0.65;
+          final tableHeight = screenHeight * 0.6;
           final bottomWidth = screenWidth;
-          final topWidth = screenWidth * 0.75;
+          final topWidth = screenWidth * 0.78;
 
           return Align(
             alignment: Alignment.bottomCenter,
@@ -1071,12 +1071,12 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         const stacksPerSide = 18;
         const gap = 2.0;
 
-        final tableTop = h * 0.35;
-        final tableHeight = h * 0.65;
-        final wallWidth = w * 0.68;
+        final tableTop = h * 0.4;
+        final tableHeight = h * 0.6;
+        final wallWidth = w * 0.7;
         final wallHeight = tableHeight * 0.42;
         final wallLeft = (w - wallWidth) / 2;
-        final wallTop = tableTop + tableHeight * 0.08;
+        final wallTop = tableTop + tableHeight * 0.07;
 
         final sizeByWidth = (wallWidth - gap * (stacksPerSide - 1)) / stacksPerSide;
         final sizeByHeight = (wallHeight - gap * (stacksPerSide - 1)) / stacksPerSide;
@@ -1199,13 +1199,13 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         final h = constraints.maxHeight;
         final tileSize = (w * 0.04).clamp(18.0, 26.0);
 
-        final tableTop = h * 0.35;
-        final tableHeight = h * 0.65;
+        final tableTop = h * 0.4;
+        final tableHeight = h * 0.6;
         final bottomY = tableTop + tableHeight * 0.62;
-        final topY = tableTop + tableHeight * 0.32;
-        final midY = tableTop + tableHeight * 0.47;
-        final leftX = w * 0.28;
-        final rightX = w * 0.72;
+        final topY = tableTop + tableHeight * 0.3;
+        final midY = tableTop + tableHeight * 0.46;
+        final leftX = w * 0.29;
+        final rightX = w * 0.71;
 
         Alignment alignFor(double x, double y) {
           final ax = (x / w) * 2 - 1;
@@ -1278,53 +1278,21 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
   
   Widget _buildDiceSection() {
-    final diceLabel = _diceClickCount == 0
-        ? '🎲 点击掷骰子'
-        : (_waitingSecondRoll ? '🎲 可再掷一次（可选）' : '🎲 掷骰中...');
-
     return Center(
       child: GestureDetector(
         onTap: _onDiceClick,
         child: Container(
-          padding: const EdgeInsets.all(30),
+          width: 56,
+          height: 56,
           decoration: BoxDecoration(
-            color: Colors.black87,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(diceLabel, style: const TextStyle(color: Colors.white, fontSize: 20)),
-              const SizedBox(height: 14),
-              if (_diceClickCount > 0)
-                Text(
-                  '点数：${_game.diceValues[0]} + ${_game.diceValues[1]}',
-                  style: const TextStyle(color: Colors.white70, fontSize: 16),
-                ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AnimatedBuilder(
-                    animation: _diceController,
-                    builder: (context, child) {
-                      return Transform.rotate(
-                        angle: _diceController.value * 10,
-                        child: const Text('🎲', style: TextStyle(fontSize: 60)),
-                      );
-                    },
-                  ),
-                  const SizedBox(width: 20),
-                  AnimatedBuilder(
-                    animation: _diceController,
-                    builder: (context, child) {
-                      return Transform.rotate(
-                        angle: -_diceController.value * 10,
-                        child: const Text('🎲', style: TextStyle(fontSize: 60)),
-                      );
-                    },
-                  ),
-                ],
+            color: Colors.black26,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white24, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
