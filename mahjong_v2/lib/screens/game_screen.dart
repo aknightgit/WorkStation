@@ -47,13 +47,11 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
           final w = constraints.maxWidth;
           final h = constraints.maxHeight;
           
-          // 假设屏幕 900*1600，按比例计算
-          // 梯形: 上宽1300, 下宽1600, 高900 (按1600高度比例)
-          // 在当前屏幕上:
-          final tableTop = (h - h * 0.5625) / 2; // 居中
-          final tableHeight = h * 0.5625; // 900/1600
-          final topWidth = w * 0.722; // 1300/1800
-          final bottomWidth = w * 0.889; // 1600/1800
+          // 梯形: 上宽80%, 下宽100%, 高90%
+          final tableTop = (h - h * 0.90) / 2; // 居中
+          final tableHeight = h * 0.90;
+          final topWidth = w * 0.80;
+          final bottomWidth = w * 1.00;
           
           // 牌墙离桌边150
           final wallOffset = 150.0;
