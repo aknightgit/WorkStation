@@ -660,4 +660,47 @@ class MahjongGame {
       });
     }
   }
+
+  // ===== 游戏状态机 =====
+  
+  // 检查所有玩家是否可响应（吃/碰/杠/胡）
+  int? checkPlayerResponses() {
+    if (pendingTile == null) return null;
+    
+    // 按逆时针顺序检查：下家→对家→上家
+    for (int offset = 1; offset <= 3; offset++) {
+      final playerIdx = (currentPlayerIndex + offset) % 4;
+      if (playerIdx == 0) continue;
+      
+      final player = players[playerIdx];
+      if (canHu(player)) return playerIdx;
+      if (canKong(player)) return playerIdx;
+      if (canPong(player)) return playerIdx;
+      if (playerIdx == (currentPlayerIndex + 1) % 4 && canChow(player)) return playerIdx;
+    }
+    return null;
+  }
+  
+  // 强制回合流转
+  void processTurn() {
+    if (pendingTile == null) return;
+    
+    final responder = checkPlayerResponses();
+    if (responder != null) {
+      Future.delayed(const Duration(milliseconds: 300), () {
+        aiPlay(responder);
+      });
+    } else {
+      // 无人响应，下家摸牌
+      pendingTile = null;
+      nextPlayer();
+      drawTile(players[currentPlayerIndex]);
+      if (currentPlayerIndex != 0) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          aiDiscard(currentPlayerIndex);
+        });
+      }
+    }
+  }
+
 }
