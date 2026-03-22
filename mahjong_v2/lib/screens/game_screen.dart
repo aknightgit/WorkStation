@@ -114,25 +114,19 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 bottom: wallOffset,
                 child: _buildWallRow(18, tileW, tileH),
               ),
-              // 左牌墙 (倾斜平行于左边)
+              // 左牌墙 - 使用_buildWallRow，垂直放置
               Positioned(
-                left: wallOffset * 0.5,
-                top: h * 0.15,
-                bottom: h * 0.15,
-                child: Transform.rotate(
-                  angle: -0.08,
-                  child: _buildWallCol(18, tileW, tileH),
-                ),
+                left: wallOffset * 0.3,
+                top: h * 0.12,
+                bottom: h * 0.12,
+                child: _buildWallRow(18, tileW * 0.7, tileH * 0.7),
               ),
-              // 右牌墙 (倾斜平行于右边)
+              // 右牌墙 - 使用_buildWallRow，垂直放置
               Positioned(
-                right: wallOffset * 0.5,
-                top: h * 0.15,
-                bottom: h * 0.15,
-                child: Transform.rotate(
-                  angle: 0.08,
-                  child: _buildWallCol(18, tileW, tileH),
-                ),
+                right: wallOffset * 0.3,
+                top: h * 0.12,
+                bottom: h * 0.12,
+                child: _buildWallRow(18, tileW * 0.7, tileH * 0.7),
               ),
               
               // ===== 头像 =====

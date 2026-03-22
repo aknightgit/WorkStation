@@ -22,7 +22,7 @@ class Tile {
 }
 
 enum TileType { wan, tong, tiao, wind, dragon, flower, blank }
-enum TileSuit { wan, tong, tiao, hua }
+enum TileSuit { wan, tong, tiao, feng, dragon, hua }
 
 // 玩家
 class Player {
@@ -121,6 +121,8 @@ class MahjongGame {
   // 初始化牌墙
   void initWall() {
     wall.clear();
+    // 临时列表用于洗牌
+    List<Tile> tempWall = [];
     int id = 0;
     // 万子 1-9 x4
     for (int n = 1; n <= 9; n++) {
@@ -143,13 +145,13 @@ class MahjongGame {
     // 风牌 东南西北 x4
     for (int n = 1; n <= 4; n++) {
       for (int i = 0; i < 4; i++) {
-        wall.add(Tile(id: id++, type: TileType.wind, number: n, suit: TileSuit.hua));
+        wall.add(Tile(id: id++, type: TileType.wind, number: n, suit: TileSuit.feng));
       }
     }
     // 箭牌 中发白 x4
     for (int n = 1; n <= 3; n++) {
       for (int i = 0; i < 4; i++) {
-        wall.add(Tile(id: id++, type: TileType.dragon, number: n, suit: TileSuit.hua));
+        wall.add(Tile(id: id++, type: TileType.dragon, number: n, suit: TileSuit.dragon));
       }
     }
     // 花牌 春夏秋冬梅兰菊竹 x8
