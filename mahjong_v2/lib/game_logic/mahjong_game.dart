@@ -372,10 +372,16 @@ class MahjongGame {
     return true;
   }
   
-  // 记录包关系（吃牌或碰牌后调用）
+  // 记录包关系（吃牌/碰牌/杠牌后调用）
+  // 三口/四口条件是单向的，但结算时是双向的
   void recordBao(int fromPlayer, int toPlayer) {
+    // 记录单向关系
     baoRelations[fromPlayer] ??= {};
     baoRelations[fromPlayer]![toPlayer] = (baoRelations[fromPlayer]![toPlayer] ?? 0) + 1;
+    
+    // 结算时是双向的，所以也记录反向关系
+    baoRelations[toPlayer] ??= {};
+    baoRelations[toPlayer]![fromPlayer] = (baoRelations[toPlayer]![fromPlayer] ?? 0) + 1;
   }
   
   // 获取包倍数（0=无, 3=包三家, 5=包四家）
