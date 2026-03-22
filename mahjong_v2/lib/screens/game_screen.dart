@@ -51,10 +51,11 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     // 检查操作选项（花牌可以杠-补花）
     final player = _game.players[0];
-    canPong = _game.pendingTile != null && _game.canPong(player);
-    canKong = _game.canKong(player) || player.flowerTiles.isNotEmpty;
-    canHu = _game.canHu(player);
-    canChow = _game.pendingTile != null && _game.canChow(player);
+    final isMyTurn = _game.currentPlayerIndex == 0;
+    canPong = isMyTurn && _game.pendingTile != null && _game.canPong(player);
+    canKong = isMyTurn && (_game.canKong(player) || player.flowerTiles.isNotEmpty);
+    canHu = isMyTurn && _game.canHu(player);
+    canChow = isMyTurn && _game.pendingTile != null && _game.canChow(player);
     
     return Scaffold(
       body: LayoutBuilder(
@@ -526,13 +527,16 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   void _onKong() {
     final p = _game.players[0];
-    // 如果有花牌，杠-补花
-    if (p.flowerTiles.isNotEmpty) {
-      // 移除外花牌，补一张新牌
-      if (_game.wall.isNotEmpty) {
-        p.flowerTiles.removeLast();
-        final newTile = _game.wall.removeLast();
+    // 循环补花，直到没有花牌或牌墙空了
+    while (p.flowerTiles.isNotEmpty && _game.wall.isNotEmpty) {
+      p.flowerTiles.removeLast();
+      final newTile = _game.wall.removeLast();
+      // 如果补到的还是花，继续补
+      if (newTile.isFlower) {
+        p.flowerTiles.add(newTile);
+      } else {
         p.handTiles.add(newTile);
+        break; // 补到非花牌，停止
       }
     }
     setState(() {});
