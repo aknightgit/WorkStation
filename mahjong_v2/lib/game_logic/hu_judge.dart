@@ -88,8 +88,3 @@ class HuJudge {
     }
     return true;
   }
-  
-  static int _getTileKey(Tile t) {
-    return t.suit.index * 100 + t.type.index * 10 + t.number;
-  }
-}
