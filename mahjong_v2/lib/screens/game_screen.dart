@@ -224,17 +224,28 @@ class _GameScreenState extends State<GameScreen> {
               
               return Stack(
                 children: [
-                  // 梯形桌布
+                  // 梯形桌布 - 绿呢风格 + 金边
                   Positioned(
                     left: (w - bottomWidth) / 2,
                     top: tableTop,
-                    child: CustomPaint(
-                      size: Size(bottomWidth, tableHeight),
-                      painter: TrapezoidPainter(
-                        topWidth: topWidth,
-                        bottomWidth: bottomWidth,
-                        topColor: const Color(0xFF5C7FA5),
-                        bottomColor: const Color(0xFF3D5A80),
+                    child: Container(
+                      width: bottomWidth,
+                      height: tableHeight,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Color(0xFF1B5E20), Color(0xFF0D3D0D)],
+                        ),
+                        border: Border.all(color: Color(0xFFD4AF37), width: 4), // 金色边框
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Color(0xFFD4AF37).withOpacity(0.3),
+                            blurRadius: 20,
+                            spreadRadius: 2,
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -297,9 +308,17 @@ class _GameScreenState extends State<GameScreen> {
         width: tileWidth * 0.6, height: tileHeight * 0.6,
         margin: const EdgeInsets.symmetric(horizontal: 1),
         decoration: BoxDecoration(
-          color: const Color(0xFF1B5E20), // 深绿色
+          // 经典绿呢 - 深绿牌背带纹理感
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF2E7D32), Color(0xFF1B5E20)],
+          ),
           borderRadius: BorderRadius.circular(3),
-          border: Border.all(color: Colors.white30, width: 1),
+          border: Border.all(color: Color(0xFFD4AF37), width: 1), // 金色边框
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 2, offset: const Offset(1, 1)),
+          ],
         ),
       )),
     );
@@ -312,9 +331,16 @@ class _GameScreenState extends State<GameScreen> {
         width: tileWidth * 0.6, height: tileHeight * 0.6,
         margin: const EdgeInsets.symmetric(vertical: 1),
         decoration: BoxDecoration(
-          color: const Color(0xFF1B5E20), // 深绿色
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF2E7D32), Color(0xFF1B5E20)],
+          ),
           borderRadius: BorderRadius.circular(3),
-          border: Border.all(color: Colors.white30, width: 1),
+          border: Border.all(color: Color(0xFFD4AF37), width: 1),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 2, offset: const Offset(1, 1)),
+          ],
         ),
       )),
     );
@@ -468,16 +494,16 @@ class _GameScreenState extends State<GameScreen> {
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: const Color(0xFFFFF8E1), // 象牙白/奶油色
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.black, width: 2),
+              border: Border.all(color: const Color(0xFFD4AF37), width: 3), // 金色边框
               boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 4, offset: Offset(2, 2))],
             ),
             child: Center(
               child: Text(
                 '$value',
                 style: const TextStyle(
-                  fontSize: 28,
+                  fontSize: 28, color: Colors.black87,
                   fontWeight: FontWeight.bold,
                   color: Colors.red,
                 ),
@@ -576,14 +602,31 @@ class _GameScreenState extends State<GameScreen> {
   Widget _actionBtn(String label, Color color, bool enabled, VoidCallback onPressed) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
-      child: ElevatedButton(
-        onPressed: enabled ? onPressed : null,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: enabled ? color : Colors.grey[700],
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          minimumSize: const Size(40, 28),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: enabled 
+            ? const LinearGradient(colors: [Color(0xFFD4AF37), Color(0xFFB8860B)]) // 金色渐变
+            : null,
+          color: enabled ? null : Colors.grey[700],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Color(0xFFD4AF37), width: 1),
+          boxShadow: enabled ? [BoxShadow(color: Color(0xFFD4AF37).withOpacity(0.5), blurRadius: 4)] : null,
         ),
-        child: Text(label, style: const TextStyle(fontSize: 12, color: Colors.white)),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: enabled ? onPressed : null,
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: Text(label, style: TextStyle(
+                fontSize: 12, 
+                color: enabled ? Colors.white : Colors.grey[500],
+                fontWeight: FontWeight.bold,
+              )),
+            ),
+          ),
+        ),
       ),
     );
   }
