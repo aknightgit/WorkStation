@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../game_logic/mahjong_game.dart';
 
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
@@ -8,18 +9,158 @@ class GameScreen extends StatefulWidget {
 }
 
 class _GameScreenState extends State<GameScreen> {
-  int currentPlayerIndex = 0;
-  int dealerIndex = 0;
-  int roundMultiplier = 1;
-  int globalMultiplier = 1;
-  int remainingTiles = 144;
-  List<int> diceValues = [1, 1];
-  bool diceRolled = false;
-  bool hasDealt = false;
+  late MahjongGame _game;
+  
+  // UI 状态
+  int? selectedTileIndex;
+  Tile? pendingTile;
+  bool isRolling = false;
+  
+  // 响应按钮状态
+  bool canChow = false;
+  bool canPong = false;
+  bool canKong = false;
+  bool canHu = false;
+  bool canRebel = false;
 
   static const int stacksPerSide = 18;
   static const double tileWidth = 24.0;
   static const double tileHeight = 32.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _game = MahjongGame();
+  }
+
+  // 掷骰子
+  void _onDiceTap() {
+    setState(() {
+      isRolling = true;
+    });
+    Future.delayed(const Duration(milliseconds: 500), () {
+      setState(() {
+        _game.rollDice();
+        isRolling = false;
+        // 发牌
+        _game.deal();
+        // 检查五毒散
+        canRebel = _game.checkWuDuSan();
+        // 检查当前玩家响应
+        _checkActions();
+      });
+    });
+  }
+
+  // 检查响应
+  void _checkActions() {
+    final player = _game.players[_game.currentPlayerIndex];
+    pendingTile = _game.pendingTile;
+    if (pendingTile != null) {
+      canPong = _game.canPong(player);
+      canKong = _game.canKong(player);
+      canHu = _game.canHu(player);
+      canChow = _game.canChow(player);
+    } else {
+      canPong = false;
+      canKong = false;
+      canHu = false;
+      canChow = false;
+    }
+  }
+
+  // 摸牌
+  void _drawTile() {
+    final player = _game.players[_game.currentPlayerIndex];
+    final tile = _game.drawTile(player);
+    if (tile == null) {
+      // 流局
+      return;
+    }
+    setState(() {
+      // 检查是否能胡
+      canHu = _game.canHu(player);
+      // 检查五毒散（首轮）
+      if (_game.remainingTiles > 130) {
+        canRebel = player.isWuDuSan;
+      }
+    });
+  }
+
+  // 打牌
+  void _playTile(int index) {
+    final player = _game.players[_game.currentPlayerIndex];
+    final tile = player.handTiles[index];
+    _game.playTile(player, tile);
+    _game.lastPlayedTile = tile;
+    _game.pendingTile = tile;
+    setState(() {
+      selectedTileIndex = null;
+      // 检查响应
+      _checkActions();
+      if (!canPong && !canKong && !canHu && !canChow) {
+        // 无响应，继续下一家
+        _game.nextPlayer();
+        pendingTile = null;
+      }
+    });
+  }
+
+  // 碰
+  void _pong() {
+    if (!canPong) return;
+    final player = _game.players[0];
+    final tile = pendingTile!;
+    // 找到两张相同的牌
+    final indices = <int>[];
+    for (int i = 0; i < player.handTiles.length; i++) {
+      if (player.handTiles[i].type == tile.type && player.handTiles[i].number == tile.number) {
+        indices.add(i);
+        if (indices.length == 2) break;
+      }
+    }
+    // 移除两张并加入碰牌组
+    for (int i = indices.length - 1; i >= 0; i--) {
+      player.handTiles.removeAt(indices[i]);
+    }
+    player.melds.add([tile, tile, tile]);
+    // 摸牌
+    _drawTile();
+  }
+
+  // 杠
+  void _kong() {
+    if (!canKong) return;
+    // 类似碰的实现
+    _drawTile();
+  }
+
+  // 吃
+  void _chow() {
+    if (!canChow) return;
+    // 实现吃牌逻辑
+    _drawTile();
+  }
+
+  // 胡
+  void _hu() {
+    if (!canHu) return;
+    // 胡牌结算
+    setState(() {
+      _game.phase = GamePhase.scoring;
+    });
+  }
+
+  // 造反
+  void _rebel() {
+    if (!canRebel) return;
+    // 造反结算
+    setState(() {
+      _game.globalMultiplier = (_game.globalMultiplier * 2).clamp(1, 8);
+      _game.dealerIndex = _game.currentPlayerIndex;
+      _game.phase = GamePhase.scoring;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,42 +202,16 @@ class _GameScreenState extends State<GameScreen> {
                     ),
                   ),
                   
-                  // 顶部牌墙
-                  Positioned(
-                    left: w * 0.12, right: w * 0.12,
-                    top: tableTop + 10,
-                    child: _buildWallRow(stacksPerSide),
-                  ),
-                  // 底部牌墙
-                  Positioned(
-                    left: w * 0.12, right: w * 0.12,
-                    bottom: h - (tableTop + tableHeight) + 10,
-                    child: _buildWallRow(stacksPerSide),
-                  ),
-                  // 左侧牌墙
-                  Positioned(
-                    left: w * 0.08,
-                    top: tableTop + tableHeight * 0.15,
-                    bottom: h - (tableTop + tableHeight) + tableHeight * 0.15,
-                    child: _buildWallColumn(stacksPerSide),
-                  ),
-                  // 右侧牌墙
-                  Positioned(
-                    right: w * 0.08,
-                    top: tableTop + tableHeight * 0.15,
-                    bottom: h - (tableTop + tableHeight) + tableHeight * 0.15,
-                    child: _buildWallColumn(stacksPerSide),
-                  ),
+                  // 牌墙
+                  Positioned(left: w * 0.12, right: w * 0.12, top: tableTop + 10, child: _buildWallRow(stacksPerSide)),
+                  Positioned(left: w * 0.12, right: w * 0.12, bottom: h - (tableTop + tableHeight) + 10, child: _buildWallRow(stacksPerSide)),
+                  Positioned(left: w * 0.08, top: tableTop + tableHeight * 0.15, bottom: h - (tableTop + tableHeight) + tableHeight * 0.15, child: _buildWallColumn(stacksPerSide)),
+                  Positioned(right: w * 0.08, top: tableTop + tableHeight * 0.15, bottom: h - (tableTop + tableHeight) + tableHeight * 0.15, child: _buildWallColumn(stacksPerSide)),
                   
-                  // 弃牌区 6x6
-                  Positioned(
-                    left: w * 0.20, right: w * 0.20,
-                    top: tableTop + tableHeight * 0.25,
-                    bottom: tableTop + tableHeight * 0.75,
-                    child: _buildDiscardArea(),
-                  ),
+                  // 弃牌区
+                  Positioned(left: w * 0.20, right: w * 0.20, top: tableTop + tableHeight * 0.25, bottom: tableTop + tableHeight * 0.75, child: _buildDiscardArea()),
                   
-                  // 玩家头像
+                  // 头像
                   Positioned(top: 20, left: 0, right: 0, child: Center(child: _buildAvatar(2))),
                   Positioned(left: 10, top: h * 0.35, child: _buildAvatar(3)),
                   Positioned(right: 10, top: h * 0.35, child: _buildAvatar(1)),
@@ -107,18 +222,20 @@ class _GameScreenState extends State<GameScreen> {
                   Positioned(top: 80, right: 20, child: _buildMultiplier()),
                   
                   // 掷骰子
-                  if (!diceRolled || !hasDealt)
-                    Positioned(
-                      left: w * 0.40, right: w * 0.40,
-                      top: tableTop + tableHeight * 0.45,
-                      child: _buildDiceSection(),
-                    ),
+                  if (_game.phase == GamePhase.waiting || _game.phase == GamePhase.diceRolling)
+                    Positioned(left: w * 0.40, right: w * 0.40, top: tableTop + tableHeight * 0.45, child: _buildDiceSection()),
                   
                   // 手牌
-                  Positioned(left: 20, right: 20, bottom: 40, child: _buildMyHand()),
+                  if (_game.phase == GamePhase.playing)
+                    Positioned(left: 20, right: 20, bottom: 40, child: _buildMyHand()),
                   
                   // 操作按钮
-                  Positioned(right: 20, bottom: 40, child: _buildActionButtons()),
+                  if (_game.phase == GamePhase.playing)
+                    Positioned(right: 20, bottom: 40, child: _buildActionButtons()),
+                  
+                  // 造反按钮
+                  if (canRebel)
+                    Positioned(top: 130, left: 0, right: 0, child: Center(child: _buildRebelButton())),
                 ],
               );
             },
@@ -166,10 +283,18 @@ class _GameScreenState extends State<GameScreen> {
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 6, mainAxisSpacing: 2, crossAxisSpacing: 2,
         ),
-        itemCount: 36,
-        itemBuilder: (context, index) => Container(
-          decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(2)),
-        ),
+        itemCount: _game.players[0].playedTiles.length,
+        itemBuilder: (context, index) {
+          final tile = _game.players[0].playedTiles[index];
+          return Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(2),
+              border: Border.all(color: Colors.black26),
+            ),
+            child: Center(child: Text(tile.displayName, style: const TextStyle(fontSize: 8))),
+          );
+        },
       ),
     );
   }
@@ -177,19 +302,20 @@ class _GameScreenState extends State<GameScreen> {
   Widget _buildAvatar(int index) {
     final names = ['东', '南', '西', '北'];
     final colors = [Colors.red, Colors.blue, Colors.green, Colors.orange];
+    final player = _game.players[index];
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: Colors.black54,
         borderRadius: BorderRadius.circular(8),
-        border: currentPlayerIndex == index ? Border.all(color: Colors.yellow, width: 2) : null,
+        border: _game.currentPlayerIndex == index ? Border.all(color: Colors.yellow, width: 2) : null,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           CircleAvatar(radius: 20, backgroundColor: colors[index], child: Text(names[index])),
           const SizedBox(height: 4),
-          const Text('积分 0', style: TextStyle(color: Colors.white70, fontSize: 10)),
+          Text('积分 ${player.totalScore}', style: const TextStyle(color: Colors.white70, fontSize: 10)),
         ],
       ),
     );
@@ -199,12 +325,12 @@ class _GameScreenState extends State<GameScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(8)),
-      child: Text('庄家: ${['东', '南', '西', '北'][dealerIndex]}', style: const TextStyle(color: Colors.white, fontSize: 12)),
+      child: Text('庄家: ${['东', '南', '西', '北'][_game.dealerIndex]}', style: const TextStyle(color: Colors.white, fontSize: 12)),
     );
   }
 
   Widget _buildMultiplier() {
-    final mult = roundMultiplier * globalMultiplier;
+    final mult = _game.roundMultiplier * _game.globalMultiplier;
     Color color = Colors.white;
     if (mult >= 8) color = Colors.red;
     else if (mult >= 4) color = Colors.orange;
@@ -221,20 +347,20 @@ class _GameScreenState extends State<GameScreen> {
 
   Widget _buildDiceSection() {
     return GestureDetector(
-      onTap: () => setState(() {
-        diceValues[0] = DateTime.now().millisecond % 6 + 1;
-        diceValues[1] = DateTime.now().microsecond % 6 + 1;
-        diceRolled = true;
-      }),
+      onTap: _onDiceTap,
       child: Container(
         padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(16)),
+        decoration: BoxDecoration(
+          color: Colors.black54, 
+          borderRadius: BorderRadius.circular(16),
+          border: isRolling ? Border.all(color: Colors.yellow, width: 2) : null,
+        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('${diceValues[0]}', style: const TextStyle(fontSize: 48, color: Colors.white)),
+            Text('${_game.diceValues[0]}', style: const TextStyle(fontSize: 48, color: Colors.white)),
             const SizedBox(width: 16),
-            Text('${diceValues[1]}', style: const TextStyle(fontSize: 48, color: Colors.white)),
+            Text('${_game.diceValues[1]}', style: const TextStyle(fontSize: 48, color: Colors.white)),
           ],
         ),
       ),
@@ -242,17 +368,23 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   Widget _buildMyHand() {
+    final player = _game.players[0];
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(8)),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(13, (i) => Container(
-          width: 28, height: 38,
-          margin: const EdgeInsets.symmetric(horizontal: 1),
-          decoration: BoxDecoration(
-            color: Colors.white, borderRadius: BorderRadius.circular(3),
-            border: Border.all(color: Colors.black26),
+        children: List.generate(player.handTiles.length, (i) => GestureDetector(
+          onTap: () => _playTile(i),
+          child: Container(
+            width: 28, height: 38,
+            margin: const EdgeInsets.symmetric(horizontal: 1),
+            decoration: BoxDecoration(
+              color: selectedTileIndex == i ? Colors.yellow[200] : Colors.white,
+              borderRadius: BorderRadius.circular(3),
+              border: Border.all(color: Colors.black26),
+            ),
+            child: Center(child: Text(player.handTiles[i].displayName, style: const TextStyle(fontSize: 8))),
           ),
         )),
       ),
@@ -260,26 +392,49 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   Widget _buildActionButtons() {
+    final isMyTurn = _game.currentPlayerIndex == 0;
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(color: Colors.grey.shade800, borderRadius: BorderRadius.circular(12)),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        children: ['摸','打','吃','碰','杠','胡'].asMap().entries.map((e) {
-          final colors = [Colors.red, Colors.blue, Colors.orange, Colors.cyan, Colors.purple, Colors.yellow];
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2),
-            child: ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: colors[e.key],
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                minimumSize: const Size(40, 28),
-              ),
-              child: Text(e.value, style: const TextStyle(fontSize: 12, color: Colors.white)),
-            ),
-          );
-        }).toList(),
+        children: [
+          _actionBtn('摸', Colors.red, isMyTurn && _game.pendingTile == null, _drawTile),
+          _actionBtn('吃', Colors.orange, canChow, _chow),
+          _actionBtn('碰', Colors.cyan, canPong, _pong),
+          _actionBtn('杠', Colors.purple, canKong, _kong),
+          _actionBtn('胡', Colors.yellow, canHu, _hu),
+        ],
+      ),
+    );
+  }
+
+  Widget _actionBtn(String label, Color color, bool enabled, VoidCallback onPressed) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: ElevatedButton(
+        onPressed: enabled ? onPressed : null,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: enabled ? color : Colors.grey[700],
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          minimumSize: const Size(40, 28),
+        ),
+        child: Text(label, style: const TextStyle(fontSize: 12, color: Colors.white)),
+      ),
+    );
+  }
+
+  Widget _buildRebelButton() {
+    return GestureDetector(
+      onTap: _rebel,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.red,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [BoxShadow(color: Colors.red.withOpacity(0.5), blurRadius: 10)],
+        ),
+        child: const Text('我要造反!', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
       ),
     );
   }
