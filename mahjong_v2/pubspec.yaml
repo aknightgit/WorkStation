@@ -20,3 +20,5 @@ flutter:
   
   assets:
     - assets/images/tiles/Regular/
+    - assets/tilesets/
+    - assets/backgrounds/
