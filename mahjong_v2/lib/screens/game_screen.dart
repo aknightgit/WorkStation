@@ -222,21 +222,24 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
-  // 牌墙 - 长边紧靠（竖向）
+  // 左右牌墙 - 长边相连（水平方向）
   Widget _buildWallCol(int count, double w, double h) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: List.generate(count, (i) => Container(
-        width: w, height: h,
-        margin: const EdgeInsets.symmetric(vertical: 0), // 长边紧靠
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF2E7D32), Color(0xFF1B5E20)],
+    return SizedBox(
+      height: w * count, // 旋转90度后宽变高
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(count, (i) => Container(
+          width: h, height: w, // 长宽互换
+          margin: const EdgeInsets.symmetric(horizontal: 0),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF2E7D32), Color(0xFF1B5E20)],
+            ),
+            borderRadius: BorderRadius.circular(3),
+            border: Border.all(color: const Color(0xFFD4AF37), width: 1),
           ),
-          borderRadius: BorderRadius.circular(3),
-          border: Border.all(color: const Color(0xFFD4AF37), width: 1),
-        ),
-      )),
+        )),
+      ),
     );
   }
 
@@ -288,7 +291,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       builder: (context, child) {
         // 弹跳 + 旋转效果
         final progress = isRolling ? _diceRotateAnimation.value : 0.0;
-        final bounce = isRolling ? (1 - (progress * 2 - 1).abs()) * 30 : 0.0;
+        final bounce = isRolling ? (1 - (progress * 2 - 1).abs()) * 3 : 0.0;
         final rotation = isRolling ? progress * 6.28 : 0.0; // 完整旋转
         
         return Transform(
