@@ -61,7 +61,7 @@ void main() {
     test('摸牌减少牌墙', () {
       final game = MahjongGame();
       final before = game.remainingTiles;
-      final tile = game.drawTile(game.players[0]);
+      game.drawTile(game.players[0]);
       expect(game.remainingTiles, before - 1);
     });
   });
