@@ -52,8 +52,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     // 检查操作选项（花牌可以杠-补花）
     final player = _game.players[0];
     final isMyTurn = _game.currentPlayerIndex == 0;
+    final hasFlowerInHand = player.handTiles.any((t) => t.isFlower);
     canPong = isMyTurn && _game.pendingTile != null && _game.canPong(player);
-    canKong = isMyTurn && (_game.canKong(player) || player.flowerTiles.isNotEmpty);
+    canKong = isMyTurn && (_game.canKong(player) || hasFlowerInHand);
     canHu = isMyTurn && _game.canHu(player);
     canChow = isMyTurn && _game.pendingTile != null && _game.canChow(player);
     
@@ -105,28 +106,34 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 left: (w - topWidth) / 2 + wallOffset,
                 right: (w - topWidth) / 2 + wallOffset,
                 top: wallOffset,
-                child: _buildWallRow(18, tileW, tileH),
+                child: _buildWallRow(18, tileW * 0.7, tileH * 0.7),
               ),
               // 下牌墙 (平行于下边)
               Positioned(
                 left: (w - bottomWidth) / 2 + wallOffset,
                 right: (w - bottomWidth) / 2 + wallOffset,
                 bottom: wallOffset,
-                child: _buildWallRow(18, tileW, tileH),
+                child: _buildWallRow(18, tileW * 0.7, tileH * 0.7),
               ),
-              // 左牌墙 - 使用_buildWallRow，垂直放置
+              // 左牌墙 - 平行于梯形左边
               Positioned(
                 left: wallOffset * 0.3,
                 top: h * 0.12,
                 bottom: h * 0.12,
-                child: _buildWallRow(18, tileW * 0.7, tileH * 0.7),
+                child: Transform.rotate(
+                  angle: -0.15, // 与梯形左边平行
+                  child: _buildWallRow(18, tileW * 0.7, tileH * 0.7),
+                ),
               ),
-              // 右牌墙 - 使用_buildWallRow，垂直放置
+              // 右牌墙 - 平行于梯形右边
               Positioned(
                 right: wallOffset * 0.3,
                 top: h * 0.12,
                 bottom: h * 0.12,
-                child: _buildWallRow(18, tileW * 0.7, tileH * 0.7),
+                child: Transform.rotate(
+                  angle: 0.15, // 与梯形右边平行
+                  child: _buildWallRow(18, tileW * 0.7, tileH * 0.7),
+                ),
               ),
               
               // ===== 头像 =====
@@ -136,7 +143,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               _buildAvatar('北', Colors.orange, w * 0.05, h * 0.5),
               
               // ===== 骰子 + 发牌按钮 =====
-              if (_game.phase == GamePhase.waiting || _game.phase == GamePhase.diceRolling || _game.diceRolled)
+              if (_game.phase == GamePhase.waiting || _game.phase == GamePhase.diceRolling)
                 Positioned(
                   left: w * 0.35,
                   right: w * 0.35,
@@ -149,6 +156,24 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                       if (_game.diceRolled || _game.phase == GamePhase.diceRolling)
                         _buildDealButton(),
                     ],
+                  ),
+                ),
+              // ===== 倍数显示 =====
+              if (_game.phase == GamePhase.playing)
+                Positioned(
+                  left: w * 0.35,
+                  right: w * 0.35,
+                  top: h * 0.4,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFD4AF37), width: 2),
+                      ),
+                      child: Text('本局倍数 x${_game.roundMultiplier}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                    ),
                   ),
                 ),
               
@@ -181,16 +206,16 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   ),
                 ),
               
-              // ===== 操作按钮 =====
-              if (_game.phase == GamePhase.playing)
-                _buildActionButtons(),
-              
               // ===== 造反按钮 =====
               if (canRebel)
                 Positioned(
                   top: 50, left: 0, right: 0,
                   child: Center(child: _buildRebelButton()),
                 ),
+              
+              // ===== 操作按钮（置顶） =====
+              if (_game.phase == GamePhase.playing)
+                _buildActionButtons(),
             ],
           );
         },
@@ -434,6 +459,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     final btnSize = 70.0;
     final subBtnSize = btnSize * 0.55;
     final orbitRadius = btnSize * 1.1;
+    final showDraw = false; // 发牌后隐藏“摸”按钮
     
     return Positioned(
       right: 10,
@@ -443,25 +469,26 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         height: btnSize * 2.5,
         child: Stack(
           children: [
-            // 摸
-            Positioned(
-              left: btnSize * 0.5,
-              top: btnSize * 0.5,
-              child: GestureDetector(
-                onTap: _game.pendingTile == null ? _drawTile : null,
-                child: Container(
-                  width: btnSize,
-                  height: btnSize,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _game.pendingTile == null ? Colors.red : Colors.grey[700],
-                    border: Border.all(color: Colors.white, width: 3),
-                    boxShadow: [BoxShadow(color: Colors.red.withValues(alpha: 0.5), blurRadius: 10)],
+            // 摸（隐藏）
+            if (showDraw)
+              Positioned(
+                left: btnSize * 0.5,
+                top: btnSize * 0.5,
+                child: GestureDetector(
+                  onTap: (!_game.mustDiscard && _game.pendingTile == null) ? _drawTile : null,
+                  child: Container(
+                    width: btnSize,
+                    height: btnSize,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: (!_game.mustDiscard && _game.pendingTile == null) ? Colors.red : Colors.grey[700],
+                      border: Border.all(color: Colors.white, width: 3),
+                      boxShadow: [BoxShadow(color: Colors.red.withValues(alpha: 0.5), blurRadius: 10)],
+                    ),
+                    child: Center(child: Text('摸', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white))),
                   ),
-                  child: Center(child: Text('摸', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white))),
                 ),
               ),
-            ),
             // 吃
             Positioned(left: btnSize * 0.5 + orbitRadius, top: btnSize * 0.5, child: _buildOrbitBtn('吃', Colors.orange, canChow, subBtnSize, () {})),
             // 碰
@@ -519,6 +546,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _drawTile() {
+    if (_game.currentPlayerIndex != 0 || _game.mustDiscard) return;
     final p = _game.players[_game.currentPlayerIndex];
     _game.drawTile(p);
     setState(() {});
@@ -526,22 +554,30 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   void _onKong() {
     final p = _game.players[0];
-    // 循环补花，直到没有花牌或牌墙空了
-    while (p.flowerTiles.isNotEmpty && _game.wall.isNotEmpty) {
-      p.flowerTiles.removeLast();
+    if (_game.currentPlayerIndex != 0) return;
+    
+    // 循环补花：把手牌中的花移到花牌区，并补牌
+    while (_game.wall.isNotEmpty) {
+      final flowerIndex = p.handTiles.indexWhere((t) => t.isFlower);
+      if (flowerIndex == -1) break;
+      // 移出花牌
+      final flower = p.handTiles.removeAt(flowerIndex);
+      p.flowerTiles.add(flower);
+      // 补牌
       final newTile = _game.wall.removeLast();
-      // 如果补到的还是花，继续补
       if (newTile.isFlower) {
         p.flowerTiles.add(newTile);
+        continue; // 继续补
       } else {
         p.handTiles.add(newTile);
-        break; // 补到非花牌，停止
       }
     }
     setState(() {});
   }
   
   void _playTile(int i) {
+    if (_game.currentPlayerIndex != 0) return;
+    if (!_game.mustDiscard) return; // 必须先摸牌
     final p = _game.players[0];
     final t = p.handTiles[i];
     _game.playTile(p, t);

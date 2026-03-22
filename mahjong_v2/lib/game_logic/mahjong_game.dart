@@ -12,9 +12,9 @@ class Tile {
 
   // 素材路径
   String get imagePath {
-    if (isFlower) {
-      final flowers = ['Chun', 'Xia', 'Qiu', 'Dong', 'Mei', 'Lan', 'Zhu', 'Ju'];
-      return 'assets/images/tiles/Regular/${flowers[number - 1]}.png';
+    // 花牌统一用背面（避免缺素材）
+    if (isFlower || suit == TileSuit.hua) {
+      return 'assets/images/tiles/Regular/Back.png';
     }
     
     // 根据suit和number返回对应素材
@@ -23,19 +23,18 @@ class Tile {
     else if (suit == TileSuit.tong) prefix = 'Pin';
     else if (suit == TileSuit.tiao) prefix = 'Sou';
     else if (suit == TileSuit.feng) {
-      // 东/南/西/北: Ton/Nan/Shaa/Pei
       if (number == 1) return 'assets/images/tiles/Regular/Ton.png';
       if (number == 2) return 'assets/images/tiles/Regular/Nan.png';
       if (number == 3) return 'assets/images/tiles/Regular/Shaa.png';
       if (number == 4) return 'assets/images/tiles/Regular/Pei.png';
     }
     else if (suit == TileSuit.dragon) {
-      // 白/發/中: Haku/Hatsu/Chun
       if (number == 1) return 'assets/images/tiles/Regular/Haku.png';
       if (number == 2) return 'assets/images/tiles/Regular/Hatsu.png';
       if (number == 3) return 'assets/images/tiles/Regular/Chun.png';
     }
     
+    if (prefix.isEmpty) return 'assets/images/tiles/Regular/Blank.png';
     return 'assets/images/tiles/Regular/${prefix}$number.png';
   }
 
@@ -127,6 +126,7 @@ class MahjongGame {
   Tile? lastPlayedTile;
   Tile? pendingTile; // 等待响应的牌
   bool gameEnded = false;
+  bool mustDiscard = false; // 当前玩家是否必须打牌
   
   // 包关系: baoRelations[fromPlayer][toPlayer] = count
   // 表示 fromPlayer 吃了/碰了 toPlayer 多少口
@@ -150,8 +150,6 @@ class MahjongGame {
   // 初始化牌墙
   void initWall() {
     wall.clear();
-    // 临时列表用于洗牌
-    List<Tile> tempWall = [];
     int id = 0;
     // 万子 1-9 x4
     for (int n = 1; n <= 9; n++) {
@@ -187,6 +185,8 @@ class MahjongGame {
     for (int n = 1; n <= 8; n++) {
       wall.add(Tile(id: id++, type: TileType.flower, number: n, suit: TileSuit.hua, isFlower: true));
     }
+    // 洗牌
+    wall.shuffle(Random());
   }
 
   int get remainingTiles => wall.length;
@@ -226,6 +226,9 @@ class MahjongGame {
     for (final p in players) {
       p.sortHand();
     }
+    // 庄家先出牌
+    currentPlayerIndex = dealerIndex;
+    mustDiscard = currentPlayerIndex == 0;
     phase = GamePhase.playing;
   }
 
@@ -236,8 +239,14 @@ class MahjongGame {
       phase = GamePhase.scoring;
       return null;
     }
+    // 玩家已摸过牌则不可再次摸牌
+    if (player.index == 0 && mustDiscard) return null;
+
     final tile = wall.removeLast();
     player.handTiles.add(tile);
+    if (player.index == 0) {
+      mustDiscard = true; // 玩家必须打牌
+    }
     return tile;
   }
 
@@ -247,16 +256,12 @@ class MahjongGame {
     player.playedTiles.add(tile);
     pendingTile = tile;
     lastPlayedTile = tile;
-    
-    // 轮到下家
-    nextPlayer();
-    
-    // 如果下家是AI，触发AI
-    if (currentPlayerIndex != 0) {
-      Future.delayed(const Duration(milliseconds: 500), () {
-        aiPlay(currentPlayerIndex);
-      });
+    if (player.index == 0) {
+      mustDiscard = false; // 打牌后可进入下一轮
     }
+    
+    // 检查是否有玩家响应（吃/碰/杠/胡）
+    processTurn();
   }
 
   // 逆时针下一家
@@ -681,15 +686,8 @@ class MahjongGame {
     player.playedTiles.add(discard);
     pendingTile = discard;
     
-    // 轮到下家
-    nextPlayer();
-    
-    // 如果下家是AI，继续
-    if (currentPlayerIndex != 0) {
-      Future.delayed(const Duration(milliseconds: 500), () {
-        aiPlay(currentPlayerIndex);
-      });
-    }
+    // AI打牌后，检查响应
+    processTurn();
   }
 
   // ===== 游戏状态机 =====
