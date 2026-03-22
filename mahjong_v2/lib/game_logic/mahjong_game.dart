@@ -1,3 +1,4 @@
+import 'dart:math';
 // 牌定义
 class Tile {
   final int id;
@@ -161,8 +162,8 @@ class MahjongGame {
 
   // 掷骰子
   void rollDice() {
-    diceValues[0] = DateTime.now().millisecond % 6 + 1;
-    diceValues[1] = DateTime.now().microsecond % 6 + 1;
+    diceValues[0] = Random().nextInt(6) + 1;
+    diceValues[1] = Random().nextInt(6) + 1;
     diceRolled = true;
     
     // 计算回合倍数
@@ -173,29 +174,39 @@ class MahjongGame {
 
   // 发牌
   void deal() {
-    // 庄家14张，闲家13张
+    // 庄家14张，闲家13张（不含花牌）
     for (int i = 0; i < 3; i++) {
       for (int p = 0; p < 4; p++) {
         final idx = (dealerIndex + p) % 4;
         for (int j = 0; j < 4; j++) {
-          if (wall.isNotEmpty) {
-            players[idx].handTiles.add(wall.removeLast());
-          }
+          _dealOneTileNonFlower(players[idx]);
         }
       }
     }
     // 庄家再拿1张
     for (int p = 0; p < 4; p++) {
       final idx = (dealerIndex + p) % 4;
-      if (wall.isNotEmpty) {
-        players[idx].handTiles.add(wall.removeLast());
-      }
+      _dealOneTileNonFlower(players[idx]);
     }
     // 整理手牌
     for (final p in players) {
       p.sortHand();
     }
     phase = GamePhase.playing;
+  }
+  
+  // 发一张非花牌
+  void _dealOneTileNonFlower(Player player) {
+    while (wall.isNotEmpty) {
+      final tile = wall.removeLast();
+      if (tile.isFlower) {
+        // 花牌放到花牌堆
+        player.flowerTiles.add(tile);
+      } else {
+        player.handTiles.add(tile);
+        break;
+      }
+    }
   }
 
   // 摸牌
@@ -214,7 +225,18 @@ class MahjongGame {
   void playTile(Player player, Tile tile) {
     player.handTiles.remove(tile);
     player.playedTiles.add(tile);
+    pendingTile = tile;
     lastPlayedTile = tile;
+    
+    // 轮到下家
+    nextPlayer();
+    
+    // 如果下家是AI，触发AI
+    if (currentPlayerIndex != 0) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        aiPlay(currentPlayerIndex);
+      });
+    }
   }
 
   // 逆时针下一家
@@ -582,7 +604,71 @@ class MahjongGame {
     return player.isWuDuSan;
   }
 
-  // ===== AI对手逻辑 =====
-  
+
   // AI执行一步（吃/碰/摸/打）
+  void aiPlay(int playerIndex) {
+    if (playerIndex == 0) return; // 玩家自己控制
+    
+    final player = players[playerIndex];
+    
+    // 1. 检查能否胡
+    if (canHu(player)) {
+      playerWins(playerIndex);
+      return;
+    }
+    
+    // 2. 检查能否杠
+    if (canKong(player)) {
+      final kongTiles = getKongableTiles(player);
+      if (kongTiles.isNotEmpty) {
+        doKong(player, kongTiles.first, isHidden: false);
+        drawTile(player);
+        aiDiscard(playerIndex);
+        return;
+      }
+    }
+    
+    // 3. 检查能否碰
+    if (canPong(player) && pendingTile != null) {
+      doPong(player);
+      drawTile(player);
+      aiDiscard(playerIndex);
+      return;
+    }
+    
+    // 4. 检查能否吃
+    if (canChow(player)) {
+      doChow(player, null);
+      drawTile(player);
+      aiDiscard(playerIndex);
+      return;
+    }
+    
+    // 5. 正常摸牌
+    if (pendingTile == null) {
+      drawTile(player);
+      aiDiscard(playerIndex);
+    }
+  }
+  
+  // AI打牌
+  void aiDiscard(int playerIndex) {
+    final player = players[playerIndex];
+    if (player.handTiles.isEmpty) return;
+    
+    // 简单策略：打第一张
+    final discard = player.handTiles.removeAt(0);
+    player.playedTiles.add(discard);
+    pendingTile = discard;
+    
+    // 轮到下家
+    nextPlayer();
+    
+    // 如果下家是AI，继续
+    if (currentPlayerIndex != 0) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        aiPlay(currentPlayerIndex);
+      });
+    }
+  }
 }
