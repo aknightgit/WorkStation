@@ -1051,12 +1051,14 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         const stacksPerSide = 18;
         const gap = 0.0;
 
-        final tableTop = h * 0.0;
-        final tableHeight = h * 1.0;
-        final wallWidth = w * 0.84; // 不超过梯形上边宽度
-        final wallHeight = tableHeight * 0.40;
-        final wallLeft = (w - wallWidth) / 2;
-        final wallTop = tableTop + tableHeight * 0.52; // 我的牌墙往下移
+        final tableTop = h * 0.35;
+        final tableHeight = h * 0.65;
+        // 左右两侧牌墙
+        final wallWidth = 28.0;
+        final wallHeight = h * 0.45;
+        final wallLeftPos = 15.0;
+        final wallRightPos = w - 15.0 - wallWidth;
+        final wallTopPos = h * 0.38;
 
         final sizeByWidth = (wallWidth - gap * (stacksPerSide - 1)) / stacksPerSide;
         final sizeByHeight = (wallHeight - gap * (stacksPerSide - 1)) / stacksPerSide;
@@ -1067,8 +1069,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         return Stack(
           children: [
             Positioned(
-              left: wallLeft,
-              top: wallTop,
+              left: wallLeftPos,
+              top: wallTopPos,
               width: wallWidth,
               height: wallHeight,
               child: Stack(
@@ -1101,7 +1103,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               ),
             ),
             Positioned(
-              top: wallTop + wallHeight * 0.02,
+              top: wallTopPos + wallHeight * 0.02,
               left: 0,
               right: 0,
               child: Center(
