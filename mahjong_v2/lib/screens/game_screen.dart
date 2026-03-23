@@ -17,6 +17,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   bool canPong = false, canKong = false, canHu = false, canChow = false;
   int? selectedTileIndex;
   final List<Color> _playerColors = [Colors.red, Colors.green, Colors.blue, Colors.orange];
+  final List<String> _directionLabels = ['东', '南', '西', '北'];
   bool _freezeActive = false;
   int _freezeCountdown = 0;
   Timer? _freezeTimer;
@@ -70,6 +71,49 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     super.dispose();
   }
 
+  // ===== Helper: build a single tile image with fallback =====
+  Widget _tileImage(String imagePath, {double? width, double? height, BoxFit fit = BoxFit.contain}) {
+    return Image.asset(
+      imagePath,
+      width: width,
+      height: height,
+      fit: fit,
+      errorBuilder: (_, __, ___) => Container(
+        width: width, height: height,
+        color: Colors.white,
+        child: const Center(child: Icon(Icons.error_outline, size: 12)),
+      ),
+    );
+  }
+
+  // ===== Helper: wall tile with real Back.png image =====
+  Widget _wallTile({required double w, required double h}) {
+    return Container(
+      width: w,
+      height: h,
+      margin: const EdgeInsets.all(0.3),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(3),
+        boxShadow: const [
+          BoxShadow(color: Colors.black26, blurRadius: 2, offset: Offset(1, 1)),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(3),
+        child: Image.asset(
+          'assets/images/tiles/Regular/Back.png',
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF1565C0),
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final player = _game.players[0];
@@ -79,7 +123,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     final hasFlowerInHand = player.handTiles.any((t) => t.isFlower);
     final canSelfAction = isMyTurn && _game.mustDiscard;
     canPong = canRespond && _game.pendingTile != null && _game.canPong(player);
-    canKong = (canRespond && (_game.canKong(player) || hasFlowerInHand)) || (canSelfAction && (_game.canKong(player) || hasFlowerInHand));
+    canKong = (canRespond && (_game.canKong(player) || hasFlowerInHand)) ||
+        (canSelfAction && (_game.canKong(player) || hasFlowerInHand));
     canHu = (canRespond && _game.canHu(player)) || (canSelfAction && _game.canHu(player));
     canChow = canActAfterDelay && _game.pendingTile != null && _game.canChow(player);
     final canRebelNow = _game.canRebel(0);
@@ -95,37 +140,37 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           final sw = constraints.maxWidth;
           final sh = constraints.maxHeight;
 
-          // Table dimensions: ~85% width, ~75% height
-          final tableW = sw * 0.85;
-          final tableH = sh * 0.75;
+          // Table dimensions
+          final tableW = sw * 0.88;
+          final tableH = sh * 0.72;
           final tableLeft = (sw - tableW) / 2;
           final tableTop = (sh - tableH) / 2;
 
-          // Wall tile size: ~3% of screen width
-          final wallTileW = sw * 0.03;
+          // Wall tile sizing
+          final wallTileW = sw * 0.032;
           final wallTileH = wallTileW * 1.3;
 
-          // River/discard tile: 60% of wall tile
-          final riverTileW = wallTileW * 0.6;
-          final riverTileH = wallTileH * 0.6;
+          // River / discard tile sizing
+          final riverTileW = wallTileW * 0.8;
+          final riverTileH = wallTileH * 0.8;
 
-          // Hand tile: ~5% of screen width
-          final handTileW = sw * 0.05;
-          final handTileH = handTileW * 1.3;
+          // Hand tile sizing
+          final handTileW = wallTileW * 1.4;
+          final handTileH = wallTileH * 1.4;
 
           return Stack(
             children: [
-              // ===== Wood background =====
-              Container(
-                decoration: const BoxDecoration(
-                  image: DecorationImage(
-                    image: AssetImage('assets/backgrounds/light_wood.png'),
-                    fit: BoxFit.cover,
-                  ),
+              // ===== 1. Full-screen wood background =====
+              Positioned.fill(
+                child: Image.asset(
+                  'assets/backgrounds/light_wood.png',
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) =>
+                      Container(color: const Color(0xFF5D4037)),
                 ),
               ),
 
-              // ===== Rectangular green felt table =====
+              // ===== 2. Felt table =====
               Positioned(
                 left: tableLeft,
                 top: tableTop,
@@ -133,180 +178,101 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 height: tableH,
                 child: Container(
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
-                    ),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: const Color(0xFFD4AF37), width: 3),
-                    boxShadow: [
-                      BoxShadow(color: Colors.black.withValues(alpha: 0.6), blurRadius: 20, spreadRadius: 4),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black54, blurRadius: 20, offset: Offset(0, 8)),
                     ],
+                    image: const DecorationImage(
+                      image: AssetImage('assets/backgrounds/felt.png'),
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
               ),
 
-              // ===== Wall tiles: Top =====
-              Positioned(
-                left: tableLeft + wallTileW * 0.5,
-                top: tableTop + wallTileH * 0.3,
-                child: _buildWallRow(18, wallTileW * 0.7, wallTileH * 0.7),
+              // ===== 3. Wall tiles (4 sides) =====
+              // Top wall
+              _buildWallHorizontal(
+                left: tableLeft + (tableW - 18 * (wallTileW + 0.6)) / 2,
+                top: tableTop + tableH * 0.03,
+                count: 18, tileW: wallTileW, tileH: wallTileH,
               ),
-              // ===== Wall tiles: Bottom =====
-              Positioned(
-                left: tableLeft + wallTileW * 0.5,
-                top: tableTop + tableH - wallTileH * 0.7 - wallTileH * 0.3,
-                child: _buildWallRow(18, wallTileW * 0.7, wallTileH * 0.7),
+              // Bottom wall
+              _buildWallHorizontal(
+                left: tableLeft + (tableW - 18 * (wallTileW + 0.6)) / 2,
+                top: tableTop + tableH * 0.97 - wallTileH,
+                count: 18, tileW: wallTileW, tileH: wallTileH,
               ),
-              // ===== Wall tiles: Left (vertical) =====
-              Positioned(
-                left: tableLeft + wallTileW * 0.3,
-                top: tableTop + wallTileH * 0.5,
-                child: _buildWallCol(18, wallTileW * 0.7, wallTileH * 0.7),
+              // Left wall
+              _buildWallVertical(
+                left: tableLeft + tableW * 0.03,
+                top: tableTop + (tableH - 18 * (wallTileH + 0.6)) / 2,
+                count: 18, tileW: wallTileW, tileH: wallTileH,
               ),
-              // ===== Wall tiles: Right (vertical) =====
-              Positioned(
-                left: tableLeft + tableW - wallTileW * 0.7 - wallTileW * 0.3,
-                top: tableTop + wallTileH * 0.5,
-                child: _buildWallCol(18, wallTileW * 0.7, wallTileH * 0.7),
+              // Right wall
+              _buildWallVertical(
+                left: tableLeft + tableW * 0.97 - wallTileW,
+                top: tableTop + (tableH - 18 * (wallTileH + 0.6)) / 2,
+                count: 18, tileW: wallTileW, tileH: wallTileH,
               ),
 
-              // ===== Avatars =====
-              _buildAvatar('东', Colors.red, sw * 0.5, tableTop - 20, _playerColors[0], _game.players[0].totalScore),
-              _buildAvatar('南', Colors.green, tableLeft + tableW + 28, sh * 0.5, _playerColors[1], _game.players[1].totalScore),
-              _buildAvatar('西', Colors.blue, sw * 0.5, tableTop + tableH + 20, _playerColors[2], _game.players[2].totalScore),
-              _buildAvatar('北', Colors.orange, tableLeft - 28, sh * 0.5, _playerColors[3], _game.players[3].totalScore),
+              // ===== 4. Discard area (river) =====
+              if (_game.phase == GamePhase.playing)
+                _buildRiverArea(tableLeft, tableTop, tableW, tableH, riverTileW, riverTileH),
 
-              // ===== Dice + Deal button =====
-              if (_game.phase == GamePhase.waiting || _game.phase == GamePhase.diceRolling)
-                Positioned(
-                  left: sw * 0.35,
-                  right: sw * 0.35,
-                  top: sh * 0.4,
-                  child: Column(
-                    children: [
-                      _buildDiceWithAnimation(),
-                      const SizedBox(height: 10),
-                      Text('掷骰次数：${_game.diceRollCount}/${_game.maxDiceRolls}',
-                          style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                      const SizedBox(height: 12),
-                      if (_game.diceRolled || _game.phase == GamePhase.diceRolling) _buildDealButton(),
-                    ],
-                  ),
-                ),
+              // ===== 5. Avatars (on table edges) =====
+              _buildTableAvatar(0, tableLeft, tableTop, tableW, tableH, sw),
+              _buildTableAvatar(1, tableLeft, tableTop, tableW, tableH, sw),
+              _buildTableAvatar(2, tableLeft, tableTop, tableW, tableH, sw),
+              _buildTableAvatar(3, tableLeft, tableTop, tableW, tableH, sw),
 
-              // ===== Multiplier display (top of table) =====
+              // ===== 6. Turn hint (above discard area) =====
               if (_game.phase == GamePhase.playing)
                 Positioned(
                   left: 0, right: 0,
-                  top: tableTop + tableH * 0.05,
+                  top: tableTop + tableH * 0.28,
                   child: Center(
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                       decoration: BoxDecoration(
                         color: Colors.black54,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFD4AF37), width: 1.5),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text('×${_game.finalMultiplier}',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold,
-                                  color: _multiplierColor(_game.finalMultiplier))),
-                          const SizedBox(width: 10),
-                          if (_game.wildTile != null)
-                            Row(
-                              children: [
-                                const Text('百搭', style: TextStyle(fontSize: 13, color: Colors.white70)),
-                                const SizedBox(width: 4),
-                                Container(
-                                  width: 28, height: 36,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(3),
-                                    border: Border.all(color: const Color(0xFFD4AF37)),
-                                  ),
-                                  child: Image.asset(_game.wildTile!.imagePath, fit: BoxFit.contain,
-                                      errorBuilder: (_, __, ___) =>
-                                          Center(child: Text(_game.wildTile!.displayName, style: const TextStyle(fontSize: 7)))),
-                                ),
-                              ],
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
-              if (_freezeActive)
-                Positioned.fill(
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.6),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
-                      child: Text('等待 $_freezeCountdown',
-                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
-                    ),
-                  ),
-                ),
-
-              // ===== Discard area (River/河) =====
-              if (_game.phase == GamePhase.playing) ...[
-                _buildRiverArea(tableLeft, tableTop, tableW, tableH, riverTileW, riverTileH),
-              ],
-
-              // ===== Hand tiles (bottom) =====
-              if (_game.phase == GamePhase.playing)
-                Positioned(
-                  left: sw * 0.12, right: sw * 0.12,
-                  bottom: sh * 0.02,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      if (player.flowerTiles.isNotEmpty || player.melds.isNotEmpty)
-                        SizedBox(width: handTileW * 4, child: _buildMeldsArea(handTileW, handTileH)),
-                      if (player.flowerTiles.isNotEmpty || player.melds.isNotEmpty)
-                        const SizedBox(width: 6),
-                      Expanded(child: _buildMyHand(handTileW, handTileH)),
-                    ],
-                  ),
-                ),
-
-              // ===== Turn hint (center of table, above river) =====
-              if (_game.phase == GamePhase.playing)
-                Positioned(
-                  left: 0, right: 0,
-                  top: tableTop + tableH * 0.32,
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.black45,
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Text(_turnHintText(),
-                          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                      child: Text(
+                        _turnHintText(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
                 ),
 
-              // ===== Rebel button =====
-              if (canRebelNow)
-                Positioned(
-                  top: 50, left: 0, right: 0,
-                  child: Center(child: _buildRebelButtons()),
-                ),
+              // ===== 7. Multiplier display =====
+              if (_game.phase == GamePhase.playing)
+                _buildMultiplierDisplay(tableLeft, tableTop, tableW, tableH),
 
-              // ===== Action buttons (right side) =====
-              if (_game.phase == GamePhase.playing) _buildActionButtons(),
+              // ===== 8. Dice area (during rolling phase) =====
+              if (_game.phase == GamePhase.waiting || _game.phase == GamePhase.diceRolling)
+                _buildDiceArea(sw, sh),
 
-              // ===== Settlement overlay =====
+              // ===== 9. Hand tiles (bottom) =====
+              if (_game.phase == GamePhase.playing)
+                _buildHandArea(sw, sh, handTileW, handTileH),
+
+              // ===== 10. Action buttons (right side) =====
+              if (_game.phase == GamePhase.playing) _buildActionButtons(sw),
+
+              // ===== 11. Freeze overlay =====
+              if (_freezeActive) _buildFreezeOverlay(),
+
+              // ===== 12. Rebel buttons =====
+              if (canRebelNow) _buildRebelButtons(),
+
+              // ===== 13. Settlement overlay =====
               if (_game.phase == GamePhase.scoring && _game.lastSettlement != null)
                 _buildSettlementOverlay(sw, sh),
             ],
@@ -316,183 +282,361 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
-  // ===== Wall row: horizontal tiles using Back.png =====
-  Widget _buildWallRow(int count, double w, double h) {
-    return Row(
-      children: List.generate(count, (i) => Container(
-        width: w, height: h,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(2),
-          border: Border.all(color: const Color(0xFFD4AF37), width: 0.8),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(2),
-          child: Image.asset('assets/images/tiles/Regular/Back.png', fit: BoxFit.cover),
-        ),
-      )),
+  // ==================== WALL TILES ====================
+
+  Widget _buildWallHorizontal({
+    required double left, required double top,
+    required int count, required double tileW, required double tileH,
+  }) {
+    return Positioned(
+      left: left,
+      top: top,
+      child: Row(
+        children: List.generate(count, (_) => _wallTile(w: tileW, h: tileH)),
+      ),
     );
   }
 
-  // ===== Wall column: vertical tiles using Back.png =====
-  Widget _buildWallCol(int count, double w, double h) {
-    return Column(
-      children: List.generate(count, (i) => Container(
-        width: w, height: h,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(2),
-          border: Border.all(color: const Color(0xFFD4AF37), width: 0.8),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(2),
-          child: Image.asset('assets/images/tiles/Regular/Back.png', fit: BoxFit.cover),
-        ),
-      )),
+  Widget _buildWallVertical({
+    required double left, required double top,
+    required int count, required double tileW, required double tileH,
+  }) {
+    return Positioned(
+      left: left,
+      top: top,
+      child: Column(
+        children: List.generate(count, (_) => _wallTile(w: tileW, h: tileH)),
+      ),
     );
   }
 
-  // ===== River (discard area) - 4 quadrants =====
-  Widget _buildRiverArea(double tableLeft, double tableTop, double tableW, double tableH, double tw, double th) {
+  // ==================== RIVER / DISCARD AREA ====================
+
+  Widget _buildRiverArea(
+    double tableLeft, double tableTop, double tableW, double tableH,
+    double tw, double th,
+  ) {
     final riverW = tableW * 0.50;
-    final riverH = tableH * 0.40;
+    final riverH = tableH * 0.45;
     final riverLeft = tableLeft + (tableW - riverW) / 2;
     final riverTop = tableTop + (tableH - riverH) / 2;
 
     return Stack(
       children: [
-        // Player 0 (South) - bottom half of river
-        _buildDiscardGrid(
-          left: riverLeft, top: riverTop + riverH * 0.52,
+        // River background
+        Positioned(
+          left: riverLeft, top: riverTop,
+          width: riverW, height: riverH,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.green[900]!.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+        // Player 0 (bottom) - left to right, 6 per row
+        _buildDiscardQuadrant(
+          left: riverLeft + 4,
+          top: riverTop + riverH * 0.52,
           tiles: _game.players[0].playedTiles,
-          tileW: tw, tileH: th, cols: 6, reversed: false,
+          tileW: tw, tileH: th,
+          perLine: 6,
+          isVertical: false,
+          reversed: false,
         ),
-        // Player 2 (North) - top half of river (reversed: newest on top)
-        _buildDiscardGrid(
-          left: riverLeft, top: riverTop,
+        // Player 2 (top) - right to left, 6 per row
+        _buildDiscardQuadrant(
+          left: riverLeft + 4,
+          top: riverTop + 4,
           tiles: _game.players[2].playedTiles,
-          tileW: tw, tileH: th, cols: 6, reversed: true,
+          tileW: tw, tileH: th,
+          perLine: 6,
+          isVertical: false,
+          reversed: true,
         ),
-        // Player 1 (West) - right half of river
-        _buildDiscardGridVertical(
-          left: riverLeft + riverW * 0.52, top: riverTop,
+        // Player 1 (right) - top to bottom, 6 per column
+        _buildDiscardQuadrant(
+          left: riverLeft + riverW * 0.52,
+          top: riverTop + 4,
           tiles: _game.players[1].playedTiles,
-          tileW: tw, tileH: th, rows: 5,
+          tileW: tw, tileH: th,
+          perLine: 6,
+          isVertical: true,
+          reversed: false,
         ),
-        // Player 3 (East) - left half of river
-        _buildDiscardGridVertical(
-          left: riverLeft, top: riverTop,
+        // Player 3 (left) - bottom to top, 6 per column
+        _buildDiscardQuadrant(
+          left: riverLeft + 4,
+          top: riverTop + 4,
           tiles: _game.players[3].playedTiles,
-          tileW: tw, tileH: th, rows: 5,
+          tileW: tw, tileH: th,
+          perLine: 6,
+          isVertical: true,
+          reversed: true,
         ),
       ],
     );
   }
 
-  Widget _buildDiscardGrid({
+  Widget _buildDiscardQuadrant({
     required double left, required double top,
     required List<Tile> tiles,
     required double tileW, required double tileH,
-    required int cols, required bool reversed,
+    required int perLine,
+    required bool isVertical,
+    required bool reversed,
   }) {
     if (tiles.isEmpty) return const SizedBox.shrink();
     final displayTiles = reversed ? tiles.reversed.toList() : tiles;
-    return Positioned(
-      left: left, top: top,
-      child: SizedBox(
-        width: cols * (tileW + 1),
-        child: Wrap(
-          spacing: 1, runSpacing: 1,
-          children: displayTiles.map((t) => Container(
-            width: tileW, height: tileH,
-            decoration: BoxDecoration(
+
+    Widget tileWidget(Tile t) {
+      return Container(
+        width: tileW,
+        height: tileH,
+        margin: const EdgeInsets.all(0.5),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(2),
+          boxShadow: const [
+            BoxShadow(color: Colors.black26, blurRadius: 1, offset: Offset(0.5, 0.5)),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(2),
+          child: Image.asset(
+            t.imagePath,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => Container(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(2),
-              border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.5), width: 0.5),
-            ),
-            child: Image.asset(t.imagePath, fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) =>
-                    Center(child: Text(t.displayName, style: TextStyle(fontSize: tileW * 0.3)))),
-          )).toList(),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDiscardGridVertical({
-    required double left, required double top,
-    required List<Tile> tiles,
-    required double tileW, required double tileH,
-    required int rows,
-  }) {
-    if (tiles.isEmpty) return const SizedBox.shrink();
-    return Positioned(
-      left: left, top: top,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: List.generate(
-          (tiles.length / rows).ceil(),
-          (col) {
-            final start = col * rows;
-            final end = (start + rows).clamp(0, tiles.length);
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: tiles.sublist(start, end).map((t) => Container(
-                width: tileW, height: tileH,
-                margin: const EdgeInsets.only(right: 1, bottom: 1),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(2),
-                  border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.5), width: 0.5),
+              child: Center(
+                child: Text(
+                  t.displayName,
+                  style: TextStyle(fontSize: tileW * 0.28, fontWeight: FontWeight.bold),
                 ),
-                child: Image.asset(t.imagePath, fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) =>
-                        Center(child: Text(t.displayName, style: TextStyle(fontSize: tileW * 0.3)))),
-              )).toList(),
-            );
-          },
+              ),
+            ),
+          ),
         ),
-      ),
-    );
+      );
+    }
+
+    if (!isVertical) {
+      // Horizontal layout: wrap tiles in rows
+      return Positioned(
+        left: left, top: top,
+        child: SizedBox(
+          width: perLine * (tileW + 1),
+          child: Wrap(
+            children: displayTiles.map(tileWidget).toList(),
+          ),
+        ),
+      );
+    } else {
+      // Vertical layout: wrap tiles in columns
+      return Positioned(
+        left: left, top: top,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: List.generate(
+            (displayTiles.length / perLine).ceil(),
+            (col) {
+              final start = col * perLine;
+              final end = (start + perLine).clamp(0, displayTiles.length);
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: displayTiles
+                    .sublist(start, end)
+                    .map(tileWidget)
+                    .toList(),
+              );
+            },
+          ),
+        ),
+      );
+    }
   }
 
-  Widget _buildAvatar(String name, Color c, double x, double y, Color dotColor, int score) {
+  // ==================== AVATARS ON TABLE EDGES ====================
+
+  Widget _buildTableAvatar(
+    int playerIndex,
+    double tableLeft, double tableTop, double tableW, double tableH,
+    double screenW,
+  ) {
+    final p = _game.players[playerIndex];
+    final isActive = _game.currentPlayerIndex == playerIndex;
+    final color = _playerColors[playerIndex];
+    final direction = _directionLabels[playerIndex];
+
+    double cx, cy;
+    switch (playerIndex) {
+      case 0: // bottom center
+        cx = tableLeft + tableW / 2;
+        cy = tableTop + tableH * 0.90;
+        break;
+      case 1: // right center
+        cx = tableLeft + tableW * 0.92;
+        cy = tableTop + tableH / 2;
+        break;
+      case 2: // top center
+        cx = tableLeft + tableW / 2;
+        cy = tableTop + tableH * 0.10;
+        break;
+      case 3: // left center
+        cx = tableLeft + tableW * 0.08;
+        cy = tableTop + tableH / 2;
+        break;
+      default:
+        cx = tableLeft;
+        cy = tableTop;
+    }
+
     return Positioned(
-      left: x - 28, top: y - 28,
+      left: cx - 28,
+      top: cy - 32,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                width: 48, height: 48,
-                decoration: BoxDecoration(
-                  color: c, shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2.5),
-                  boxShadow: [BoxShadow(color: c.withValues(alpha: 0.5), blurRadius: 8)],
-                ),
-                child: Center(
-                    child: Text(name,
-                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold))),
+          // Avatar circle with glow for active player
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color,
+              border: Border.all(
+                color: isActive ? Colors.yellow : Colors.white,
+                width: isActive ? 3 : 2,
               ),
-              Positioned(
-                right: -2, top: -2,
-                child: Container(
-                  width: 12, height: 12,
-                  decoration: BoxDecoration(
-                      color: dotColor, shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 1.5)),
+              boxShadow: [
+                if (isActive)
+                  BoxShadow(color: color.withValues(alpha: 0.7), blurRadius: 12, spreadRadius: 2),
+                BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 6),
+              ],
+            ),
+            child: Stack(
+              children: [
+                Center(
+                  child: Text(
+                    direction,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-              ),
-            ],
+                // Color dot indicator
+                Positioned(
+                  right: 2, top: 2,
+                  child: Container(
+                    width: 12, height: 12,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 1.5),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 3),
+          // Score badge
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-            decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(8)),
-            child: Text('${score > 0 ? "+" : ""}$score',
-                style: TextStyle(color: score >= 0 ? Colors.green : Colors.red,
-                    fontSize: 11, fontWeight: FontWeight.bold)),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.black54,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '${p.totalScore > 0 ? "+" : ""}${p.totalScore}',
+              style: TextStyle(
+                color: p.totalScore >= 0 ? Colors.greenAccent : Colors.redAccent,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
+        ],
+      ),
+    );
+  }
+
+  // ==================== MULTIPLIER DISPLAY ====================
+
+  Widget _buildMultiplierDisplay(
+    double tableLeft, double tableTop, double tableW, double tableH,
+  ) {
+    return Positioned(
+      left: 0, right: 0,
+      top: tableTop + tableH * 0.05,
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.black54,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFD4AF37), width: 1.5),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '×${_game.finalMultiplier}',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: _multiplierColor(_game.finalMultiplier),
+                ),
+              ),
+              if (_game.wildTile != null) ...[
+                const SizedBox(width: 10),
+                const Text('百搭', style: TextStyle(fontSize: 13, color: Colors.white70)),
+                const SizedBox(width: 4),
+                Container(
+                  width: 28,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(3),
+                    border: Border.all(color: const Color(0xFFD4AF37)),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(3),
+                    child: Image.asset(
+                      _game.wildTile!.imagePath,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => Center(
+                        child: Text(_game.wildTile!.displayName,
+                            style: const TextStyle(fontSize: 8)),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ==================== DICE AREA ====================
+
+  Widget _buildDiceArea(double sw, double sh) {
+    return Positioned(
+      left: sw * 0.3,
+      right: sw * 0.3,
+      top: sh * 0.38,
+      child: Column(
+        children: [
+          _buildDiceWithAnimation(),
+          const SizedBox(height: 10),
+          Text(
+            '掷骰次数：${_game.diceRollCount}/${_game.maxDiceRolls}',
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
+          ),
+          const SizedBox(height: 12),
+          if (_game.diceRolled || _game.phase == GamePhase.diceRolling) _buildDealButton(),
         ],
       ),
     );
@@ -507,7 +651,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           color: Colors.black87,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: const Color(0xFFD4AF37), width: 3),
-          boxShadow: [BoxShadow(color: Colors.black54, blurRadius: 20, offset: const Offset(0, 10))],
+          boxShadow: const [
+            BoxShadow(color: Colors.black54, blurRadius: 20, offset: Offset(0, 10)),
+          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -535,15 +681,23 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             ..rotateZ(rotation),
           alignment: Alignment.center,
           child: Container(
-            width: 60, height: 60,
+            width: 60,
+            height: 60,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                begin: Alignment.topLeft, end: Alignment.bottomRight,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
                 colors: [Colors.white, Color(0xFFEEEEEE)],
               ),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.black87, width: 2),
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 8, offset: const Offset(2, 4))],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.4),
+                  blurRadius: 8,
+                  offset: const Offset(2, 4),
+                ),
+              ],
             ),
             child: Center(child: _buildDiceDots(value)),
           ),
@@ -553,7 +707,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildDiceDots(int value) {
-    final positions = {
+    const positions = {
       1: [(0.5, 0.5)],
       2: [(0.2, 0.2), (0.8, 0.8)],
       3: [(0.2, 0.2), (0.5, 0.5), (0.8, 0.8)],
@@ -561,18 +715,21 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       5: [(0.2, 0.2), (0.2, 0.8), (0.5, 0.5), (0.8, 0.2), (0.8, 0.8)],
       6: [(0.2, 0.2), (0.2, 0.5), (0.2, 0.8), (0.8, 0.2), (0.8, 0.5), (0.8, 0.8)],
     };
-    final dotSize = 12.0;
+    const dotSize = 12.0;
     return SizedBox(
-      width: 50, height: 50,
+      width: 50,
+      height: 50,
       child: Stack(
         children: (positions[value] ?? []).map((pos) => Positioned(
           left: pos.$1 * 50 - dotSize / 2,
           top: pos.$2 * 50 - dotSize / 2,
           child: Container(
-            width: dotSize, height: dotSize,
-            decoration: BoxDecoration(
-              color: Colors.red, shape: BoxShape.circle,
-              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2)],
+            width: dotSize,
+            height: dotSize,
+            decoration: const BoxDecoration(
+              color: Colors.red,
+              shape: BoxShape.circle,
+              boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 2)],
             ),
           ),
         )).toList(),
@@ -588,22 +745,50 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         decoration: BoxDecoration(
           gradient: const LinearGradient(colors: [Color(0xFF4CAF50), Color(0xFF2E7D32)]),
           borderRadius: BorderRadius.circular(25),
-          boxShadow: [BoxShadow(color: Colors.green.withValues(alpha: 0.5), blurRadius: 10)],
+          boxShadow: [
+            BoxShadow(color: Colors.green.withValues(alpha: 0.5), blurRadius: 10),
+          ],
         ),
-        child: const Text('发牌', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+        child: const Text(
+          '发牌',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+        ),
       ),
     );
   }
 
-  // ===== Hand tiles with selected pop-up =====
+  // ==================== HAND TILES ====================
+
+  Widget _buildHandArea(double sw, double sh, double tileW, double tileH) {
+    final player = _game.players[0];
+    return Positioned(
+      left: sw * 0.10,
+      right: sw * 0.10,
+      bottom: sh * 0.015,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          // Melds & flowers
+          if (player.flowerTiles.isNotEmpty || player.melds.isNotEmpty)
+            _buildMeldsAndFlowers(tileW * 0.6, tileH * 0.6),
+          if (player.flowerTiles.isNotEmpty || player.melds.isNotEmpty)
+            const SizedBox(width: 8),
+          // Hand tiles
+          Expanded(child: _buildMyHand(tileW, tileH)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMyHand(double w, double h) {
     final player = _game.players[0];
     return Container(
-      height: h + 20,
-      padding: const EdgeInsets.symmetric(vertical: 3),
+      height: h + 24,
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(8),
+        color: Colors.black.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white24, width: 1),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -617,23 +802,42 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 height: h,
                 margin: const EdgeInsets.symmetric(horizontal: 1),
                 transform: Matrix4.translationValues(
-                    0, selectedTileIndex == i ? -h * 0.3 : 0, 0),
+                  0,
+                  selectedTileIndex == i ? -h * 0.3 : 0,
+                  0,
+                ),
                 decoration: BoxDecoration(
-                  color: selectedTileIndex == i ? Colors.yellow[200] : Colors.white,
                   borderRadius: BorderRadius.circular(4),
                   border: Border.all(
                     color: selectedTileIndex == i
                         ? Colors.yellow
-                        : const Color(0xFFD4AF37).withValues(alpha: 0.6),
-                    width: selectedTileIndex == i ? 2 : 1,
+                        : const Color(0xFFD4AF37).withValues(alpha: 0.5),
+                    width: selectedTileIndex == i ? 2.5 : 1,
                   ),
                   boxShadow: selectedTileIndex == i
-                      ? [const BoxShadow(color: Colors.yellowAccent, blurRadius: 6)]
-                      : null,
+                      ? [
+                          const BoxShadow(color: Colors.yellowAccent, blurRadius: 8, spreadRadius: 1),
+                        ]
+                      : [
+                          const BoxShadow(color: Colors.black26, blurRadius: 2, offset: Offset(1, 1)),
+                        ],
                 ),
-                child: Image.asset(player.handTiles[i].imagePath, fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) =>
-                        Center(child: Text(player.handTiles[i].displayName, style: const TextStyle(fontSize: 9)))),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(3),
+                  child: Image.asset(
+                    player.handTiles[i].imagePath,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: Colors.white,
+                      child: Center(
+                        child: Text(
+                          player.handTiles[i].displayName,
+                          style: TextStyle(fontSize: w * 0.3, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
         ],
@@ -641,93 +845,126 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildMeldsArea(double w, double h) {
+  Widget _buildMeldsAndFlowers(double w, double h) {
     final player = _game.players[0];
-    if (player.melds.isEmpty && player.flowerTiles.isEmpty) return const SizedBox.shrink();
+    if (player.melds.isEmpty && player.flowerTiles.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
+    // Source labels
     final sourceWidgets = <Widget>[];
     player.meldSourceCounts.forEach((idx, count) {
       final name = _game.players[idx].name;
       final color = _playerColors[idx % _playerColors.length];
-      sourceWidgets.add(Text('$name×$count',
-          style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.bold)));
-      sourceWidgets.add(const SizedBox(width: 5));
+      sourceWidgets.add(
+        Text(
+          '$name×$count',
+          style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.bold),
+        ),
+      );
+      sourceWidgets.add(const SizedBox(width: 4));
     });
     if (sourceWidgets.isNotEmpty) sourceWidgets.removeLast();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (sourceWidgets.isNotEmpty)
-          SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children: sourceWidgets)),
-        if (sourceWidgets.isNotEmpty) const SizedBox(height: 3),
-        SizedBox(
-          height: h * 0.65,
-          child: SingleChildScrollView(
+    return Container(
+      constraints: BoxConstraints(maxWidth: w * 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (sourceWidgets.isNotEmpty)
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(children: sourceWidgets),
+            ),
+          if (sourceWidgets.isNotEmpty) const SizedBox(height: 2),
+          SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
+                // Flowers
                 if (player.flowerTiles.isNotEmpty)
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 3),
-                    child: Row(
-                      children: player.flowerTiles.map((t) => Container(
-                        width: w * 0.55, height: h * 0.55,
-                        margin: const EdgeInsets.symmetric(horizontal: 1),
-                        child: Image.asset(t.imagePath, fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) =>
-                                Center(child: Text(t.displayName, style: const TextStyle(fontSize: 7)))),
-                      )).toList(),
+                  ...player.flowerTiles.map((t) => Container(
+                    width: w,
+                    height: h,
+                    margin: const EdgeInsets.only(right: 1),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(2),
+                      child: Image.asset(
+                        t.imagePath,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: Colors.white,
+                          child: Center(
+                            child: Text(t.displayName, style: const TextStyle(fontSize: 6)),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ...List.generate(player.melds.length, (mi) {
-                  final meld = player.melds[mi];
+                  )),
+                // Melds
+                ...player.melds.asMap().entries.expand((entry) {
+                  final mi = entry.key;
+                  final meld = entry.value;
                   final hidden = (mi < player.meldHidden.length) ? player.meldHidden[mi] : false;
-                  return Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 3),
-                    child: Row(
-                      children: meld.map((t) {
-                        final img = hidden ? 'assets/images/tiles/Regular/Back.png' : t.imagePath;
-                        return Container(
-                          width: w * 0.55, height: h * 0.55,
-                          margin: const EdgeInsets.symmetric(horizontal: 1),
-                          child: Image.asset(img, fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) =>
-                                  Center(child: Text(t.displayName, style: const TextStyle(fontSize: 7)))),
-                        );
-                      }).toList(),
-                    ),
-                  );
+                  return meld.map((t) {
+                    final imgPath = hidden ? 'assets/images/tiles/Regular/Back.png' : t.imagePath;
+                    return Container(
+                      width: w,
+                      height: h,
+                      margin: const EdgeInsets.only(right: 1),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(2),
+                        child: Image.asset(
+                          imgPath,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: hidden ? const Color(0xFF1565C0) : Colors.white,
+                            child: Center(
+                              child: Text(
+                                hidden ? '' : t.displayName,
+                                style: const TextStyle(fontSize: 6),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  });
                 }),
               ],
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  // ===== Action buttons - right side, vertically stacked =====
-  Widget _buildActionButtons() {
-    final btnSize = 65.0;
-    final subBtnSize = btnSize * 0.52;
-    final showDraw = _game.allowNextPlayerAction && _game.nextPlayerIndex == 0 && _game.pendingTile != null;
+  // ==================== ACTION BUTTONS ====================
+
+  Widget _buildActionButtons(double sw) {
+    const btnSize = 56.0;
+    const subBtnSize = 48.0;
+    final showDraw = _game.allowNextPlayerAction &&
+        _game.nextPlayerIndex == 0 &&
+        _game.pendingTile != null;
     final showWait = _game.canUseFreeze(0);
     final canFreeze = showWait && !_freezeActive;
     final isRobbingKong = _game.robbingKong && _game.awaitingPlayerResponse;
     final canRobKong = isRobbingKong && canHu;
 
     return Positioned(
-      right: 8,
-      top: 0, bottom: 0,
+      right: 12,
+      top: 0,
+      bottom: 0,
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (showDraw)
+            if (showDraw) ...[
               _buildCircleBtn('摸', Colors.red, showDraw, btnSize, _drawTile),
-            if (showDraw) const SizedBox(height: 8),
+              const SizedBox(height: 8),
+            ],
             _buildCircleBtn('吃', Colors.orange, canChow, subBtnSize, _onChow),
             const SizedBox(height: 6),
             _buildCircleBtn('碰', Colors.cyan, canPong, subBtnSize, _onPong),
@@ -748,90 +985,140 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildCircleBtn(String label, Color baseColor, bool enabled, double size, VoidCallback onTap) {
+  Widget _buildCircleBtn(
+    String label,
+    Color baseColor,
+    bool enabled,
+    double size,
+    VoidCallback onTap,
+  ) {
     final color = enabled ? baseColor : Colors.grey[600]!;
     return GestureDetector(
       onTap: enabled ? onTap : null,
       child: Container(
-        width: size, height: size,
+        width: size,
+        height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: color,
-          border: Border.all(color: enabled ? Colors.white : Colors.grey[400]!, width: 2),
-          boxShadow: enabled ? [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 10)] : null,
+          border: Border.all(
+            color: enabled ? Colors.white : Colors.grey[400]!,
+            width: 2,
+          ),
+          boxShadow: enabled
+              ? [
+                  BoxShadow(
+                    color: color.withValues(alpha: 0.5),
+                    blurRadius: 10,
+                  ),
+                ]
+              : null,
         ),
         child: Center(
-          child: Text(label,
-              style: TextStyle(fontSize: size * 0.32, fontWeight: FontWeight.bold,
-                  color: enabled ? Colors.white : Colors.grey[400])),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: size * 0.32,
+              fontWeight: FontWeight.bold,
+              color: enabled ? Colors.white : Colors.grey[400],
+            ),
+          ),
         ),
       ),
     );
   }
 
+  // ==================== REBEL BUTTONS ====================
+
   Widget _buildRebelButtons() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        AnimatedBuilder(
-          animation: _rebelPulse,
-          builder: (context, child) {
-            return Transform.scale(
-              scale: _rebelPulse.value,
-              child: Container(
-                decoration: BoxDecoration(
-                  boxShadow: [BoxShadow(color: Colors.red.withValues(alpha: 0.6), blurRadius: 18, spreadRadius: 2)],
-                  borderRadius: BorderRadius.circular(28),
+    return Positioned(
+      top: 50,
+      left: 0,
+      right: 0,
+      child: Center(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedBuilder(
+              animation: _rebelPulse,
+              builder: (context, child) {
+                return Transform.scale(
+                  scale: _rebelPulse.value,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.red.withValues(alpha: 0.6),
+                          blurRadius: 18,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                      borderRadius: BorderRadius.circular(28),
+                    ),
+                    child: child,
+                  ),
+                );
+              },
+              child: GestureDetector(
+                onTap: _rebelAccept,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: const Text(
+                    '我要造反',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
                 ),
-                child: child,
               ),
-            );
-          },
-          child: GestureDetector(
-            onTap: _rebelAccept,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 14),
-              decoration: BoxDecoration(
-                  color: Colors.red, borderRadius: BorderRadius.circular(28),
-                  border: Border.all(color: Colors.white, width: 2)),
-              child: const Text('我要造反',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
             ),
-          ),
+            const SizedBox(width: 12),
+            GestureDetector(
+              onTap: _rebelDecline,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[700],
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: Colors.white70, width: 1.5),
+                ),
+                child: const Text(
+                  '不造反',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 12),
-        GestureDetector(
-          onTap: _rebelDecline,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 12),
-            decoration: BoxDecoration(
-                color: Colors.grey[700], borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.white70, width: 1.5)),
-            child: const Text('不造反',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
-  String _turnHintText() {
-    if (_freezeActive) return '等待中…';
-    if (_game.robbingKong && _game.awaitingPlayerResponse) return '可抢杠胡';
-    if (_game.awaitingPlayerResponse) return '可碰/杠/胡';
-    if (_game.allowNextPlayerAction && _game.nextPlayerIndex == 0) return '可摸牌/可吃牌';
-    if (_game.currentPlayerIndex == 0) {
-      return _game.mustDiscard ? '轮到你出牌' : '轮到你摸牌';
-    }
-    return '等待其他玩家...';
+  // ==================== FREEZE OVERLAY ====================
+
+  Widget _buildFreezeOverlay() {
+    return Positioned.fill(
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.6),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white, width: 2),
+          ),
+          child: Text(
+            '等待 $_freezeCountdown',
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+          ),
+        ),
+      ),
+    );
   }
 
-  Color _multiplierColor(int m) {
-    if (m >= 8) return Colors.red;
-    if (m >= 4) return Colors.orange;
-    if (m >= 2) return Colors.yellow;
-    return Colors.green;
-  }
+  // ==================== SETTLEMENT OVERLAY ====================
 
   Widget _buildSettlementOverlay(double w, double h) {
     final s = _game.lastSettlement!;
@@ -850,17 +1137,23 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(s.isDraw ? '流局结算' : '本局结算',
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                Text(
+                  s.isDraw ? '流局结算' : '本局结算',
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 8),
                 if (!s.isDraw && s.winnerIndex != null)
-                  Text('胜者：${_game.players[s.winnerIndex!].name}',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  Text(
+                    '胜者：${_game.players[s.winnerIndex!].name}',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
                 const SizedBox(height: 8),
                 Text('原因：${s.reason}', style: const TextStyle(fontSize: 14)),
                 const SizedBox(height: 4),
-                Text('底分 ${s.basePoints} × 回合${s.roundMultiplier} × 额外${s.extraMultiplier} = ${s.totalPoints}',
-                    style: const TextStyle(fontSize: 14)),
+                Text(
+                  '底分 ${s.basePoints} × 回合${s.roundMultiplier} × 额外${s.extraMultiplier} = ${s.totalPoints}',
+                  style: const TextStyle(fontSize: 14),
+                ),
                 if (s.details.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Column(
@@ -881,8 +1174,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(_game.players[i].name, style: const TextStyle(fontSize: 14)),
-                          Text(delta >= 0 ? '+$delta' : '$delta',
-                              style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+                          Text(
+                            delta >= 0 ? '+$delta' : '$delta',
+                            style: TextStyle(color: color, fontWeight: FontWeight.bold),
+                          ),
                         ],
                       ),
                     );
@@ -902,7 +1197,27 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
-  // ========== Game logic methods (unchanged) ==========
+  // ==================== HELPER METHODS ====================
+
+  String _turnHintText() {
+    if (_freezeActive) return '等待中…';
+    if (_game.robbingKong && _game.awaitingPlayerResponse) return '可抢杠胡';
+    if (_game.awaitingPlayerResponse) return '可碰/杠/胡';
+    if (_game.allowNextPlayerAction && _game.nextPlayerIndex == 0) return '可摸牌/可吃牌';
+    if (_game.currentPlayerIndex == 0) {
+      return _game.mustDiscard ? '轮到你出牌' : '轮到你摸牌';
+    }
+    return '等待其他玩家...';
+  }
+
+  Color _multiplierColor(int m) {
+    if (m >= 8) return Colors.red;
+    if (m >= 4) return Colors.orange;
+    if (m >= 2) return Colors.yellow;
+    return Colors.green;
+  }
+
+  // ==================== GAME LOGIC METHODS (unchanged) ====================
 
   void _onNextRound() {
     _cancelFreeze();
@@ -1054,13 +1369,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     } else {
       _game.playerWins(0);
     }
-    setState(() {});
-  }
-
-  // ignore: unused_element
-  void _onPass() {
-    _cancelFreeze();
-    _game.playerPass();
     setState(() {});
   }
 
