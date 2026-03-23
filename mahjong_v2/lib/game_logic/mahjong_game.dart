@@ -253,6 +253,10 @@ class MahjongGame {
       p.playedTiles.clear();
       p.flowerTiles.clear();
     }
+    // 本局百搭（从144张中随机选一张，不移除）
+    if (wall.isNotEmpty) {
+      wildTile = wall[Random().nextInt(wall.length)];
+    }
     for (int i = 0; i < 3; i++) {
       for (int p = 0; p < 4; p++) {
         final idx = (dealerIndex + p) % 4;
@@ -732,6 +736,7 @@ class MahjongGame {
     pendingTile = null;
     lastPlayedTile = null;
     lastDiscarderIndex = null;
+    wildTile = null;
     awaitingPlayerResponse = false;
     mustDiscard = false;
     phase = GamePhase.waiting;

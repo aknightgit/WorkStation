@@ -170,7 +170,30 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: const Color(0xFFD4AF37), width: 2),
                       ),
-                      child: Text('本局倍数 ×${_game.finalMultiplier}', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _multiplierColor(_game.finalMultiplier))),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('本局倍数 ×${_game.finalMultiplier}', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _multiplierColor(_game.finalMultiplier))),
+                          const SizedBox(width: 12),
+                          if (_game.wildTile != null)
+                            Row(
+                              children: [
+                                Text('百搭', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white.withValues(alpha: 0.9))),
+                                const SizedBox(width: 6),
+                                Container(
+                                  width: 36,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: const Color(0xFFD4AF37)),
+                                  ),
+                                  child: Image.asset(_game.wildTile!.imagePath, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const SizedBox()),
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
