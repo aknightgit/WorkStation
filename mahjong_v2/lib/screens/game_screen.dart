@@ -202,27 +202,36 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               if (_game.phase == GamePhase.playing)
                 Positioned(
                   left: 10, right: 10, bottom: 20,
-                  child: Row(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      // 花牌区（碰杠区左侧）
-                      if (player.flowerTiles.isNotEmpty)
-                        Container(
-                          width: tileW * 1.5,
-                          height: tileH,
-                          child: Column(
-                            children: player.flowerTiles.map((t) => Container(
-                              width: tileW, height: tileH * 0.3,
-                              margin: const EdgeInsets.all(1),
-                              decoration: BoxDecoration(
-                                color: Colors.pink[200],
-                                borderRadius: BorderRadius.circular(2),
+                      if (player.flowerTiles.isNotEmpty || player.melds.isNotEmpty)
+                        Row(
+                          children: [
+                            // 花牌区（碰杠区左侧）
+                            if (player.flowerTiles.isNotEmpty)
+                              Container(
+                                width: tileW * 1.5,
+                                height: tileH * 0.7,
+                                child: Column(
+                                  children: player.flowerTiles.map((t) => Container(
+                                    width: tileW, height: tileH * 0.25,
+                                    margin: const EdgeInsets.all(1),
+                                    decoration: BoxDecoration(
+                                      color: Colors.pink[200],
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                    child: Center(child: Text('花', style: TextStyle(fontSize: 8))),
+                                  )).toList(),
+                                ),
                               ),
-                              child: Center(child: Text('花', style: TextStyle(fontSize: 8))),
-                            )).toList(),
-                          ),
+                            if (player.melds.isNotEmpty)
+                              Expanded(child: _buildMeldsArea(tileW, tileH)),
+                          ],
                         ),
-                      // 手牌
-                      Expanded(child: _buildMyHand(tileW, tileH)),
+                      if (player.flowerTiles.isNotEmpty || player.melds.isNotEmpty)
+                        const SizedBox(height: 4),
+                      _buildMyHand(tileW, tileH),
                     ],
                   ),
                 ),
@@ -488,6 +497,37 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMeldsArea(double w, double h) {
+    final player = _game.players[0];
+    if (player.melds.isEmpty) return const SizedBox.shrink();
+    return SizedBox(
+      height: h * 0.7,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: List.generate(player.melds.length, (mi) {
+            final meld = player.melds[mi];
+            final hidden = (mi < player.meldHidden.length) ? player.meldHidden[mi] : false;
+            return Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              child: Row(
+                children: meld.map((t) {
+                  final img = hidden ? 'assets/images/tiles/Regular/Back.png' : t.imagePath;
+                  return Container(
+                    width: w * 0.6,
+                    height: h * 0.6,
+                    margin: const EdgeInsets.symmetric(horizontal: 1),
+                    child: Image.asset(img, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const SizedBox()),
+                  );
+                }).toList(),
+              ),
+            );
+          }),
+        ),
       ),
     );
   }

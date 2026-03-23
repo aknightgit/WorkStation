@@ -58,6 +58,7 @@ class Player {
   String name;
   List<Tile> handTiles = [];
   List<List<Tile>> melds = []; // 吃/碰/杠牌组
+  List<bool> meldHidden = []; // 对应是否暗杠/暗刻
   List<Tile> flowerTiles = [];
   List<Tile> playedTiles = [];
   int score = 0;
@@ -251,6 +252,7 @@ class MahjongGame {
     for (final p in players) {
       p.handTiles.clear();
       p.melds.clear();
+      p.meldHidden.clear();
       p.playedTiles.clear();
       p.flowerTiles.clear();
     }
@@ -421,6 +423,7 @@ class MahjongGame {
     
     // 添加吃牌组合到 melds（pendingTile 放中间）
     player.melds.add(combo);
+    player.meldHidden.add(false);
     
     // 记录包关系（上家是被吃的一方）
     final fromPlayer = player.index; // 吃牌者
@@ -469,6 +472,7 @@ class MahjongGame {
     
     // 添加刻子到 melds
     player.melds.add([t, t, t]);
+    player.meldHidden.add(false);
     
     // 记录包关系（打牌者是被碰的一方）
     final fromPlayer = player.index; // 碰牌者
@@ -647,8 +651,13 @@ class MahjongGame {
     int extra = 1;
     // 无百搭（目前未实现百搭，视为无百搭）
     if (wildTile == null) extra *= 2;
-    // 门清（没有吃/碰）: 简化为没有明刻/顺
-    if (winner.melds.isEmpty) extra *= 2;
+    // 门清：没有吃/碰/明杠（暗杠不破门清）
+    bool hasExposed = false;
+    for (int i = 0; i < winner.melds.length; i++) {
+      final hidden = (i < winner.meldHidden.length) ? winner.meldHidden[i] : false;
+      if (!hidden) { hasExposed = true; break; }
+    }
+    if (!hasExposed) extra *= 2;
     return extra;
   }
 
@@ -751,6 +760,7 @@ class MahjongGame {
     for (final p in players) {
       p.handTiles.clear();
       p.melds.clear();
+      p.meldHidden.clear();
       p.playedTiles.clear();
       p.flowerTiles.clear();
     }
@@ -836,6 +846,7 @@ class MahjongGame {
       if (player.handTiles.where((tile) => tile.type == t.type && tile.number == t.number).length >= 3) {
         return true;
       }
+      return false; // 有弃牌时，不允许暗杠
     }
     
     // 暗杠：手里有四张相同的牌
@@ -919,6 +930,7 @@ class MahjongGame {
     }
 
     player.melds.add(meld);
+    player.meldHidden.add(isHidden);
     currentPlayerIndex = player.index;
     if (player.index == 0) {
       mustDiscard = true;
@@ -1063,7 +1075,8 @@ class MahjongGame {
     if (canKong(player)) {
       final kongTiles = getKongableTiles(player);
       if (kongTiles.isNotEmpty) {
-        doKong(player, kongTiles.first, isHidden: false);
+        final isHidden = pendingTile == null;
+        doKong(player, kongTiles.first, isHidden: isHidden);
         // 杠后补牌（若补到花，继续补）
         while (wall.isNotEmpty) {
           final newTile = drawTile(player, isKongDraw: true);
