@@ -128,6 +128,12 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
+  // Perspective scale: bottom=1.0, top=0.72 (3D depth)
+  double _pScale(double yOnTable, double tableTop, double tableH) {
+    final t = ((yOnTable - tableTop) / tableH).clamp(0.0, 1.0);
+    return 0.72 + 0.28 * t; // top=0.72, bottom=1.0
+  }
+
   @override
   Widget build(BuildContext context) {
     final player = _game.players[0];
@@ -154,27 +160,22 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           final sw = constraints.maxWidth;
           final sh = constraints.maxHeight;
 
-          // === Trapezoid table: top 80% width, bottom 100% width ===
-          final tableTopW = sw * 0.80;
-          final tableBotW = sw * 1.00;
-          final tableH = sh * 0.78;
-          final tableLeft = (sw - tableBotW) / 2;
-          final tableTop = (sh - tableH) / 2;
+          // === Trapezoid table with perspective ===
+          // Top edge is NARROWER and HIGHER = farther away
+          final tableTopW = sw * 0.72;  // far side (narrow)
+          final tableBotW = sw * 0.96;  // near side (wide)
+          final tableH = sh * 0.74;
+          final tableTopY = sh * 0.06;  // table starts here
+          final centerX = sw / 2;
 
-          // Wall tile sizing — LONG side horizontal (砖块横放)
-          final wallTileW = sw * 0.038;  // 长边
-          final wallTileH = wallTileW * 0.55;  // 短边（扁）
+          // Base tile sizes (at bottom/near side, full size)
+          final baseTileW = sw * 0.036;
+          final baseTileH = baseTileW * 0.52;  // wall tiles: wide and short (横放)
 
-          // Hand tile sizing
-          final handTileW = sw * 0.052;
-          final handTileH = handTileW * 1.3;
-
-          // River tile sizing
-          final riverTileW = handTileW * 0.65;
-          final riverTileH = handTileH * 0.65;
-
-          // Wall offset from table edge
-          final wallInset = sw * 0.04;
+          // Wall tile count
+          const topWallCount = 12;
+          const botWallCount = 18;
+          const sideWallCount = 14;
 
           return Stack(
             children: [
@@ -184,81 +185,87 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft, end: Alignment.bottomRight,
-                      colors: [Color(0xFF5D4037), Color(0xFF4E342E), Color(0xFF3E2723)],
+                      colors: [Color(0xFF4E342E), Color(0xFF3E2723), Color(0xFF2C1B0E)],
                     ),
                   ),
-                  child: Image.asset('assets/backgrounds/light_wood.png',
-                    fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox()),
                 ),
               ),
 
-              // ===== 2. Trapezoid felt table =====
-              Positioned(
-                left: 0, top: 0, width: sw, height: sh,
+              // ===== 2. Trapezoid felt table (3D perspective) =====
+              Positioned.fill(
                 child: CustomPaint(
-                  painter: _TrapezoidPainter(
-                    centerX: sw / 2,
-                    topY: tableTop,
-                    bottomY: tableTop + tableH,
+                  painter: _PerspectiveTablePainter(
+                    centerX: centerX,
+                    topY: tableTopY,
+                    bottomY: tableTopY + tableH,
                     topWidth: tableTopW,
                     bottomWidth: tableBotW,
                   ),
                 ),
               ),
 
-              // ===== 3. Wall tiles — ALL sides horizontal (长边相连) =====
-              // Top wall (narrow side, fewer tiles)
-              _buildWallRow(
-                centerX: sw / 2,
-                y: tableTop + wallInset,
-                count: 14, tileW: wallTileW, tileH: wallTileH,
+              // ===== 3. Top wall (far side, small tiles) =====
+              _buildPerspectiveWall(
+                centerX: centerX,
+                y: tableTopY + tableH * 0.04,
+                count: topWallCount,
+                baseTileW: baseTileW, baseTileH: baseTileH,
+                tableTopY: tableTopY, tableH: tableH,
                 tableTopW: tableTopW, tableBotW: tableBotW,
-                tableTop: tableTop, tableH: tableH,
                 side: 0,
               ),
-              // Bottom wall (wide side)
-              _buildWallRow(
-                centerX: sw / 2,
-                y: tableTop + tableH - wallInset - wallTileH,
-                count: 18, tileW: wallTileW, tileH: wallTileH,
+
+              // ===== 4. Bottom wall (near side, large tiles) =====
+              _buildPerspectiveWall(
+                centerX: centerX,
+                y: tableTopY + tableH * 0.96 - baseTileH,
+                count: botWallCount,
+                baseTileW: baseTileW, baseTileH: baseTileH,
+                tableTopY: tableTopY, tableH: tableH,
                 tableTopW: tableTopW, tableBotW: tableBotW,
-                tableTop: tableTop, tableH: tableH,
                 side: 2,
               ),
-              // Left wall — horizontal tiles, rotated
-              _buildWallRow(
-                centerX: sw / 2,
-                y: tableTop + tableH / 2,
-                count: 14, tileW: wallTileW, tileH: wallTileH,
+
+              // ===== 5. Left wall =====
+              _buildPerspectiveWall(
+                centerX: centerX,
+                y: tableTopY + tableH * 0.50,
+                count: sideWallCount,
+                baseTileW: baseTileW, baseTileH: baseTileH,
+                tableTopY: tableTopY, tableH: tableH,
                 tableTopW: tableTopW, tableBotW: tableBotW,
-                tableTop: tableTop, tableH: tableH,
                 side: 3,
               ),
-              // Right wall — horizontal tiles, rotated
-              _buildWallRow(
-                centerX: sw / 2,
-                y: tableTop + tableH / 2,
-                count: 14, tileW: wallTileW, tileH: wallTileH,
+
+              // ===== 6. Right wall =====
+              _buildPerspectiveWall(
+                centerX: centerX,
+                y: tableTopY + tableH * 0.50,
+                count: sideWallCount,
+                baseTileW: baseTileW, baseTileH: baseTileH,
+                tableTopY: tableTopY, tableH: tableH,
                 tableTopW: tableTopW, tableBotW: tableBotW,
-                tableTop: tableTop, tableH: tableH,
                 side: 1,
               ),
 
-              // ===== 4. Discard area =====
+              // ===== 7. River / Discards =====
               if (_game.phase == GamePhase.playing)
-                _buildRiverArea(sw, sh, tableTopW, tableBotW, tableH, tableTop, riverTileW, riverTileH),
+                _buildPerspectiveRiver(
+                  centerX, tableTopY, tableH, tableTopW, tableBotW,
+                  baseTileW, baseTileH,
+                ),
 
-              // ===== 5. Avatars =====
-              _buildAvatar(0, sw, sh, tableTopW, tableBotW, tableH, tableTop),
-              _buildAvatar(1, sw, sh, tableTopW, tableBotW, tableH, tableTop),
-              _buildAvatar(2, sw, sh, tableTopW, tableBotW, tableH, tableTop),
-              _buildAvatar(3, sw, sh, tableTopW, tableBotW, tableH, tableTop),
+              // ===== 8. Avatars =====
+              _buildAvatar(0, sw, sh, tableTopW, tableBotW, tableH, tableTopY),
+              _buildAvatar(1, sw, sh, tableTopW, tableBotW, tableH, tableTopY),
+              _buildAvatar(2, sw, sh, tableTopW, tableBotW, tableH, tableTopY),
+              _buildAvatar(3, sw, sh, tableTopW, tableBotW, tableH, tableTopY),
 
-              // ===== 6. Turn hint =====
+              // ===== 9. Turn hint =====
               if (_game.phase == GamePhase.playing)
                 Positioned(
                   left: 0, right: 0,
-                  top: tableTop + tableH * 0.32,
+                  top: tableTopY + tableH * 0.35,
                   child: Center(
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -269,28 +276,28 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   ),
                 ),
 
-              // ===== 7. Multiplier =====
+              // ===== 10. Multiplier =====
               if (_game.phase == GamePhase.playing)
-                _buildMultiplier(sw, tableTop + 12),
+                _buildMultiplier(sw, tableTopY + 10),
 
-              // ===== 8. Dice =====
+              // ===== 11. Dice =====
               if (_game.phase == GamePhase.waiting || _game.phase == GamePhase.diceRolling)
                 _buildDiceArea(sw, sh),
 
-              // ===== 9. Hand =====
+              // ===== 12. Hand tiles (bottom, outside table) =====
               if (_game.phase == GamePhase.playing)
-                _buildHandArea(sw, sh, handTileW, handTileH),
+                _buildHandArea(sw, sh, sw * 0.050, sw * 0.050 * 1.3),
 
-              // ===== 10. Actions =====
+              // ===== 13. Action buttons =====
               if (_game.phase == GamePhase.playing) _buildActionButtons(sw),
 
-              // ===== 11. Freeze =====
+              // ===== 14. Freeze =====
               if (_freezeActive) _buildFreezeOverlay(),
 
-              // ===== 12. Rebel =====
+              // ===== 15. Rebel =====
               if (canRebelNow) _buildRebelButtons(),
 
-              // ===== 13. Settlement =====
+              // ===== 16. Settlement =====
               if (_game.phase == GamePhase.scoring && _game.lastSettlement != null)
                 _buildSettlementOverlay(sw, sh),
             ],
@@ -300,133 +307,126 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
-  // ==================== WALL TILES (长边相连) ====================
-  // side: 0=top, 1=right, 2=bottom, 3=left
-  Widget _buildWallRow({
+  // ===== Perspective wall builder =====
+  Widget _buildPerspectiveWall({
     required double centerX, required double y,
-    required int count, required double tileW, required double tileH,
+    required int count,
+    required double baseTileW, required double baseTileH,
+    required double tableTopY, required double tableH,
     required double tableTopW, required double tableBotW,
-    required double tableTop, required double tableH,
     required int side,
   }) {
-    // Calculate wall position based on trapezoid side
-    double left;
-    double top;
-    double angle = 0;
+    // Scale based on Y position (bottom=1.0, top=0.72)
+    final scale = _pScale(y, tableTopY, tableH);
+    final tw = baseTileW * scale;
+    final th = baseTileH * scale;
 
-    // Interpolate table width at the wall's Y position
-    final t = (y - tableTop) / tableH;
-    final widthAtY = tableTopW + (tableBotW - tableTopW) * t.clamp(0.0, 1.0);
+    // Interpolate table width at this Y
+    final t = ((y - tableTopY) / tableH).clamp(0.0, 1.0);
+    final widthAtY = tableTopW + (tableBotW - tableTopW) * t;
     final leftAtY = centerX - widthAtY / 2;
+
+    double left, top;
+    double angle;
+    Widget tiles;
 
     if (side == 0) {
       // Top wall — horizontal, centered
-      left = centerX - (count * (tileW + 0.5)) / 2;
+      left = centerX - (count * (tw + 0.5)) / 2;
       top = y;
-      // Slight angle to match trapezoid edge
-      angle = -0.04;
+      angle = -0.03;
+      tiles = Row(children: List.generate(count, (_) => _wallTile(w: tw, h: th)));
     } else if (side == 2) {
       // Bottom wall — horizontal, centered
-      left = centerX - (count * (tileW + 0.5)) / 2;
+      left = centerX - (count * (tw + 0.5)) / 2;
       top = y;
-      angle = 0.04;
+      angle = 0.03;
+      tiles = Row(children: List.generate(count, (_) => _wallTile(w: tw, h: th)));
     } else if (side == 1) {
-      // Right wall — horizontal tiles, rotated 90°
-      left = leftAtY + widthAtY - tileH - 2;
-      top = y - (count * (tileW + 0.5)) / 2;
-      angle = 1.5708; // 90°
+      // Right wall — horizontal tiles rotated 90°
+      left = leftAtY + widthAtY - th - 1;
+      top = y - (count * (tw + 0.5)) / 2;
+      angle = 1.5708;
+      tiles = Column(children: List.generate(count, (_) => _wallTile(w: tw, h: th)));
     } else {
-      // Left wall — horizontal tiles, rotated 90°
-      left = leftAtY + 2;
-      top = y - (count * (tileW + 0.5)) / 2;
-      angle = -1.5708; // -90°
+      // Left wall
+      left = leftAtY + 1;
+      top = y - (count * (tw + 0.5)) / 2;
+      angle = -1.5708;
+      tiles = Column(children: List.generate(count, (_) => _wallTile(w: tw, h: th)));
     }
 
     return Positioned(
-      left: left,
-      top: top,
+      left: left, top: top,
       child: Transform.rotate(
         angle: angle,
-        alignment: side == 0 || side == 2 ? Alignment.center : Alignment.topLeft,
-        child: side == 0 || side == 2
-            ? Row(
-                children: List.generate(count, (_) => _wallTile(w: tileW, h: tileH)),
-              )
-            : Column(
-                children: List.generate(count, (_) => _wallTile(w: tileW, h: tileH)),
-              ),
+        alignment: side <= 2 ? Alignment.center : Alignment.topLeft,
+        child: tiles,
       ),
     );
   }
 
-  // ==================== RIVER / DISCARD AREA ====================
-
-  Widget _buildRiverArea(
-    double sw, double sh, double tableTopW, double tableBotW,
-    double tableH, double tableTop, double tw, double th,
+  // ===== Perspective river (discards) =====
+  Widget _buildPerspectiveRiver(
+    double centerX, double tableTopY, double tableH,
+    double tableTopW, double tableBotW,
+    double baseTileW, double baseTileH,
   ) {
-    final centerX = sw / 2;
-    final riverW = tableTopW * 0.55;
-    final riverH = tableH * 0.40;
+    final riverTop = tableTopY + tableH * 0.28;
+    final riverBot = tableTopY + tableH * 0.72;
+    final riverH = riverBot - riverTop;
+
+    // River width at center
+    final tMid = 0.50;
+    final riverW = (tableTopW + (tableBotW - tableTopW) * tMid) * 0.52;
     final riverLeft = centerX - riverW / 2;
-    final riverTop = tableTop + (tableH - riverH) / 2;
 
     return Stack(
       children: [
         // River background
         Positioned(
-          left: riverLeft, top: riverTop,
-          width: riverW, height: riverH,
+          left: riverLeft, top: riverTop, width: riverW, height: riverH,
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.green[900]!.withValues(alpha: 0.3),
+              color: const Color(0xFF1B5E20).withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.3), width: 1),
             ),
           ),
         ),
-        // Player 0 (bottom) - left to right, 6 per row
+        // P0 bottom
         _buildDiscardQuadrant(
-          left: riverLeft + 4,
-          top: riverTop + riverH * 0.52,
+          left: riverLeft + 4, top: riverTop + riverH * 0.52,
           tiles: _game.players[0].playedTiles,
-          tileW: tw, tileH: th,
-          perLine: 6,
-          isVertical: false,
-          reversed: false,
+          tileW: baseTileW * 0.55, tileH: baseTileH * 0.55,
+          perLine: 6, isVertical: false, reversed: false,
         ),
-        // Player 2 (top) - right to left, 6 per row
+        // P2 top
         _buildDiscardQuadrant(
-          left: riverLeft + 4,
-          top: riverTop + 4,
+          left: riverLeft + 4, top: riverTop + 4,
           tiles: _game.players[2].playedTiles,
-          tileW: tw, tileH: th,
-          perLine: 6,
-          isVertical: false,
-          reversed: true,
+          tileW: baseTileW * 0.42, tileH: baseTileH * 0.42,
+          perLine: 6, isVertical: false, reversed: true,
         ),
-        // Player 1 (right) - top to bottom, 6 per column
+        // P1 right
         _buildDiscardQuadrant(
-          left: riverLeft + riverW * 0.52,
-          top: riverTop + 4,
+          left: riverLeft + riverW * 0.52, top: riverTop + 4,
           tiles: _game.players[1].playedTiles,
-          tileW: tw, tileH: th,
-          perLine: 6,
-          isVertical: true,
-          reversed: false,
+          tileW: baseTileW * 0.48, tileH: baseTileH * 0.48,
+          perLine: 6, isVertical: true, reversed: false,
         ),
-        // Player 3 (left) - bottom to top, 6 per column
+        // P3 left
         _buildDiscardQuadrant(
-          left: riverLeft + 4,
-          top: riverTop + 4,
+          left: riverLeft + 4, top: riverTop + 4,
           tiles: _game.players[3].playedTiles,
-          tileW: tw, tileH: th,
-          perLine: 6,
-          isVertical: true,
-          reversed: true,
+          tileW: baseTileW * 0.48, tileH: baseTileH * 0.48,
+          perLine: 6, isVertical: true, reversed: true,
         ),
       ],
     );
   }
+
+  // ==================== DISCARD QUADRANT ====================
 
   Widget _buildDiscardQuadrant({
     required double left, required double top,
@@ -1439,15 +1439,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 }
 
-// ===== Trapezoid Painter =====
-class _TrapezoidPainter extends CustomPainter {
+// ===== Perspective Table Painter (3D depth) =====
+class _PerspectiveTablePainter extends CustomPainter {
   final double centerX;
   final double topY;
   final double bottomY;
   final double topWidth;
   final double bottomWidth;
 
-  _TrapezoidPainter({
+  _PerspectiveTablePainter({
     required this.centerX,
     required this.topY,
     required this.bottomY,
@@ -1464,33 +1464,61 @@ class _TrapezoidPainter extends CustomPainter {
       ..lineTo(centerX - bottomWidth / 2, bottomY)
       ..close();
 
-    // Green felt fill
+    // Green felt with gradient for depth (darker at top = farther)
     final fillPaint = Paint()
-      ..shader = const LinearGradient(
+      ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [
-          Color(0xFF1B5E20),
-          Color(0xFF2E7D32),
-          Color(0xFF1B5E20),
+        colors: const [
+          Color(0xFF0D3B0D),  // very dark green (far)
+          Color(0xFF145214),  // dark green
+          Color(0xFF1B5E20),  // medium green
+          Color(0xFF2E7D32),  // lighter green (near)
         ],
-        stops: [0.0, 0.5, 1.0],
+        stops: const [0.0, 0.25, 0.6, 1.0],
       ).createShader(Rect.fromLTWH(0, topY, size.width, bottomY - topY));
     canvas.drawPath(path, fillPaint);
 
-    // Gold border
+    // Inner felt texture lines (subtle)
+    final linePaint = Paint()
+      ..color = const Color(0xFFD4AF37).withValues(alpha: 0.08)
+      ..strokeWidth = 0.5;
+    for (double y = topY + 20; y < bottomY; y += 30) {
+      final t = ((y - topY) / (bottomY - topY)).clamp(0.0, 1.0);
+      final w = topWidth + (bottomWidth - topWidth) * t;
+      canvas.drawLine(
+        Offset(centerX - w / 2 + 10, y),
+        Offset(centerX + w / 2 - 10, y),
+        linePaint,
+      );
+    }
+
+    // Shadow first (behind)
+    canvas.drawShadow(path, Colors.black87, 20, true);
+
+    // Gold border on top
     final borderPaint = Paint()
       ..color = const Color(0xFFD4AF37)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
+      ..strokeWidth = 3.5;
     canvas.drawPath(path, borderPaint);
 
-    // Shadow
-    canvas.drawShadow(path, Colors.black54, 15, true);
+    // Inner border (slightly inset)
+    final innerPath = Path()
+      ..moveTo(centerX - topWidth / 2 + 6, topY + 4)
+      ..lineTo(centerX + topWidth / 2 - 6, topY + 4)
+      ..lineTo(centerX + bottomWidth / 2 - 4, bottomY - 4)
+      ..lineTo(centerX - bottomWidth / 2 + 4, bottomY - 4)
+      ..close();
+    final innerBorderPaint = Paint()
+      ..color = const Color(0xFFD4AF37).withValues(alpha: 0.3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    canvas.drawPath(innerPath, innerBorderPaint);
   }
 
   @override
-  bool shouldRepaint(_TrapezoidPainter old) =>
+  bool shouldRepaint(_PerspectiveTablePainter old) =>
       centerX != old.centerX || topY != old.topY ||
       bottomY != old.bottomY || topWidth != old.topWidth ||
       bottomWidth != old.bottomWidth;
