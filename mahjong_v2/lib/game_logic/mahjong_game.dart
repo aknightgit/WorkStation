@@ -170,6 +170,10 @@ class MahjongGame {
   Duration responseWindowDuration = const Duration(seconds: 1);
   Duration aiRespondDelay = const Duration(milliseconds: 300);
   Duration aiDiscardDelay = const Duration(milliseconds: 500);
+  bool useMonteCarloAI = true;
+  int monteCarloTrials = 100;
+  int monteCarloMaxSteps = 80;
+  Duration monteCarloBudget = const Duration(milliseconds: 300);
   List<int> freezeChances = [3, 3, 3, 3];
   void Function()? onStateChanged;
   int? lastDiscarderIndex;
@@ -1360,9 +1364,11 @@ class MahjongGame {
   void aiDiscard(int playerIndex) {
     final player = players[playerIndex];
     if (player.handTiles.isEmpty) return;
-    
-    // 简单策略：打第一张
-    final discard = player.handTiles.removeAt(0);
+
+    final discard = (useMonteCarloAI && playerIndex != 0)
+        ? _chooseAIDiscard(playerIndex)
+        : player.handTiles.first;
+    player.handTiles.remove(discard);
     player.playedTiles.add(discard);
     pendingTile = discard;
     lastPlayedTile = discard;
@@ -1373,9 +1379,113 @@ class MahjongGame {
     allowNextPlayerAction = false;
     responseTimerActive = false;
     nextPlayerIndex = _peekNextPlayerIndex();
-    
+
     // AI打牌后，检查响应
     processTurn();
+  }
+
+  Tile _chooseAIDiscard(int playerIndex) {
+    final player = players[playerIndex];
+    if (player.handTiles.length <= 1) return player.handTiles.first;
+
+    final start = DateTime.now();
+    final candidates = <Tile>[];
+    final seen = <String>{};
+    for (final t in player.handTiles) {
+      final key = '${t.type.index}_${t.number}_${t.isWild}';
+      if (seen.add(key)) {
+        candidates.add(t);
+      }
+    }
+    if (candidates.isEmpty) return player.handTiles.first;
+
+    final rng = Random();
+    Tile best = candidates.first;
+    double bestScore = -9999;
+
+    for (final c in candidates) {
+      if (DateTime.now().difference(start) > monteCarloBudget) break;
+      final score = _simulateDiscardScore(playerIndex, c, rng, start);
+      if (score > bestScore) {
+        bestScore = score;
+        best = c;
+      }
+    }
+    return best;
+  }
+
+  double _simulateDiscardScore(int playerIndex, Tile discard, Random rng, DateTime start) {
+    int trials = 0;
+    int win = 0;
+    int lose = 0;
+
+    for (int i = 0; i < monteCarloTrials; i++) {
+      if (DateTime.now().difference(start) > monteCarloBudget) break;
+      final r = _simulateOneTrial(playerIndex, discard, rng);
+      if (r > 0) win++;
+      if (r < 0) lose++;
+      trials++;
+    }
+    if (trials == 0) return -9999;
+    return (win - lose * 0.5) / trials;
+  }
+
+  int _simulateOneTrial(int playerIndex, Tile discard, Random rng) {
+    // 复制墙与手牌（完全信息简化模拟）
+    final wallCopy = List<Tile>.from(wall);
+    if (wallCopy.isEmpty) return 0;
+    wallCopy.shuffle(rng);
+
+    final hands = List.generate(4, (i) => List<Tile>.from(players[i].handTiles));
+    int idx = hands[playerIndex].indexWhere((t) => t.id == discard.id);
+    if (idx < 0) {
+      idx = hands[playerIndex].indexWhere((t) => t.type == discard.type && t.number == discard.number);
+    }
+    if (idx >= 0) hands[playerIndex].removeAt(idx);
+
+    // 若弃牌直接放炮给他人 → 视为失败
+    for (int i = 0; i < 4; i++) {
+      if (i == playerIndex) continue;
+      if (eliminatedPlayers.contains(i)) continue;
+      if (_canHuWithExtra(hands[i], discard)) return -1;
+    }
+
+    int current = playerIndex;
+    int steps = 0;
+    while (wallCopy.isNotEmpty && steps < monteCarloMaxSteps) {
+      steps++;
+      current = _nextActiveIndexLocal(current);
+      if (eliminatedPlayers.contains(current)) continue;
+
+      final hand = hands[current];
+      final draw = wallCopy.removeLast();
+      hand.add(draw);
+
+      if (_canHuWithExtra(hand, null)) {
+        return current == playerIndex ? 1 : -1;
+      }
+
+      // 简化：随机弃一张
+      if (hand.isNotEmpty) {
+        hand.removeAt(rng.nextInt(hand.length));
+      }
+    }
+    return 0;
+  }
+
+  bool _canHuWithExtra(List<Tile> hand, Tile? extra) {
+    final tiles = <Tile>[...hand];
+    if (extra != null) tiles.add(extra);
+    return checkHu(tiles);
+  }
+
+  int _nextActiveIndexLocal(int from) {
+    int idx = from;
+    for (int i = 0; i < 4; i++) {
+      idx = (idx + 3) % 4;
+      if (!eliminatedPlayers.contains(idx)) return idx;
+    }
+    return from;
   }
 
   // ===== 游戏状态机 =====
