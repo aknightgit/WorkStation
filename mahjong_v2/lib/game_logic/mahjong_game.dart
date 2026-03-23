@@ -849,13 +849,13 @@ class MahjongGame {
 
   // 检查是否可以杠
   bool canKong(Player player) {
-    // 明杠：手里有三张，碰哪家打出的牌
+    // 明杠：手里有三张或已有刻子，碰哪家打出的牌
     if (pendingTile != null) {
       final t = pendingTile!;
       if (_isWildTile(t)) return false; // 百搭牌不可吃碰杠
-      if (player.handTiles.where((tile) => tile.type == t.type && tile.number == t.number).length >= 3) {
-        return true;
-      }
+      final handCount = player.handTiles.where((tile) => tile.type == t.type && tile.number == t.number).length;
+      final hasPongMeld = player.melds.any((m) => m.length == 3 && m.every((x) => x.type == t.type && x.number == t.number));
+      if (handCount >= 3 || hasPongMeld) return true;
       return false; // 有弃牌时，不允许暗杠
     }
     
@@ -911,19 +911,28 @@ class MahjongGame {
 
     final meld = <Tile>[];
     if (!isHidden && pendingTile != null) {
-      // 明杠：手里移除三张 + 吃入一张
-      int removed = 0;
-      for (int i = player.handTiles.length - 1; i >= 0; i--) {
-        final t = player.handTiles[i];
-        if (t.type == kongTile.type && t.number == kongTile.number) {
-          player.handTiles.removeAt(i);
-          meld.add(t);
-          removed++;
-          if (removed == 3) break;
+      // 先检查是否为补杠（已有刻子）
+      final meldIndex = player.melds.indexWhere((m) => m.length == 3 && m.every((x) => x.type == kongTile.type && x.number == kongTile.number));
+      if (meldIndex >= 0) {
+        player.melds[meldIndex] = [...player.melds[meldIndex], pendingTile!];
+        pendingTile = null;
+      } else {
+        // 明杠：手里移除三张 + 吃入一张
+        int removed = 0;
+        for (int i = player.handTiles.length - 1; i >= 0; i--) {
+          final t = player.handTiles[i];
+          if (t.type == kongTile.type && t.number == kongTile.number) {
+            player.handTiles.removeAt(i);
+            meld.add(t);
+            removed++;
+            if (removed == 3) break;
+          }
         }
+        meld.add(pendingTile!);
+        pendingTile = null;
+        player.melds.add(meld);
+        player.meldHidden.add(false);
       }
-      meld.add(pendingTile!);
-      pendingTile = null;
     } else {
       // 暗杠：手里移除四张
       int removed = 0;
@@ -937,10 +946,10 @@ class MahjongGame {
         }
       }
       if (removed < 4) return false;
+      player.melds.add(meld);
+      player.meldHidden.add(true);
     }
 
-    player.melds.add(meld);
-    player.meldHidden.add(isHidden);
     currentPlayerIndex = player.index;
     if (player.index == 0) {
       mustDiscard = true;
