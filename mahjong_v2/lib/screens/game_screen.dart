@@ -108,7 +108,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           final wallOffset = w * 0.08;
           
           // 牌尺寸 - 长边紧靠
-          final tileW = w * 0.03;
+          final tileW = w * 0.045;
           final tileH = tileW * 1.3;
           
           return Stack(
@@ -171,10 +171,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               ),
               
               // ===== 头像 =====
-              _buildAvatar('东', Colors.red, w * 0.5, h * 0.05, _playerColors[0]),
-              _buildAvatar('南', Colors.green, w * 0.95, h * 0.5, _playerColors[1]),
-              _buildAvatar('西', Colors.blue, w * 0.5, h * 0.95, _playerColors[2]),
-              _buildAvatar('北', Colors.orange, w * 0.05, h * 0.5, _playerColors[3]),
+              _buildAvatar('东', Colors.red, w * 0.5, h * 0.05, _playerColors[0], _game.players[0].totalScore),
+              _buildAvatar('南', Colors.green, w * 0.95, h * 0.5, _playerColors[1], _game.players[1].totalScore),
+              _buildAvatar('西', Colors.blue, w * 0.5, h * 0.95, _playerColors[2], _game.players[2].totalScore),
+              _buildAvatar('北', Colors.orange, w * 0.05, h * 0.5, _playerColors[3], _game.players[3].totalScore),
               
               // ===== 骰子 + 发牌按钮 =====
               if (_game.phase == GamePhase.waiting || _game.phase == GamePhase.diceRolling)
@@ -337,28 +337,43 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildAvatar(String name, Color c, double x, double y, Color dotColor) {
+  Widget _buildAvatar(String name, Color c, double x, double y, Color dotColor, int score) {
     return Positioned(
-      left: x - 20, top: y - 20,
-      child: Stack(
-        clipBehavior: Clip.none,
+      left: x - 30, top: y - 30,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 40, height: 40,
-            decoration: BoxDecoration(
-              color: c, shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2),
-            ),
-            child: Center(child: Text(name, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold))),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: 50, height: 50,
+                decoration: BoxDecoration(
+                  color: c, shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 3),
+                  boxShadow: [BoxShadow(color: c.withValues(alpha: 0.5), blurRadius: 8)],
+                ),
+                child: Center(child: Text(name, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold))),
+              ),
+              Positioned(
+                right: -2,
+                top: -2,
+                child: Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
+                ),
+              ),
+            ],
           ),
-          Positioned(
-            right: -2,
-            top: -2,
-            child: Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 1)),
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.black54,
+              borderRadius: BorderRadius.circular(10),
             ),
+            child: Text('${score > 0 ? "+" : ""}$score', style: TextStyle(color: score >= 0 ? Colors.green : Colors.red, fontSize: 12, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -616,20 +631,24 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   Widget _buildActionButtons() {
     final btnSize = 70.0;
     final subBtnSize = btnSize * 0.55;
-    final orbitRadius = btnSize * 1.1;
+    final orbitRadius = btnSize * 1.3;
     final showDraw = _game.allowNextPlayerAction && _game.nextPlayerIndex == 0 && _game.pendingTile != null; 
     final showWait = _game.canUseFreeze(0);
     final canFreeze = showWait && !_freezeActive;
+    
+    // 检查抢杠状态
+    final isRobbingKong = _game.robbingKong && _game.awaitingPlayerResponse;
+    final canRobKong = isRobbingKong && canHu;
     
     return Positioned(
       right: 10,
       bottom: 30,
       child: SizedBox(
-        width: btnSize * 2.5,
-        height: btnSize * 2.5,
+        width: btnSize * 3,
+        height: btnSize * 3,
         child: Stack(
           children: [
-            // 摸
+            // 摸 - 中心
             if (showDraw)
               Positioned(
                 left: btnSize * 0.5,
@@ -649,20 +668,48 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   ),
                 ),
               ),
-            // 等（冻结）
+            // 等（冻结）- 左上
             if (showWait)
-              Positioned(left: btnSize * 0.5 - orbitRadius * 0.7, top: btnSize * 0.5, child: _buildOrbitBtn('等', Colors.indigo, canFreeze, subBtnSize * 0.9, _startFreeze)),
-            // 吃
-            Positioned(left: btnSize * 0.5 + orbitRadius, top: btnSize * 0.5, child: _buildOrbitBtn('吃', Colors.orange, canChow, subBtnSize, _onChow)),
-            // 碰
-            Positioned(left: btnSize * 0.5 + orbitRadius * 0.85, top: btnSize * 0.5 - orbitRadius * 0.7, child: _buildOrbitBtn('碰', Colors.cyan, canPong, subBtnSize, _onPong)),
-            // 杠
-            Positioned(left: btnSize * 0.5 + orbitRadius * 0.85, top: btnSize * 0.5 + orbitRadius * 0.7, child: _buildOrbitBtn('杠', Colors.purple, canKong, subBtnSize, _onKong)),
-            // 胡
-            Positioned(left: btnSize * 0.5 + orbitRadius * 1.3, top: btnSize * 0.5, child: _buildOrbitBtn('胡', Colors.yellow[700]!, canHu, subBtnSize, _onHu)),
+              Positioned(left: btnSize * 0.5 - orbitRadius * 0.8, top: btnSize * 0.5 - orbitRadius * 0.6, child: _buildOrbitBtn('等', Colors.indigo, canFreeze, subBtnSize * 0.9, _startFreeze)),
+            // 吃 - 右上
+            Positioned(left: btnSize * 0.5 + orbitRadius * 0.8, top: btnSize * 0.5 - orbitRadius * 0.6, child: _buildOrbitBtn('吃', Colors.orange, canChow, subBtnSize, _onChow)),
+            // 碰 - 右
+            Positioned(left: btnSize * 0.5 + orbitRadius, top: btnSize * 0.5, child: _buildOrbitBtn('碰', Colors.cyan, canPong, subBtnSize, _onPong)),
+            // 杠 - 右下
+            Positioned(left: btnSize * 0.5 + orbitRadius * 0.8, top: btnSize * 0.5 + orbitRadius * 0.6, child: _buildOrbitBtn('杠', Colors.purple, canKong, subBtnSize, _onKong)),
+            // 胡/抢杠 - 左下
+            if (canRobKong)
+              Positioned(left: btnSize * 0.5 - orbitRadius * 0.8, top: btnSize * 0.5 + orbitRadius * 0.6, child: _buildPulseBtn('抢杠', Colors.red, true, subBtnSize, _onHu))
+            else
+              Positioned(left: btnSize * 0.5 - orbitRadius * 0.8, top: btnSize * 0.5 + orbitRadius * 0.6, child: _buildOrbitBtn('胡', Colors.yellow[700]!, canHu, subBtnSize, _onHu)),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildPulseBtn(String label, Color baseColor, bool enabled, double size, VoidCallback onTap) {
+    return AnimatedBuilder(
+      animation: _rebelPulse,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _rebelPulse.value,
+          child: GestureDetector(
+            onTap: enabled ? onTap : null,
+            child: Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: enabled ? baseColor : Colors.grey[600]!,
+                border: Border.all(color: enabled ? Colors.white : Colors.grey[400]!, width: 2),
+                boxShadow: [BoxShadow(color: baseColor.withValues(alpha: 0.6), blurRadius: 15, spreadRadius: 2)],
+              ),
+              child: Center(child: Text(label, style: TextStyle(fontSize: size * 0.3, fontWeight: FontWeight.bold, color: enabled ? Colors.white : Colors.grey[400]))),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -980,6 +1027,50 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _game.playTile(p, t);
     selectedTileIndex = null;
     setState(() {});
+    
+    // 玩家打牌后，触发AI回合
+    _triggerAIAfterPlayer();
+  }
+  
+  void _triggerAIAfterPlayer() {
+    // 延迟触发AI，确保UI更新
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (_game.gameEnded) return;
+      
+      // 检查是否有人响应（吃/碰/杠/胡）
+      if (_game.pendingTile != null) {
+        // 等待响应
+        return;
+      }
+      
+      // 轮到AI玩家
+      _game.nextPlayer();
+      while (_game.currentPlayerIndex != 0 && !_game.gameEnded) {
+        final idx = _game.currentPlayerIndex;
+        
+        // 摸牌
+        _game.drawTile(_game.players[idx]);
+        
+        // 检查胡
+        if (_game.canHu(_game.players[idx])) {
+          _game.playerWins(idx);
+          break;
+        }
+        
+        // AI打牌
+        _game.aiDiscard(idx);
+        
+        // 检查是否有人响应
+        if (_game.pendingTile != null) {
+          // 等待响应或超时
+          break;
+        }
+        
+        // 继续下一个玩家
+        _game.nextPlayer();
+      }
+      setState(() {});
+    });
   }
 
   void _rebelAccept() {
