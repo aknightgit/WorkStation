@@ -52,11 +52,12 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     // 检查操作选项（花牌可以杠-补花）
     final player = _game.players[0];
     final isMyTurn = _game.currentPlayerIndex == 0;
+    final canRespond = _game.awaitingPlayerResponse || isMyTurn;
     final hasFlowerInHand = player.handTiles.any((t) => t.isFlower);
-    canPong = isMyTurn && _game.pendingTile != null && _game.canPong(player);
-    canKong = isMyTurn && (_game.canKong(player) || hasFlowerInHand);
-    canHu = isMyTurn && _game.canHu(player);
-    canChow = isMyTurn && _game.pendingTile != null && _game.canChow(player);
+    canPong = canRespond && _game.pendingTile != null && _game.canPong(player);
+    canKong = canRespond && (_game.canKong(player) || hasFlowerInHand);
+    canHu = canRespond && _game.canHu(player);
+    canChow = canRespond && _game.pendingTile != null && _game.canChow(player);
     
     return Scaffold(
       body: LayoutBuilder(
@@ -205,6 +206,19 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                     ],
                   ),
                 ),
+
+              // ===== 回合提示 =====
+              if (_game.phase == GamePhase.playing)
+                Positioned(
+                  left: 0, right: 0, bottom: tileH + 50,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(12)),
+                      child: Text(_turnHintText(), style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ),
               
               // ===== 造反按钮 =====
               if (canRebel)
@@ -216,6 +230,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               // ===== 操作按钮（置顶） =====
               if (_game.phase == GamePhase.playing)
                 _buildActionButtons(),
+
+              // ===== 结算面板（置顶） =====
+              if (_game.phase == GamePhase.scoring && _game.lastSettlement != null)
+                _buildSettlementOverlay(w, h),
             ],
           );
         },
@@ -490,13 +508,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 ),
               ),
             // 吃
-            Positioned(left: btnSize * 0.5 + orbitRadius, top: btnSize * 0.5, child: _buildOrbitBtn('吃', Colors.orange, canChow, subBtnSize, () {})),
+            Positioned(left: btnSize * 0.5 + orbitRadius, top: btnSize * 0.5, child: _buildOrbitBtn('吃', Colors.orange, canChow, subBtnSize, _onChow)),
             // 碰
-            Positioned(left: btnSize * 0.5 + orbitRadius * 0.85, top: btnSize * 0.5 - orbitRadius * 0.7, child: _buildOrbitBtn('碰', Colors.cyan, canPong, subBtnSize, () {})),
+            Positioned(left: btnSize * 0.5 + orbitRadius * 0.85, top: btnSize * 0.5 - orbitRadius * 0.7, child: _buildOrbitBtn('碰', Colors.cyan, canPong, subBtnSize, _onPong)),
             // 杠
             Positioned(left: btnSize * 0.5 + orbitRadius * 0.85, top: btnSize * 0.5 + orbitRadius * 0.7, child: _buildOrbitBtn('杠', Colors.purple, canKong, subBtnSize, _onKong)),
             // 胡
-            Positioned(left: btnSize * 0.5 + orbitRadius * 1.3, top: btnSize * 0.5, child: _buildOrbitBtn('胡', Colors.yellow[700]!, canHu, subBtnSize, () {})),
+            Positioned(left: btnSize * 0.5 + orbitRadius * 1.3, top: btnSize * 0.5, child: _buildOrbitBtn('胡', Colors.yellow[700]!, canHu, subBtnSize, _onHu)),
+            // 过
+            Positioned(left: btnSize * 0.5 + orbitRadius * 0.4, top: btnSize * 0.5 + orbitRadius * 1.2, child: _buildOrbitBtn('过', Colors.blueGrey, _game.awaitingPlayerResponse, subBtnSize * 0.9, _onPass)),
           ],
         ),
       ),
@@ -532,6 +552,74 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
+  String _turnHintText() {
+    if (_game.awaitingPlayerResponse) return '可吃/碰/杠/胡，或点“过”';
+    if (_game.currentPlayerIndex == 0) {
+      return _game.mustDiscard ? '轮到你出牌' : '轮到你摸牌';
+    }
+    return '等待其他玩家...';
+  }
+
+  Widget _buildSettlementOverlay(double w, double h) {
+    final s = _game.lastSettlement!;
+    return Positioned.fill(
+      child: Container(
+        color: Colors.black54,
+        child: Center(
+          child: Container(
+            width: w * 0.72,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFD4AF37), width: 2),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(s.isDraw ? '流局结算' : '本局结算', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                if (!s.isDraw && s.winnerIndex != null)
+                  Text('胜者：${_game.players[s.winnerIndex!].name}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                Text('底分 ${s.basePoints} × 回合${s.roundMultiplier} × 额外${s.extraMultiplier} = ${s.totalPoints}', style: const TextStyle(fontSize: 14)),
+                const SizedBox(height: 10),
+                Column(
+                  children: List.generate(4, (i) {
+                    final delta = s.deltas[i] ?? 0;
+                    final color = delta >= 0 ? Colors.green : Colors.red;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(_game.players[i].name, style: const TextStyle(fontSize: 14)),
+                          Text(delta >= 0 ? '+$delta' : '$delta', style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    );
+                  }),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton(
+                  onPressed: _onNextRound,
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E7D32)),
+                  child: const Text('下一局', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _onNextRound() {
+    setState(() {
+      _game.resetForNextRound();
+    });
+  }
+
   void _onDiceTap() {
     setState(() {
       isRolling = true;
@@ -564,24 +652,65 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   void _onKong() {
     final p = _game.players[0];
-    if (_game.currentPlayerIndex != 0) return;
+    if (_game.currentPlayerIndex != 0 && !_game.awaitingPlayerResponse) return;
     
-    // 循环补花：把手牌中的花移到花牌区，并补牌
-    while (_game.wall.isNotEmpty) {
-      final flowerIndex = p.handTiles.indexWhere((t) => t.isFlower);
-      if (flowerIndex == -1) break;
-      // 移出花牌
-      final flower = p.handTiles.removeAt(flowerIndex);
-      p.flowerTiles.add(flower);
-      // 补牌
-      final newTile = _game.wall.removeLast();
-      if (newTile.isFlower) {
-        p.flowerTiles.add(newTile);
-        continue; // 继续补
-      } else {
-        p.handTiles.add(newTile);
+    // 优先补花
+    if (p.handTiles.any((t) => t.isFlower)) {
+      while (_game.wall.isNotEmpty) {
+        final flowerIndex = p.handTiles.indexWhere((t) => t.isFlower);
+        if (flowerIndex == -1) break;
+        final flower = p.handTiles.removeAt(flowerIndex);
+        p.flowerTiles.add(flower);
+        final newTile = _game.wall.removeLast();
+        if (newTile.isFlower) {
+          p.flowerTiles.add(newTile);
+          continue;
+        } else {
+          p.handTiles.add(newTile);
+        }
+      }
+      setState(() {});
+      return;
+    }
+
+    // 普通杠
+    if (_game.canKong(p)) {
+      final kongTiles = _game.getKongableTiles(p);
+      if (kongTiles.isNotEmpty) {
+        final isHidden = _game.pendingTile == null;
+        _game.doKong(p, kongTiles.first, isHidden: isHidden);
+        _game.awaitingPlayerResponse = false;
+        if (p.index == 0) {
+          _game.mustDiscard = false; // 允许补牌
+        }
+        _game.drawTile(p);
       }
     }
+    setState(() {});
+  }
+
+  void _onChow() {
+    final p = _game.players[0];
+    if (!_game.doChow(p, null)) return;
+    _game.awaitingPlayerResponse = false;
+    setState(() {});
+  }
+
+  void _onPong() {
+    final p = _game.players[0];
+    if (!_game.doPong(p)) return;
+    _game.awaitingPlayerResponse = false;
+    setState(() {});
+  }
+
+  void _onHu() {
+    _game.awaitingPlayerResponse = false;
+    _game.playerWins(0);
+    setState(() {});
+  }
+
+  void _onPass() {
+    _game.playerPass();
     setState(() {});
   }
   

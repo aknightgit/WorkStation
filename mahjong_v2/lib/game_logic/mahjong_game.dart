@@ -110,6 +110,29 @@ enum MeldType { chow, pong, kong }
 // 游戏状态
 enum GamePhase { waiting, diceRolling, dealing, playing, scoring }
 
+// 结算结果
+class SettlementResult {
+  final bool isDraw;
+  final int? winnerIndex;
+  final int basePoints;
+  final int roundMultiplier;
+  final int extraMultiplier;
+  final int totalPoints;
+  final Map<int, int> deltas; // 每个玩家的输赢
+  final String reason;
+
+  SettlementResult({
+    required this.isDraw,
+    required this.winnerIndex,
+    required this.basePoints,
+    required this.roundMultiplier,
+    required this.extraMultiplier,
+    required this.totalPoints,
+    required this.deltas,
+    required this.reason,
+  });
+}
+
 // 游戏逻辑核心
 class MahjongGame {
   List<Tile> wall = []; // 牌墙
@@ -127,6 +150,9 @@ class MahjongGame {
   Tile? pendingTile; // 等待响应的牌
   bool gameEnded = false;
   bool mustDiscard = false; // 当前玩家是否必须打牌
+  bool awaitingPlayerResponse = false; // 等待玩家响应（吃碰杠胡/过）
+  int? lastDiscarderIndex;
+  SettlementResult? lastSettlement;
   
   // 包关系: baoRelations[fromPlayer][toPlayer] = count
   // 表示 fromPlayer 吃了/碰了 toPlayer 多少口
@@ -250,7 +276,7 @@ class MahjongGame {
   Tile? drawTile(Player player) {
     if (wall.isEmpty) {
       // 流局
-      phase = GamePhase.scoring;
+      resolveDraw();
       return null;
     }
     // 玩家已摸过牌则不可再次摸牌
@@ -270,6 +296,8 @@ class MahjongGame {
     player.playedTiles.add(tile);
     pendingTile = tile;
     lastPlayedTile = tile;
+    lastDiscarderIndex = player.index;
+    awaitingPlayerResponse = false;
     if (player.index == 0) {
       mustDiscard = false; // 打牌后可进入下一轮
     }
@@ -285,7 +313,7 @@ class MahjongGame {
 
   // 检查是否可以吃（上家动态）
   bool canChow(Player player) {
-    if (pendingTile == null || currentPlayerIndex == 0) return false;
+    if (pendingTile == null) return false;
     // 只能吃上家（逆时针方向）
     // 当前是 playerIndex，上家是 (playerIndex + 1) % 4
     final fromPlayer = (currentPlayerIndex + 1) % 4;
@@ -379,8 +407,12 @@ class MahjongGame {
     final toPlayer = (currentPlayerIndex + 1) % 4; // 上家
     recordBao(fromPlayer, toPlayer);
     
-    // 吃牌后轮到该玩家摸牌
+    // 吃牌后轮到该玩家出牌
     pendingTile = null;
+    currentPlayerIndex = player.index;
+    if (player.index == 0) {
+      mustDiscard = true;
+    }
     return true;
   }
   
@@ -423,8 +455,12 @@ class MahjongGame {
     final toPlayer = currentPlayerIndex; // 打牌者
     recordBao(fromPlayer, toPlayer);
     
-    // 碰牌后轮到该玩家摸牌
+    // 碰牌后轮到该玩家出牌
     pendingTile = null;
+    currentPlayerIndex = player.index;
+    if (player.index == 0) {
+      mustDiscard = true;
+    }
     return true;
   }
 
@@ -473,8 +509,7 @@ class MahjongGame {
     dealerIndex = rebelPlayerIndex;
     
     // 标记为流局
-    phase = GamePhase.scoring;
-    gameEnded = true;
+    _applySettlement(_settleDraw('造反流局'));
   }
   
   // 流局处理：翻倍 + 换庄
@@ -486,8 +521,123 @@ class MahjongGame {
     dealerIndex = (dealerIndex + 1) % 4;
     
     // 标记为流局
+    _applySettlement(_settleDraw('流局'));
+  }
+
+  // ===== 结算模块 =====
+  SettlementResult _settleDraw(String reason) {
+    final deltas = <int, int>{};
+    for (int i = 0; i < 4; i++) {
+      deltas[i] = 0;
+    }
+    return SettlementResult(
+      isDraw: true,
+      winnerIndex: null,
+      basePoints: 0,
+      roundMultiplier: roundMultiplier,
+      extraMultiplier: 1,
+      totalPoints: 0,
+      deltas: deltas,
+      reason: reason,
+    );
+  }
+
+  SettlementResult _settleWin(int winnerIndex, {String reason = '胡牌'}) {
+    final winner = players[winnerIndex];
+    final basePoints = _calcBasePoints(winner);
+    final extraMultiplier = _calcExtraMultiplier(winner);
+    final total = basePoints * roundMultiplier * extraMultiplier;
+
+    final active = <int>[];
+    for (int i = 0; i < 4; i++) {
+      if (!eliminatedPlayers.contains(i)) active.add(i);
+    }
+    final payers = active.where((i) => i != winnerIndex).toList();
+    final deltas = <int, int>{};
+    for (int i = 0; i < 4; i++) {
+      deltas[i] = 0;
+    }
+    deltas[winnerIndex] = total * payers.length;
+    for (final p in payers) {
+      deltas[p] = -total;
+    }
+
+    return SettlementResult(
+      isDraw: false,
+      winnerIndex: winnerIndex,
+      basePoints: basePoints,
+      roundMultiplier: roundMultiplier,
+      extraMultiplier: extraMultiplier,
+      totalPoints: total,
+      deltas: deltas,
+      reason: reason,
+    );
+  }
+
+  int _calcBasePoints(Player winner) {
+    final flowerCount = winner.flowerTiles.length;
+    final meldPoints = _calcMeldPoints(winner);
+    return 2 + flowerCount + meldPoints;
+  }
+
+  int _calcMeldPoints(Player winner) {
+    int points = 0;
+    for (final meld in winner.melds) {
+      if (meld.isEmpty) continue;
+      final first = meld.first;
+      final isAllSame = meld.every((t) => t.type == first.type && t.number == first.number);
+      if (!isAllSame) continue;
+      final isKong = meld.length == 4;
+      if (first.type == TileType.wind) {
+        points += isKong ? 2 : 1;
+      } else if (first.type == TileType.dragon) {
+        points += isKong ? 3 : 2;
+      } else if (isKong) {
+        points += 1;
+      }
+    }
+    return points;
+  }
+
+  int _calcExtraMultiplier(Player winner) {
+    int extra = 1;
+    // 无百搭（目前未实现百搭，视为无百搭）
+    if (wildTile == null) extra *= 2;
+    // 门清（没有吃/碰）: 简化为没有明刻/顺
+    if (winner.melds.isEmpty) extra *= 2;
+    return extra;
+  }
+
+  void _applySettlement(SettlementResult result) {
+    lastSettlement = result;
+    for (int i = 0; i < 4; i++) {
+      players[i].score += result.deltas[i] ?? 0;
+      players[i].totalScore += result.deltas[i] ?? 0;
+    }
     phase = GamePhase.scoring;
     gameEnded = true;
+  }
+
+  void resetForNextRound() {
+    initWall();
+    diceRolled = false;
+    diceValues = [1, 1];
+    pendingTile = null;
+    lastPlayedTile = null;
+    lastDiscarderIndex = null;
+    awaitingPlayerResponse = false;
+    mustDiscard = false;
+    phase = GamePhase.waiting;
+    gameEnded = false;
+    eliminatedPlayers.clear();
+    baoRelations.clear();
+    lastSettlement = null;
+    for (final p in players) {
+      p.handTiles.clear();
+      p.melds.clear();
+      p.playedTiles.clear();
+      p.flowerTiles.clear();
+    }
   }
   
   // 血战到底：玩家胡牌
@@ -502,15 +652,13 @@ class MahjongGame {
     // 检查是否只剩一家
     if (activePlayerCount <= 1) {
       // 游戏结束
-      phase = GamePhase.scoring;
-      gameEnded = true;
+      _applySettlement(_settleWin(playerIndex));
       return true;
     }
     
     // 牌墙已摸完
     if (wall.isEmpty) {
-      phase = GamePhase.scoring;
-      gameEnded = true;
+      resolveDraw();
       return true;
     }
     
@@ -616,8 +764,42 @@ class MahjongGame {
       final toPlayer = currentPlayerIndex; // 打牌者
       recordBao(fromPlayer, toPlayer);
     }
-    // 暗杠不记录包关系
-    // TODO: 实际杠牌逻辑（移除手牌、添加meld、从牌墙补牌）
+
+    final meld = <Tile>[];
+    if (!isHidden && pendingTile != null) {
+      // 明杠：手里移除三张 + 吃入一张
+      int removed = 0;
+      for (int i = player.handTiles.length - 1; i >= 0; i--) {
+        final t = player.handTiles[i];
+        if (t.type == kongTile.type && t.number == kongTile.number) {
+          player.handTiles.removeAt(i);
+          meld.add(t);
+          removed++;
+          if (removed == 3) break;
+        }
+      }
+      meld.add(pendingTile!);
+      pendingTile = null;
+    } else {
+      // 暗杠：手里移除四张
+      int removed = 0;
+      for (int i = player.handTiles.length - 1; i >= 0; i--) {
+        final t = player.handTiles[i];
+        if (t.type == kongTile.type && t.number == kongTile.number) {
+          player.handTiles.removeAt(i);
+          meld.add(t);
+          removed++;
+          if (removed == 4) break;
+        }
+      }
+      if (removed < 4) return false;
+    }
+
+    player.melds.add(meld);
+    currentPlayerIndex = player.index;
+    if (player.index == 0) {
+      mustDiscard = true;
+    }
     return true;
   }
 
@@ -626,14 +808,62 @@ class MahjongGame {
     return checkHu(player.handTiles);
   }
 
-  // 核心胡牌检测
+  // 核心胡牌检测（简化版）
   bool checkHu(List<Tile> tiles) {
-    if (tiles.length != 13 && tiles.length != 14) return false;
-    
-    // 简单检测：假设 tiles 已排序
-    // 实际需要复杂的搭子/刻子分析
-    // 这里简化处理
-    return false; // TODO: 实现完整胡牌判断
+    final hand = tiles.where((t) => !t.isFlower && t.suit != TileSuit.hua).toList();
+    if (hand.length % 3 != 2) return false;
+
+    final counts = <String, int>{};
+    for (final t in hand) {
+      final key = '${t.type.index}_${t.number}';
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+
+    bool canFormMelds(Map<String, int> c) {
+      String? firstKey;
+      for (final k in c.keys) {
+        if ((c[k] ?? 0) > 0) { firstKey = k; break; }
+      }
+      if (firstKey == null) return true;
+
+      final parts = firstKey.split('_');
+      final typeIdx = int.parse(parts[0]);
+      final number = int.parse(parts[1]);
+
+      // 刻子
+      if ((c[firstKey] ?? 0) >= 3) {
+        c[firstKey] = (c[firstKey] ?? 0) - 3;
+        if (canFormMelds(c)) return true;
+        c[firstKey] = (c[firstKey] ?? 0) + 3;
+      }
+
+      // 顺子（仅万/筒/条）
+      if (typeIdx <= TileType.tiao.index && number <= 7) {
+        final k1 = '${typeIdx}_${number + 1}';
+        final k2 = '${typeIdx}_${number + 2}';
+        if ((c[k1] ?? 0) > 0 && (c[k2] ?? 0) > 0) {
+          c[firstKey] = (c[firstKey] ?? 0) - 1;
+          c[k1] = (c[k1] ?? 0) - 1;
+          c[k2] = (c[k2] ?? 0) - 1;
+          if (canFormMelds(c)) return true;
+          c[firstKey] = (c[firstKey] ?? 0) + 1;
+          c[k1] = (c[k1] ?? 0) + 1;
+          c[k2] = (c[k2] ?? 0) + 1;
+        }
+      }
+
+      return false;
+    }
+
+    for (final k in counts.keys) {
+      if ((counts[k] ?? 0) >= 2) {
+        counts[k] = (counts[k] ?? 0) - 2;
+        if (canFormMelds(counts)) return true;
+        counts[k] = (counts[k] ?? 0) + 2;
+      }
+    }
+
+    return false;
   }
 
   // 检查是否满足五毒散
@@ -699,6 +929,9 @@ class MahjongGame {
     final discard = player.handTiles.removeAt(0);
     player.playedTiles.add(discard);
     pendingTile = discard;
+    lastPlayedTile = discard;
+    lastDiscarderIndex = playerIndex;
+    awaitingPlayerResponse = false;
     
     // AI打牌后，检查响应
     processTurn();
@@ -725,9 +958,20 @@ class MahjongGame {
   }
   
   // 强制回合流转
-  void processTurn() {
+  void processTurn({bool skipPlayerResponse = false}) {
     if (pendingTile == null) return;
-    
+
+    // 玩家有响应权（只在AI打牌后）
+    if (!skipPlayerResponse && currentPlayerIndex != 0) {
+      final player = players[0];
+      final canRespond = canHu(player) || canKong(player) || canPong(player) || canChow(player);
+      if (canRespond) {
+        awaitingPlayerResponse = true;
+        return;
+      }
+    }
+
+    awaitingPlayerResponse = false;
     final responder = checkPlayerResponses();
     if (responder != null) {
       Future.delayed(const Duration(milliseconds: 300), () {
@@ -744,6 +988,12 @@ class MahjongGame {
         });
       }
     }
+  }
+
+  // 玩家选择“过”
+  void playerPass() {
+    awaitingPlayerResponse = false;
+    processTurn(skipPlayerResponse: true);
   }
 
 }
