@@ -91,7 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       dropdownColor: const Color(0xFF1B263B),
                       iconEnabledColor: Colors.white70,
                       underline: const SizedBox.shrink(),
-                      items: [1, 2, 3, 4].map((v) {
+                      items: [1, 2, 3].map((v) {
                         return DropdownMenuItem(
                           value: v,
                           child: Text('$v 次', style: const TextStyle(color: Colors.white)),
