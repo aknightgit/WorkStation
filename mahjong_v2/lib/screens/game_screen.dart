@@ -71,22 +71,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  // ===== Helper: build a single tile image with fallback =====
-  Widget _tileImage(String imagePath, {double? width, double? height, BoxFit fit = BoxFit.contain}) {
-    return Image.asset(
-      imagePath,
-      width: width,
-      height: height,
-      fit: fit,
-      errorBuilder: (_, __, ___) => Container(
-        width: width, height: height,
-        color: const Color(0xFFF5ECD7),
-        child: const Center(child: Icon(Icons.error_outline, size: 12)),
-      ),
-    );
-  }
-
-  // ===== Helper: wall tile with pomax back =====
+  // ===== Helper: wall tile =====
   Widget _wallTile({required double w, required double h}) {
     return Container(
       width: w,
@@ -117,11 +102,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
-  // Perspective scale: bottom=1.0, top=0.72 (3D depth)
-  double _pScale(double yOnTable, double tableTop, double tableH) {
-    final t = ((yOnTable - tableTop) / tableH).clamp(0.0, 1.0);
-    return 0.72 + 0.28 * t; // top=0.72, bottom=1.0
-  }
+  // ==================== BUILD ====================
 
   @override
   Widget build(BuildContext context) {
@@ -137,6 +118,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     canHu = (canRespond && _game.canHu(player)) || (canSelfAction && _game.canHu(player));
     canChow = canActAfterDelay && _game.pendingTile != null && _game.canChow(player);
     final canRebelNow = _game.canRebel(0);
+
     if (canRebelNow && !_rebelAnimController.isAnimating) {
       _rebelAnimController.repeat(reverse: true);
     } else if (!canRebelNow && _rebelAnimController.isAnimating) {
@@ -149,146 +131,95 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           final sw = constraints.maxWidth;
           final sh = constraints.maxHeight;
 
-          // === Trapezoid table with perspective ===
-          // Top edge is NARROWER and HIGHER = farther away
-          final tableTopW = sw * 0.72;  // far side (narrow)
-          final tableBotW = sw * 0.96;  // near side (wide)
-          final tableH = sh * 0.74;
-          final tableTopY = sh * 0.06;  // table starts here
-          final centerX = sw / 2;
+          // Table dimensions (simple rectangular)
+          final tableW = sw * 0.90;
+          final tableH = sh * 0.70;
+          final tableLeft = (sw - tableW) / 2;
+          final tableTop = sh * 0.08;
 
-          // Base tile sizes — 墙牌横放（宽>高）
-          // pomax图片 61x80，宽高比 ~0.76
-          // 横放时显示高度=sw*0.028，宽度=高度/0.76
-          final baseTileH = sw * 0.028;  // 显示高度（短边）
-          final baseTileW = baseTileH / 0.76;  // 显示宽度（长边）
-
-          // Wall tile count
-          const topWallCount = 12;
-          const botWallCount = 18;
-          const sideWallCount = 14;
+          // Tile sizes (brick shape: wide & short)
+          final tileW = sw * 0.035;
+          final tileH = tileW * 0.55;
 
           return Stack(
             children: [
-              // ===== 1. Wood background =====
+              // ===== 1. Background =====
               Positioned.fill(
                 child: Container(
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
-                      begin: Alignment.topLeft, end: Alignment.bottomRight,
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                       colors: [Color(0xFF4E342E), Color(0xFF3E2723), Color(0xFF2C1B0E)],
                     ),
                   ),
                 ),
               ),
 
-              // ===== 2. Trapezoid felt table (3D perspective) =====
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: _PerspectiveTablePainter(
-                    centerX: centerX,
-                    topY: tableTopY,
-                    bottomY: tableTopY + tableH,
-                    topWidth: tableTopW,
-                    bottomWidth: tableBotW,
-                  ),
-                ),
-              ),
-
-              // ===== 3. Top wall (far side, small tiles) =====
-              _buildPerspectiveWall(
-                centerX: centerX,
-                y: tableTopY + tableH * 0.04,
-                count: topWallCount,
-                baseTileW: baseTileW, baseTileH: baseTileH,
-                tableTopY: tableTopY, tableH: tableH,
-                tableTopW: tableTopW, tableBotW: tableBotW,
-                side: 0,
-              ),
-
-              // ===== 4. Bottom wall (near side, large tiles) =====
-              _buildPerspectiveWall(
-                centerX: centerX,
-                y: tableTopY + tableH * 0.96 - baseTileH,
-                count: botWallCount,
-                baseTileW: baseTileW, baseTileH: baseTileH,
-                tableTopY: tableTopY, tableH: tableH,
-                tableTopW: tableTopW, tableBotW: tableBotW,
-                side: 2,
-              ),
-
-              // ===== 5. Left wall =====
-              _buildPerspectiveWall(
-                centerX: centerX,
-                y: tableTopY + tableH * 0.50,
-                count: sideWallCount,
-                baseTileW: baseTileW, baseTileH: baseTileH,
-                tableTopY: tableTopY, tableH: tableH,
-                tableTopW: tableTopW, tableBotW: tableBotW,
-                side: 3,
-              ),
-
-              // ===== 6. Right wall =====
-              _buildPerspectiveWall(
-                centerX: centerX,
-                y: tableTopY + tableH * 0.50,
-                count: sideWallCount,
-                baseTileW: baseTileW, baseTileH: baseTileH,
-                tableTopY: tableTopY, tableH: tableH,
-                tableTopW: tableTopW, tableBotW: tableBotW,
-                side: 1,
-              ),
-
-              // ===== 7. River / Discards =====
-              if (_game.phase == GamePhase.playing)
-                _buildPerspectiveRiver(
-                  centerX, tableTopY, tableH, tableTopW, tableBotW,
-                  baseTileW, baseTileH,
-                ),
-
-              // ===== 8. Avatars =====
-              _buildAvatar(0, sw, sh, tableTopW, tableBotW, tableH, tableTopY),
-              _buildAvatar(1, sw, sh, tableTopW, tableBotW, tableH, tableTopY),
-              _buildAvatar(2, sw, sh, tableTopW, tableBotW, tableH, tableTopY),
-              _buildAvatar(3, sw, sh, tableTopW, tableBotW, tableH, tableTopY),
-
-              // ===== 9. Turn hint =====
-              if (_game.phase == GamePhase.playing)
-                Positioned(
-                  left: 0, right: 0,
-                  top: tableTopY + tableH * 0.35,
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                      decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20)),
-                      child: Text(_turnHintText(),
-                        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+              // ===== 2. Table =====
+              Positioned(
+                left: tableLeft,
+                top: tableTop,
+                width: tableW,
+                height: tableH,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
                     ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFD4AF37), width: 3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.6),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
                   ),
                 ),
+              ),
 
-              // ===== 10. Multiplier =====
+              // ===== 3. Walls =====
+              ..._buildWalls(tableLeft, tableTop, tableW, tableH, tileW, tileH),
+
+              // ===== 4. River (discards) =====
               if (_game.phase == GamePhase.playing)
-                _buildMultiplier(sw, tableTopY + 10),
+                _buildRiver(tableLeft, tableTop, tableW, tableH, tileW, tileH),
 
-              // ===== 11. Dice =====
-              if (_game.phase == GamePhase.waiting || _game.phase == GamePhase.diceRolling)
+              // ===== 5. Avatars =====
+              ..._buildAvatars(sw, sh, tableLeft, tableTop, tableW, tableH),
+
+              // ===== 6. Turn hint =====
+              if (_game.phase == GamePhase.playing)
+                _buildTurnHint(sw, sh),
+
+              // ===== 7. Multiplier =====
+              if (_game.phase == GamePhase.playing && _game.finalMultiplier > 0)
+                _buildMultiplier(sw, tableTop + 10),
+
+              // ===== 8. Dice area =====
+              if (_game.phase == GamePhase.waiting ||
+                  _game.phase == GamePhase.diceRolling ||
+                  _game.phase == GamePhase.dealing)
                 _buildDiceArea(sw, sh),
 
-              // ===== 12. Hand tiles (bottom, outside table) =====
+              // ===== 9. Hand tiles =====
               if (_game.phase == GamePhase.playing)
-                _buildHandArea(sw, sh, sw * 0.050, sw * 0.050 * 1.3),
+                _buildHandArea(sw, sh, tileW * 0.95, tileW * 0.95 * 1.3),
 
-              // ===== 13. Action buttons =====
-              if (_game.phase == GamePhase.playing) _buildActionButtons(sw),
+              // ===== 10. Action buttons =====
+              if (_game.phase == GamePhase.playing) _buildActionButtons(sw, sh),
 
-              // ===== 14. Freeze =====
+              // ===== 11. Freeze overlay =====
               if (_freezeActive) _buildFreezeOverlay(),
 
-              // ===== 15. Rebel =====
+              // ===== 12. Rebel =====
               if (canRebelNow) _buildRebelButtons(),
 
-              // ===== 16. Settlement =====
+              // ===== 13. Settlement =====
               if (_game.phase == GamePhase.scoring && _game.lastSettlement != null)
                 _buildSettlementOverlay(sw, sh),
             ],
@@ -298,134 +229,137 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
-  // ===== Perspective wall builder =====
-  Widget _buildPerspectiveWall({
-    required double centerX, required double y,
-    required int count,
-    required double baseTileW, required double baseTileH,
-    required double tableTopY, required double tableH,
-    required double tableTopW, required double tableBotW,
-    required int side,
-  }) {
-    // Scale based on Y position (bottom=1.0, top=0.72)
-    final scale = _pScale(y, tableTopY, tableH);
-    final tw = baseTileW * scale;
-    final th = baseTileH * scale;
+  // ==================== WALLS ====================
 
-    // Interpolate table width at this Y
-    final t = ((y - tableTopY) / tableH).clamp(0.0, 1.0);
-    final widthAtY = tableTopW + (tableBotW - tableTopW) * t;
-    final leftAtY = centerX - widthAtY / 2;
+  List<Widget> _buildWalls(
+    double tableLeft, double tableTop, double tableW, double tableH,
+    double tileW, double tileH,
+  ) {
+    const topCount = 18;
+    const botCount = 18;
+    const sideCount = 18;
 
-    double left, top;
-    double angle;
-    Widget tiles;
+    // Total width/height of a wall
+    final hWallW = topCount * (tileW + 0.8); // horizontal wall width
+    final vWallH = sideCount * (tileW + 0.8); // vertical wall height (tiles rotated)
 
-    if (side == 0) {
-      // Top wall — horizontal, centered
-      left = centerX - (count * (tw + 0.5)) / 2;
-      top = y;
-      angle = -0.03;
-      tiles = Row(children: List.generate(count, (_) => _wallTile(w: tw, h: th)));
-    } else if (side == 2) {
-      // Bottom wall — horizontal, centered
-      left = centerX - (count * (tw + 0.5)) / 2;
-      top = y;
-      angle = 0.03;
-      tiles = Row(children: List.generate(count, (_) => _wallTile(w: tw, h: th)));
-    } else if (side == 1) {
-      // Right wall — horizontal tiles rotated 90°
-      left = leftAtY + widthAtY - th - 1;
-      top = y - (count * (tw + 0.5)) / 2;
-      angle = 1.5708;
-      tiles = Column(children: List.generate(count, (_) => _wallTile(w: tw, h: th)));
-    } else {
-      // Left wall
-      left = leftAtY + 1;
-      top = y - (count * (tw + 0.5)) / 2;
-      angle = -1.5708;
-      tiles = Column(children: List.generate(count, (_) => _wallTile(w: tw, h: th)));
-    }
-
-    return Positioned(
-      left: left, top: top,
-      child: Transform.rotate(
-        angle: angle,
-        alignment: side <= 2 ? Alignment.center : Alignment.topLeft,
-        child: tiles,
+    return [
+      // Top wall — centered, at top 4% of table
+      Positioned(
+        left: tableLeft + (tableW - hWallW) / 2,
+        top: tableTop + tableH * 0.04,
+        child: Row(
+          children: List.generate(topCount, (_) => _wallTile(w: tileW, h: tileH)),
+        ),
       ),
-    );
+      // Bottom wall — centered, at bottom 4% of table
+      Positioned(
+        left: tableLeft + (tableW - hWallW) / 2,
+        top: tableTop + tableH * 0.96 - tileH,
+        child: Row(
+          children: List.generate(botCount, (_) => _wallTile(w: tileW, h: tileH)),
+        ),
+      ),
+      // Left wall — column, rotated so long edge is vertical, at left 4% of table
+      Positioned(
+        left: tableLeft + tableW * 0.04,
+        top: tableTop + (tableH - vWallH) / 2,
+        child: Column(
+          children: List.generate(sideCount, (_) => _wallTile(w: tileW, h: tileH)),
+        ),
+      ),
+      // Right wall — column, rotated so long edge is vertical, at right 4% of table
+      Positioned(
+        left: tableLeft + tableW * 0.96 - tileH,
+        top: tableTop + (tableH - vWallH) / 2,
+        child: Column(
+          children: List.generate(sideCount, (_) => _wallTile(w: tileW, h: tileH)),
+        ),
+      ),
+    ];
   }
 
-  // ===== Perspective river (discards) =====
-  Widget _buildPerspectiveRiver(
-    double centerX, double tableTopY, double tableH,
-    double tableTopW, double tableBotW,
-    double baseTileW, double baseTileH,
+  // ==================== RIVER (Discards) ====================
+
+  Widget _buildRiver(
+    double tableLeft, double tableTop, double tableW, double tableH,
+    double tileW, double tileH,
   ) {
-    final riverTop = tableTopY + tableH * 0.28;
-    final riverBot = tableTopY + tableH * 0.72;
-    final riverH = riverBot - riverTop;
+    final riverW = tableW * 0.55;
+    final riverH = tableH * 0.45;
+    final riverLeft = tableLeft + (tableW - riverW) / 2;
+    final riverTop = tableTop + (tableH - riverH) / 2;
 
-    // River width at center
-    final tMid = 0.50;
-    final riverW = (tableTopW + (tableBotW - tableTopW) * tMid) * 0.52;
-    final riverLeft = centerX - riverW / 2;
+    final smallTileW = tileW * 0.45;
+    final smallTileH = tileH * 0.45;
 
-    return Stack(
-      children: [
-        // River background
-        Positioned(
-          left: riverLeft, top: riverTop, width: riverW, height: riverH,
-          child: Container(
+    return Positioned(
+      left: riverLeft,
+      top: riverTop,
+      width: riverW,
+      height: riverH,
+      child: Stack(
+        children: [
+          // River background
+          Container(
             decoration: BoxDecoration(
-              color: const Color(0xFF1B5E20).withValues(alpha: 0.4),
+              color: const Color(0xFF1B5E20).withOpacity(0.4),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.3), width: 1),
+              border: Border.all(
+                color: const Color(0xFFD4AF37).withOpacity(0.3),
+                width: 1,
+              ),
             ),
           ),
-        ),
-        // P0 bottom
-        _buildDiscardQuadrant(
-          left: riverLeft + 4, top: riverTop + riverH * 0.52,
-          tiles: _game.players[0].playedTiles,
-          tileW: baseTileW * 0.55, tileH: baseTileH * 0.55,
-          perLine: 6, isVertical: false, reversed: false,
-        ),
-        // P2 top
-        _buildDiscardQuadrant(
-          left: riverLeft + 4, top: riverTop + 4,
-          tiles: _game.players[2].playedTiles,
-          tileW: baseTileW * 0.42, tileH: baseTileH * 0.42,
-          perLine: 6, isVertical: false, reversed: true,
-        ),
-        // P1 right
-        _buildDiscardQuadrant(
-          left: riverLeft + riverW * 0.52, top: riverTop + 4,
-          tiles: _game.players[1].playedTiles,
-          tileW: baseTileW * 0.48, tileH: baseTileH * 0.48,
-          perLine: 6, isVertical: true, reversed: false,
-        ),
-        // P3 left
-        _buildDiscardQuadrant(
-          left: riverLeft + 4, top: riverTop + 4,
-          tiles: _game.players[3].playedTiles,
-          tileW: baseTileW * 0.48, tileH: baseTileH * 0.48,
-          perLine: 6, isVertical: true, reversed: true,
-        ),
-      ],
+          // Player 0 (bottom) discards
+          _buildDiscardQuadrant(
+            left: 4, top: riverH * 0.52,
+            tiles: _game.players[0].playedTiles,
+            tileW: smallTileW, tileH: smallTileH,
+            perLine: 6, isVertical: false, reversed: false,
+            maxWidth: riverW - 8,
+          ),
+          // Player 2 (top) discards
+          _buildDiscardQuadrant(
+            left: 4, top: 4,
+            tiles: _game.players[2].playedTiles,
+            tileW: smallTileW, tileH: smallTileH,
+            perLine: 6, isVertical: false, reversed: true,
+            maxWidth: riverW - 8,
+          ),
+          // Player 1 (right) discards
+          _buildDiscardQuadrant(
+            left: riverW * 0.52, top: 4,
+            tiles: _game.players[1].playedTiles,
+            tileW: smallTileW * 0.9, tileH: smallTileH * 0.9,
+            perLine: 6, isVertical: true, reversed: false,
+            maxWidth: riverW * 0.45,
+          ),
+          // Player 3 (left) discards
+          _buildDiscardQuadrant(
+            left: 4, top: 4,
+            tiles: _game.players[3].playedTiles,
+            tileW: smallTileW * 0.9, tileH: smallTileH * 0.9,
+            perLine: 6, isVertical: true, reversed: true,
+            maxWidth: riverW * 0.45,
+          ),
+        ],
+      ),
     );
   }
 
   // ==================== DISCARD QUADRANT ====================
 
   Widget _buildDiscardQuadrant({
-    required double left, required double top,
+    required double left,
+    required double top,
     required List<Tile> tiles,
-    required double tileW, required double tileH,
+    required double tileW,
+    required double tileH,
     required int perLine,
     required bool isVertical,
     required bool reversed,
+    double maxWidth = 300,
   }) {
     if (tiles.isEmpty) return const SizedBox.shrink();
     final displayTiles = reversed ? tiles.reversed.toList() : tiles;
@@ -461,124 +395,160 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     }
 
     if (!isVertical) {
-      // Horizontal layout: wrap tiles in rows
       return Positioned(
-        left: left, top: top,
+        left: left,
+        top: top,
         child: SizedBox(
-          width: perLine * (tileW + 1),
+          width: maxWidth,
           child: Wrap(
             children: displayTiles.map(tileWidget).toList(),
           ),
         ),
       );
     } else {
-      // Vertical layout: wrap tiles in columns
       return Positioned(
-        left: left, top: top,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: List.generate(
-            (displayTiles.length / perLine).ceil(),
-            (col) {
-              final start = col * perLine;
-              final end = (start + perLine).clamp(0, displayTiles.length);
-              return Row(
-                mainAxisSize: MainAxisSize.min,
-                children: displayTiles
-                    .sublist(start, end)
-                    .map(tileWidget)
-                    .toList(),
-              );
-            },
+        left: left,
+        top: top,
+        child: SizedBox(
+          width: maxWidth,
+          child: Wrap(
+            children: displayTiles.map(tileWidget).toList(),
           ),
         ),
       );
     }
   }
 
-  // ==================== AVATARS ON TABLE EDGES ====================
+  // ==================== AVATARS ====================
 
-  Widget _buildAvatar(
-    int idx, double sw, double sh,
-    double tableTopW, double tableBotW, double tableH, double tableTop,
+  List<Widget> _buildAvatars(
+    double sw, double sh,
+    double tableLeft, double tableTop, double tableW, double tableH,
   ) {
-    final p = _game.players[idx];
-    final isActive = _game.currentPlayerIndex == idx;
-    final color = _playerColors[idx];
-    final direction = _directionLabels[idx];
-    final centerX = sw / 2;
+    return List.generate(4, (idx) {
+      final p = _game.players[idx];
+      final isActive = _game.currentPlayerIndex == idx;
+      final color = _playerColors[idx];
+      final direction = _directionLabels[idx];
 
-    // Position on trapezoid edges
-    double cx, cy;
-    switch (idx) {
-      case 0: // bottom
-        cx = centerX;
-        cy = tableTop + tableH * 0.92;
-        break;
-      case 1: // right
-        cx = centerX + tableBotW * 0.42;
-        cy = tableTop + tableH * 0.65;
-        break;
-      case 2: // top
-        cx = centerX;
-        cy = tableTop + tableH * 0.08;
-        break;
-      case 3: // left
-        cx = centerX - tableBotW * 0.42;
-        cy = tableTop + tableH * 0.65;
-        break;
-      default:
-        cx = centerX;
-        cy = tableTop;
-    }
+      double cx, cy;
+      switch (idx) {
+        case 0: // bottom center
+          cx = tableLeft + tableW / 2;
+          cy = tableTop + tableH * 0.93;
+          break;
+        case 1: // right center
+          cx = tableLeft + tableW * 0.95;
+          cy = tableTop + tableH * 0.50;
+          break;
+        case 2: // top center
+          cx = tableLeft + tableW / 2;
+          cy = tableTop + tableH * 0.07;
+          break;
+        case 3: // left center
+          cx = tableLeft + tableW * 0.05;
+          cy = tableTop + tableH * 0.50;
+          break;
+        default:
+          cx = tableLeft;
+          cy = tableTop;
+      }
 
+      return Positioned(
+        left: cx - 24,
+        top: cy - 24,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: color,
+                border: Border.all(
+                  color: isActive ? Colors.yellow : Colors.white,
+                  width: isActive ? 3 : 2,
+                ),
+                boxShadow: [
+                  if (isActive)
+                    BoxShadow(
+                      color: color.withOpacity(0.7),
+                      blurRadius: 12,
+                      spreadRadius: 2,
+                    ),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.4),
+                    blurRadius: 6,
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Text(
+                  direction,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '${p.totalScore > 0 ? "+" : ""}${p.totalScore}',
+                style: TextStyle(
+                  color: p.totalScore >= 0 ? Colors.greenAccent : Colors.redAccent,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  // ==================== TURN HINT ====================
+
+  Widget _buildTurnHint(double sw, double sh) {
     return Positioned(
-      left: cx - 26,
-      top: cy - 28,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 48, height: 48,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: color,
-              border: Border.all(
-                color: isActive ? Colors.yellow : Colors.white,
-                width: isActive ? 3 : 2,
-              ),
-              boxShadow: [
-                if (isActive) BoxShadow(color: color.withValues(alpha: 0.7), blurRadius: 12, spreadRadius: 2),
-                BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 6),
-              ],
-            ),
-            child: Center(
-              child: Text(direction,
-                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+      left: 0,
+      right: 0,
+      top: sh * 0.02,
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.black54,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            _turnHintText(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 2),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-            decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(8)),
-            child: Text(
-              '${p.totalScore > 0 ? "+" : ""}${p.totalScore}',
-              style: TextStyle(
-                color: p.totalScore >= 0 ? Colors.greenAccent : Colors.redAccent,
-                fontSize: 10, fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  // ==================== MULTIPLIER DISPLAY ====================
+  // ==================== MULTIPLIER ====================
 
   Widget _buildMultiplier(double sw, double top) {
     return Positioned(
-      left: 0, right: 0,
+      left: 0,
+      right: 0,
       top: top,
       child: Center(
         child: Container(
@@ -616,8 +586,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                       _game.wildTile!.imagePath,
                       fit: BoxFit.contain,
                       errorBuilder: (_, __, ___) => Center(
-                        child: Text(_game.wildTile!.displayName,
-                            style: const TextStyle(fontSize: 8)),
+                        child: Text(
+                          _game.wildTile!.displayName,
+                          style: const TextStyle(fontSize: 8),
+                        ),
                       ),
                     ),
                   ),
@@ -636,7 +608,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     return Positioned(
       left: sw * 0.3,
       right: sw * 0.3,
-      top: sh * 0.38,
+      top: sh * 0.35,
       child: Column(
         children: [
           _buildDiceWithAnimation(),
@@ -703,7 +675,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               border: Border.all(color: Colors.black87, width: 2),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.4),
+                  color: Colors.black.withOpacity(0.4),
                   blurRadius: 8,
                   offset: const Offset(2, 4),
                 ),
@@ -756,7 +728,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           gradient: const LinearGradient(colors: [Color(0xFF4CAF50), Color(0xFF2E7D32)]),
           borderRadius: BorderRadius.circular(25),
           boxShadow: [
-            BoxShadow(color: Colors.green.withValues(alpha: 0.5), blurRadius: 10),
+            BoxShadow(color: Colors.green.withOpacity(0.5), blurRadius: 10),
           ],
         ),
         child: const Text(
@@ -772,9 +744,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   Widget _buildHandArea(double sw, double sh, double tileW, double tileH) {
     final player = _game.players[0];
     return Positioned(
-      left: sw * 0.10,
-      right: sw * 0.10,
-      bottom: sh * 0.015,
+      left: sw * 0.08,
+      right: sw * 0.08,
+      bottom: sh * 0.01,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
@@ -796,7 +768,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       height: h + 24,
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.4),
+        color: Colors.black.withOpacity(0.4),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.white24, width: 1),
       ),
@@ -821,15 +793,23 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   border: Border.all(
                     color: selectedTileIndex == i
                         ? Colors.yellow
-                        : const Color(0xFFD4AF37).withValues(alpha: 0.5),
+                        : const Color(0xFFD4AF37).withOpacity(0.5),
                     width: selectedTileIndex == i ? 2.5 : 1,
                   ),
                   boxShadow: selectedTileIndex == i
                       ? [
-                          const BoxShadow(color: Colors.yellowAccent, blurRadius: 8, spreadRadius: 1),
+                          const BoxShadow(
+                            color: Colors.yellowAccent,
+                            blurRadius: 8,
+                            spreadRadius: 1,
+                          ),
                         ]
                       : [
-                          const BoxShadow(color: Colors.black26, blurRadius: 2, offset: Offset(1, 1)),
+                          const BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 2,
+                            offset: Offset(1, 1),
+                          ),
                         ],
                 ),
                 child: ClipRRect(
@@ -861,7 +841,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       return const SizedBox.shrink();
     }
 
-    // Source labels
     final sourceWidgets = <Widget>[];
     player.meldSourceCounts.forEach((idx, count) {
       final name = _game.players[idx].name;
@@ -893,32 +872,33 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             child: Row(
               children: [
                 // Flowers
-                if (player.flowerTiles.isNotEmpty)
-                  ...player.flowerTiles.map((t) => Container(
-                    width: w,
-                    height: h,
-                    margin: const EdgeInsets.only(right: 1),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(2),
-                      child: Image.asset(
-                        t.imagePath,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => Container(
-                          color: const Color(0xFFF5ECD7),
-                          child: Center(
-                            child: Text(t.displayName, style: const TextStyle(fontSize: 6)),
+                ...player.flowerTiles.map((t) => Container(
+                      width: w,
+                      height: h,
+                      margin: const EdgeInsets.only(right: 1),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(2),
+                        child: Image.asset(
+                          t.imagePath,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: const Color(0xFFF5ECD7),
+                            child: Center(
+                              child: Text(t.displayName, style: const TextStyle(fontSize: 6)),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  )),
+                    )),
                 // Melds
                 ...player.melds.asMap().entries.expand((entry) {
                   final mi = entry.key;
                   final meld = entry.value;
                   final hidden = (mi < player.meldHidden.length) ? player.meldHidden[mi] : false;
                   return meld.map((t) {
-                    final imgPath = hidden ? 'assets/images/tiles/Regular/Back.png' : t.imagePath;
+                    final imgPath = hidden
+                        ? 'assets/images/tiles/Regular/Back.png'
+                        : t.imagePath;
                     return Container(
                       width: w,
                       height: h,
@@ -952,7 +932,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   // ==================== ACTION BUTTONS ====================
 
-  Widget _buildActionButtons(double sw) {
+  Widget _buildActionButtons(double sw, double sh) {
     const btnSize = 56.0;
     const subBtnSize = 48.0;
     final showDraw = _game.allowNextPlayerAction &&
@@ -1018,7 +998,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           boxShadow: enabled
               ? [
                   BoxShadow(
-                    color: color.withValues(alpha: 0.5),
+                    color: color.withOpacity(0.5),
                     blurRadius: 10,
                   ),
                 ]
@@ -1058,7 +1038,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                     decoration: BoxDecoration(
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.red.withValues(alpha: 0.6),
+                          color: Colors.red.withOpacity(0.6),
                           blurRadius: 18,
                           spreadRadius: 2,
                         ),
@@ -1080,7 +1060,11 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   ),
                   child: const Text(
                     '我要造反',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
@@ -1097,7 +1081,11 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 ),
                 child: const Text(
                   '不造反',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
@@ -1115,13 +1103,17 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.6),
+            color: Colors.black.withOpacity(0.6),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: Colors.white, width: 2),
           ),
           child: Text(
             '等待 $_freezeCountdown',
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
         ),
       ),
@@ -1169,7 +1161,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: s.details
-                        .map((d) => Text(d, style: const TextStyle(fontSize: 12, color: Colors.black87)))
+                        .map((d) => Text(d,
+                            style: const TextStyle(fontSize: 12, color: Colors.black87)))
                         .toList(),
                   ),
                 ],
@@ -1183,10 +1176,14 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(_game.players[i].name, style: const TextStyle(fontSize: 14)),
+                          Text(_game.players[i].name,
+                              style: const TextStyle(fontSize: 14)),
                           Text(
                             delta >= 0 ? '+$delta' : '$delta',
-                            style: TextStyle(color: color, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              color: color,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ],
                       ),
@@ -1196,8 +1193,11 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 const SizedBox(height: 12),
                 ElevatedButton(
                   onPressed: _onNextRound,
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E7D32)),
-                  child: const Text('下一局', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2E7D32),
+                  ),
+                  child: const Text('下一局',
+                      style: TextStyle(color: Colors.white)),
                 ),
               ],
             ),
@@ -1227,7 +1227,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     return Colors.green;
   }
 
-  // ==================== GAME LOGIC METHODS (unchanged) ====================
+  // ==================== GAME LOGIC METHODS ====================
 
   void _onNextRound() {
     _cancelFreeze();
@@ -1391,7 +1391,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _game.playTile(p, t);
     selectedTileIndex = null;
     setState(() {});
-
     _triggerAIAfterPlayer();
   }
 
@@ -1430,7 +1429,16 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 }
 
-// ===== Perspective Table Painter (3D depth) =====
+// ===== Trapezoid Painter (kept for potential future use) =====
+class _TrapezoidPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {}
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// ===== Perspective Table Painter (kept for potential future use) =====
 class _PerspectiveTablePainter extends CustomPainter {
   final double centerX;
   final double topY;
@@ -1455,24 +1463,22 @@ class _PerspectiveTablePainter extends CustomPainter {
       ..lineTo(centerX - bottomWidth / 2, bottomY)
       ..close();
 
-    // Green felt with gradient for depth (darker at top = farther)
     final fillPaint = Paint()
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: const [
-          Color(0xFF0D3B0D),  // very dark green (far)
-          Color(0xFF145214),  // dark green
-          Color(0xFF1B5E20),  // medium green
-          Color(0xFF2E7D32),  // lighter green (near)
+          Color(0xFF0D3B0D),
+          Color(0xFF145214),
+          Color(0xFF1B5E20),
+          Color(0xFF2E7D32),
         ],
         stops: const [0.0, 0.25, 0.6, 1.0],
       ).createShader(Rect.fromLTWH(0, topY, size.width, bottomY - topY));
     canvas.drawPath(path, fillPaint);
 
-    // Inner felt texture lines (subtle)
     final linePaint = Paint()
-      ..color = const Color(0xFFD4AF37).withValues(alpha: 0.08)
+      ..color = const Color(0xFFD4AF37).withOpacity(0.08)
       ..strokeWidth = 0.5;
     for (double y = topY + 20; y < bottomY; y += 30) {
       final t = ((y - topY) / (bottomY - topY)).clamp(0.0, 1.0);
@@ -1484,17 +1490,14 @@ class _PerspectiveTablePainter extends CustomPainter {
       );
     }
 
-    // Shadow first (behind)
     canvas.drawShadow(path, Colors.black87, 20, true);
 
-    // Gold border on top
     final borderPaint = Paint()
       ..color = const Color(0xFFD4AF37)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3.5;
     canvas.drawPath(path, borderPaint);
 
-    // Inner border (slightly inset)
     final innerPath = Path()
       ..moveTo(centerX - topWidth / 2 + 6, topY + 4)
       ..lineTo(centerX + topWidth / 2 - 6, topY + 4)
@@ -1502,7 +1505,7 @@ class _PerspectiveTablePainter extends CustomPainter {
       ..lineTo(centerX - bottomWidth / 2 + 4, bottomY - 4)
       ..close();
     final innerBorderPaint = Paint()
-      ..color = const Color(0xFFD4AF37).withValues(alpha: 0.3)
+      ..color = const Color(0xFFD4AF37).withOpacity(0.3)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
     canvas.drawPath(innerPath, innerBorderPaint);
@@ -1510,7 +1513,9 @@ class _PerspectiveTablePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_PerspectiveTablePainter old) =>
-      centerX != old.centerX || topY != old.topY ||
-      bottomY != old.bottomY || topWidth != old.topWidth ||
+      centerX != old.centerX ||
+      topY != old.topY ||
+      bottomY != old.bottomY ||
+      topWidth != old.topWidth ||
       bottomWidth != old.bottomWidth;
 }
