@@ -13,7 +13,6 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   final MahjongGame _game = MahjongGame();
   bool isRolling = false;
-  bool canRebel = false;
   bool canPong = false, canKong = false, canHu = false, canChow = false;
   int? selectedTileIndex;
   final List<Color> _playerColors = [Colors.red, Colors.green, Colors.blue, Colors.orange];
@@ -25,6 +24,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   late AnimationController _diceAnimController;
   late Animation<double> _diceRotateAnimation;
   List<int> _displayDice = [1, 1];
+
+  // 造反按钮心跳动画
+  late AnimationController _rebelAnimController;
+  late Animation<double> _rebelPulse;
   
   @override
   void initState() {
@@ -47,6 +50,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         });
       }
     });
+
+    _rebelAnimController = AnimationController(
+      duration: const Duration(milliseconds: 900),
+      vsync: this,
+    );
+    _rebelPulse = Tween<double>(begin: 1.0, end: 1.08).animate(
+      CurvedAnimation(parent: _rebelAnimController, curve: Curves.easeInOut),
+    );
+    _rebelAnimController.repeat(reverse: true);
   }
 
   @override
@@ -54,6 +66,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _freezeTimer?.cancel();
     _game.onStateChanged = null;
     _diceAnimController.dispose();
+    _rebelAnimController.dispose();
     super.dispose();
   }
 
@@ -69,6 +82,12 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     canKong = canRespond && (_game.canKong(player) || hasFlowerInHand);
     canHu = canRespond && _game.canHu(player);
     canChow = canActAfterDelay && _game.pendingTile != null && _game.canChow(player);
+    final canRebelNow = _game.canRebel(0);
+    if (canRebelNow && !_rebelAnimController.isAnimating) {
+      _rebelAnimController.repeat(reverse: true);
+    } else if (!canRebelNow && _rebelAnimController.isAnimating) {
+      _rebelAnimController.stop();
+    }
     
     return Scaffold(
       body: LayoutBuilder(
@@ -254,10 +273,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 ),
               
               // ===== 造反按钮 =====
-              if (canRebel)
+              if (canRebelNow)
                 Positioned(
                   top: 50, left: 0, right: 0,
-                  child: Center(child: _buildRebelButton()),
+                  child: Center(child: _buildRebelButtons()),
                 ),
               
               // ===== 操作按钮（置顶） =====
@@ -660,14 +679,45 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildRebelButton() {
-    return GestureDetector(
-      onTap: _rebel,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 14),
-        decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(25), border: Border.all(color: Colors.white, width: 2)),
-        child: const Text('我要造反', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-      ),
+  Widget _buildRebelButtons() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AnimatedBuilder(
+          animation: _rebelPulse,
+          builder: (context, child) {
+            return Transform.scale(
+              scale: _rebelPulse.value,
+              child: Container(
+                decoration: BoxDecoration(
+                  boxShadow: [
+                    BoxShadow(color: Colors.red.withValues(alpha: 0.6), blurRadius: 18, spreadRadius: 2),
+                  ],
+                  borderRadius: BorderRadius.circular(28),
+                ),
+                child: child,
+              ),
+            );
+          },
+          child: GestureDetector(
+            onTap: _rebelAccept,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 14),
+              decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(28), border: Border.all(color: Colors.white, width: 2)),
+              child: const Text('我要造反', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        GestureDetector(
+          onTap: _rebelDecline,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 12),
+            decoration: BoxDecoration(color: Colors.grey[700], borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.white70, width: 1.5)),
+            child: const Text('不造反', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+          ),
+        ),
+      ],
     );
   }
 
@@ -773,7 +823,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _cancelFreeze();
     setState(() { 
       _game.deal(); 
-      canRebel = _game.checkWuDuSan();
     });
     // 如果庄家不是玩家，AI先出牌
     if (_game.currentPlayerIndex != 0) {
@@ -924,8 +973,13 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     setState(() {});
   }
 
-  void _rebel() {
-    _game.resolveRebelAsDraw(_game.dealerIndex);
+  void _rebelAccept() {
+    _game.decideRebel(0, true);
+    setState(() {});
+  }
+
+  void _rebelDecline() {
+    _game.decideRebel(0, false);
     setState(() {});
   }
 }

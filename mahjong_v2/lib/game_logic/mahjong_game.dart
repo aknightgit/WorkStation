@@ -187,6 +187,7 @@ class MahjongGame {
   Tile? robKongTile;
   int? robKongMeldIndex;
   List<int> freezeChances = [3, 3, 3, 3];
+  List<bool> rebelDecided = [false, false, false, false];
   void Function()? onStateChanged;
   int? lastDiscarderIndex;
   bool lastKongDraw = false; // 是否为杠/补花后的补牌
@@ -295,6 +296,7 @@ class MahjongGame {
     if (wall.isNotEmpty) {
       wildTile = wall[Random().nextInt(wall.length)];
     }
+    rebelDecided = [false, false, false, false];
     for (int i = 0; i < 3; i++) {
       for (int p = 0; p < 4; p++) {
         final idx = (dealerIndex + p) % 4;
@@ -364,6 +366,7 @@ class MahjongGame {
     responseTimerActive = false;
     nextPlayerIndex = _peekNextPlayerIndex();
     turnCounter += 1;
+    rebelDecided[player.index] = true;
     _recordDeadTile(tile);
     if (player.index == 0) {
       mustDiscard = false; // 打牌后可进入下一轮
@@ -1037,6 +1040,7 @@ class MahjongGame {
     lastDiscarderIndex = null;
     wildTile = null;
     lastKongDraw = false;
+    rebelDecided = [false, false, false, false];
     lastWinnerIndex = null;
     lastWinFromDiscard = false;
     awaitingPlayerResponse = false;
@@ -1581,11 +1585,30 @@ class MahjongGame {
     return canWinWithPair(counts, wildCount);
   }
 
-  // 检查是否满足五毒散
+  // 是否可造反（首轮、轮到自己、满足五毒散，且未作决定）
+  bool canRebel(int playerIndex) {
+    if (phase != GamePhase.playing) return false;
+    if (gameEnded) return false;
+    if (pendingTile != null) return false;
+    if (currentPlayerIndex != playerIndex) return false;
+    if (rebelDecided[playerIndex]) return false;
+    return players[playerIndex].isWuDuSan;
+  }
+
+  // 玩家/AI选择造反或不造反
+  bool decideRebel(int playerIndex, bool accept) {
+    if (!canRebel(playerIndex)) return false;
+    rebelDecided[playerIndex] = true;
+    if (accept) {
+      resolveRebelAsDraw(playerIndex);
+      return true;
+    }
+    return false;
+  }
+
+  // 检查是否满足五毒散（兼容旧调用）
   bool checkWuDuSan() {
-    // 首轮检查庄家
-    final player = players[dealerIndex];
-    return player.isWuDuSan;
+    return canRebel(currentPlayerIndex);
   }
 
 
@@ -1596,6 +1619,12 @@ class MahjongGame {
     if (freezeActive) return;
     
     final player = players[playerIndex];
+
+    // 0. 造反判断（首轮）
+    if (canRebel(playerIndex)) {
+      decideRebel(playerIndex, true);
+      return;
+    }
     
     // 1. 检查能否胡
     if (canHu(player)) {
