@@ -20,7 +20,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   bool _freezeActive = false;
   int _freezeCountdown = 0;
   Timer? _freezeTimer;
-  
+
   // 骰子动画
   late AnimationController _diceAnimController;
   late Animation<double> _diceRotateAnimation;
@@ -29,7 +29,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   // 造反按钮心跳动画
   late AnimationController _rebelAnimController;
   late Animation<double> _rebelPulse;
-  
+
   @override
   void initState() {
     super.initState();
@@ -91,26 +91,26 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     } else if (!canRebelNow && _rebelAnimController.isAnimating) {
       _rebelAnimController.stop();
     }
-    
+
     return Scaffold(
       body: LayoutBuilder(
         builder: (context, constraints) {
           final w = constraints.maxWidth;
           final h = constraints.maxHeight;
-          
+
           // 梯形: 上宽80%, 下宽100%, 高100%
           final tableTop = 0.0;
           final tableHeight = h;
           final topWidth = w * 0.80;
           final bottomWidth = w * 1.00;
-          
+
           // 牌墙离桌边距离
           final wallOffset = w * 0.08;
-          
+
           // 牌尺寸 - 长边紧靠
           final tileW = w * 0.045;
           final tileH = tileW * 1.3;
-          
+
           return Stack(
             children: [
               // 木纹背景
@@ -122,7 +122,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   ),
                 ),
               ),
-              
+
               // ===== 梯形桌布 =====
               Center(
                 child: Container(
@@ -133,7 +133,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   ),
                 ),
               ),
-              
+
               // ===== 牌墙 - 4边各18堆，长边紧靠 =====
               // 上牌墙 (平行于上边)
               Positioned(
@@ -169,13 +169,13 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   child: _buildWallRow(18, tileW * 0.7, tileH * 0.7),
                 ),
               ),
-              
+
               // ===== 头像 =====
               _buildAvatar('东', Colors.red, w * 0.5, h * 0.05, _playerColors[0], _game.players[0].totalScore),
               _buildAvatar('南', Colors.green, w * 0.95, h * 0.5, _playerColors[1], _game.players[1].totalScore),
               _buildAvatar('西', Colors.blue, w * 0.5, h * 0.95, _playerColors[2], _game.players[2].totalScore),
               _buildAvatar('北', Colors.orange, w * 0.05, h * 0.5, _playerColors[3], _game.players[3].totalScore),
-              
+
               // ===== 骰子 + 发牌按钮 =====
               if (_game.phase == GamePhase.waiting || _game.phase == GamePhase.diceRolling)
                 Positioned(
@@ -223,7 +223,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                                     borderRadius: BorderRadius.circular(4),
                                     border: Border.all(color: const Color(0xFFD4AF37)),
                                   ),
-                                  child: Image.asset(_game.wildTile!.imagePath, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const SizedBox()),
+                                  child: Image.asset(_game.wildTile!.imagePath, fit: BoxFit.contain, errorBuilder: (_, __, ___) => Center(child: Text(_game.wildTile!.displayName, style: const TextStyle(fontSize: 8)))),
                                 ),
                               ],
                             ),
@@ -247,7 +247,39 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
-              
+
+              // ===== 弃牌堆（Issue 3: 4个玩家的出牌区域） =====
+              if (_game.phase == GamePhase.playing) ...[
+                // Player 0 (自己/East) 弃牌 - 底部中央，手牌和牌墙之间
+                _buildDiscardArea(
+                  left: w * 0.2, right: w * 0.2,
+                  bottom: h * 0.25,
+                  tiles: _game.players[0].playedTiles,
+                  tileW: tileW * 0.5, tileH: tileH * 0.5,
+                ),
+                // Player 1 (南/Right) 弃牌 - 右侧
+                _buildDiscardArea(
+                  right: w * 0.15,
+                  top: h * 0.3, bottom: h * 0.3,
+                  tiles: _game.players[1].playedTiles,
+                  tileW: tileW * 0.5, tileH: tileH * 0.5,
+                ),
+                // Player 2 (对面) 弃牌 - 顶部中央
+                _buildDiscardArea(
+                  left: w * 0.2, right: w * 0.2,
+                  top: h * 0.25,
+                  tiles: _game.players[2].playedTiles,
+                  tileW: tileW * 0.5, tileH: tileH * 0.5,
+                ),
+                // Player 3 (北/Left) 弃牌 - 左侧
+                _buildDiscardArea(
+                  left: w * 0.15,
+                  top: h * 0.3, bottom: h * 0.3,
+                  tiles: _game.players[3].playedTiles,
+                  tileW: tileW * 0.5, tileH: tileH * 0.5,
+                ),
+              ],
+
               // ===== 手牌 =====
               if (_game.phase == GamePhase.playing)
                 Positioned(
@@ -276,14 +308,14 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
-              
+
               // ===== 造反按钮 =====
               if (canRebelNow)
                 Positioned(
                   top: 50, left: 0, right: 0,
                   child: Center(child: _buildRebelButtons()),
                 ),
-              
+
               // ===== 操作按钮（置顶） =====
               if (_game.phase == GamePhase.playing)
                 _buildActionButtons(),
@@ -298,7 +330,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
-  // 牌墙 - 长边紧靠（横向）
+  // ===== Issue 2: 牌墙 - 使用Back.png图片替代绿色渐变 =====
   Widget _buildWallRow(int count, double w, double h) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -306,11 +338,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         width: w, height: h,
         margin: const EdgeInsets.symmetric(horizontal: 0), // 长边紧靠
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF2E7D32), Color(0xFF1B5E20)],
-          ),
           borderRadius: BorderRadius.circular(3),
           border: Border.all(color: const Color(0xFFD4AF37), width: 1),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: Image.asset(
+            'assets/images/tiles/Regular/Back.png',
+            fit: BoxFit.cover,
+          ),
         ),
       )),
     );
@@ -326,13 +362,52 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           width: h, height: w, // 长宽互换
           margin: const EdgeInsets.symmetric(horizontal: 0),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF2E7D32), Color(0xFF1B5E20)],
-            ),
             borderRadius: BorderRadius.circular(3),
             border: Border.all(color: const Color(0xFFD4AF37), width: 1),
           ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: Image.asset(
+              'assets/images/tiles/Regular/Back.png',
+              fit: BoxFit.cover,
+            ),
+          ),
         )),
+      ),
+    );
+  }
+
+  // ===== Issue 3: 弃牌堆组件 =====
+  Widget _buildDiscardArea({
+    double? left, double? right, double? top, double? bottom,
+    required List<Tile> tiles,
+    required double tileW, required double tileH,
+  }) {
+    if (tiles.isEmpty) return const SizedBox.shrink();
+    return Positioned(
+      left: left, right: right, top: top, bottom: bottom,
+      child: Center(
+        child: Wrap(
+          spacing: 1,
+          runSpacing: 1,
+          alignment: WrapAlignment.center,
+          children: tiles.map((t) => Container(
+            width: tileW,
+            height: tileH,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(2),
+              border: Border.all(color: const Color(0xFFD4AF37), width: 0.5),
+            ),
+            child: Image.asset(
+              t.imagePath,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => Center(
+                child: Text(t.displayName, style: TextStyle(fontSize: tileW * 0.3)),
+              ),
+            ),
+          )).toList(),
+        ),
       ),
     );
   }
@@ -416,7 +491,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         final progress = isRolling ? _diceRotateAnimation.value : 0.0;
         final bounce = isRolling ? (1 - (progress * 2 - 1).abs()) * 1.5 : 0.0;
         final rotation = isRolling ? progress * 6.28 : 0.0; // 完整旋转
-        
+
         return Transform(
           transform: Matrix4.identity()
             ..translate(0.0, -bounce)
@@ -468,7 +543,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     final dots = <Widget>[];
     final dotSize = 12.0;
     final color = Colors.red;
-    
+
     // 点位定义
     final positions = {
       1: [(0.5, 0.5)],
@@ -478,7 +553,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       5: [(0.2, 0.2), (0.2, 0.8), (0.5, 0.5), (0.8, 0.2), (0.8, 0.8)],
       6: [(0.2, 0.2), (0.2, 0.5), (0.2, 0.8), (0.8, 0.2), (0.8, 0.5), (0.8, 0.8)],
     };
-    
+
     for (final pos in positions[value] ?? []) {
       dots.add(Positioned(
         left: pos.$1 * 50 - dotSize / 2,
@@ -558,6 +633,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
+  // ===== Issue 1: Fix blank tiles in melds/flowers area =====
   Widget _buildMeldsArea(double w, double h) {
     final player = _game.players[0];
     if (player.melds.isEmpty && player.flowerTiles.isEmpty) return const SizedBox.shrink();
@@ -596,7 +672,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                           width: w * 0.6,
                           height: h * 0.6,
                           margin: const EdgeInsets.symmetric(horizontal: 1),
-                          child: Image.asset(t.imagePath, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const SizedBox()),
+                          child: Image.asset(t.imagePath, fit: BoxFit.contain, errorBuilder: (_, __, ___) => Center(child: Text(t.displayName, style: const TextStyle(fontSize: 8)))),
                         );
                       }).toList(),
                     ),
@@ -613,7 +689,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                           width: w * 0.6,
                           height: h * 0.6,
                           margin: const EdgeInsets.symmetric(horizontal: 1),
-                          child: Image.asset(img, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const SizedBox()),
+                          child: Image.asset(img, fit: BoxFit.contain, errorBuilder: (_, __, ___) => Center(child: Text(t.displayName, style: const TextStyle(fontSize: 8)))),
                         );
                       }).toList(),
                     ),
@@ -627,22 +703,22 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
-  // 环绕式操作菜单 - 摸大圆 + 吃/碰/杠/胡环绕右侧
+  // ===== Issue 4: Action buttons - move up to avoid overlap with hand =====
   Widget _buildActionButtons() {
     final btnSize = 70.0;
     final subBtnSize = btnSize * 0.55;
     final orbitRadius = btnSize * 1.3;
-    final showDraw = _game.allowNextPlayerAction && _game.nextPlayerIndex == 0 && _game.pendingTile != null; 
+    final showDraw = _game.allowNextPlayerAction && _game.nextPlayerIndex == 0 && _game.pendingTile != null;
     final showWait = _game.canUseFreeze(0);
     final canFreeze = showWait && !_freezeActive;
-    
+
     // 检查抢杠状态
     final isRobbingKong = _game.robbingKong && _game.awaitingPlayerResponse;
     final canRobKong = isRobbingKong && canHu;
-    
+
     return Positioned(
       right: 10,
-      bottom: 30,
+      bottom: 120, // Issue 4: moved up from 30 to 120 to avoid overlap with hand tiles
       child: SizedBox(
         width: btnSize * 3,
         height: btnSize * 3,
@@ -874,8 +950,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   void _onDealTap() {
     _cancelFreeze();
-    setState(() { 
-      _game.deal(); 
+    setState(() {
+      _game.deal();
     });
     // 如果庄家不是玩家，AI先出牌
     if (_game.currentPlayerIndex != 0) {
@@ -1017,7 +1093,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _game.playerPass();
     setState(() {});
   }
-  
+
   void _playTile(int i) {
     if (_game.currentPlayerIndex != 0) return;
     if (!_game.mustDiscard) return; // 必须先摸牌
@@ -1027,45 +1103,45 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _game.playTile(p, t);
     selectedTileIndex = null;
     setState(() {});
-    
+
     // 玩家打牌后，触发AI回合
     _triggerAIAfterPlayer();
   }
-  
+
   void _triggerAIAfterPlayer() {
     // 延迟触发AI，确保UI更新
     Future.delayed(const Duration(milliseconds: 300), () {
       if (_game.gameEnded) return;
-      
+
       // 检查是否有人响应（吃/碰/杠/胡）
       if (_game.pendingTile != null) {
         // 等待响应
         return;
       }
-      
+
       // 轮到AI玩家
       _game.nextPlayer();
       while (_game.currentPlayerIndex != 0 && !_game.gameEnded) {
         final idx = _game.currentPlayerIndex;
-        
+
         // 摸牌
         _game.drawTile(_game.players[idx]);
-        
+
         // 检查胡
         if (_game.canHu(_game.players[idx])) {
           _game.playerWins(idx);
           break;
         }
-        
+
         // AI打牌
         _game.aiDiscard(idx);
-        
+
         // 检查是否有人响应
         if (_game.pendingTile != null) {
           // 等待响应或超时
           break;
         }
-        
+
         // 继续下一个玩家
         _game.nextPlayer();
       }
@@ -1088,14 +1164,14 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 class TrapezoidPainter extends CustomPainter {
   final double topW, bottomW;
   TrapezoidPainter(this.topW, this.bottomW);
-  
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..shader = const LinearGradient(
         colors: [Color(0xFF87CEEB), Color(0xFFB0C4DE)],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
-    
+
     final path = Path();
     final topOffset = (size.width - topW) / 2;
     path.moveTo(topOffset, 0);
@@ -1103,9 +1179,9 @@ class TrapezoidPainter extends CustomPainter {
     path.lineTo(size.width, size.height);
     path.lineTo(0, size.height);
     path.close();
-    
+
     canvas.drawPath(path, paint);
-    
+
     // 金边
     final borderPaint = Paint()
       ..color = const Color(0xFFD4AF37)
@@ -1113,7 +1189,7 @@ class TrapezoidPainter extends CustomPainter {
       ..strokeWidth = 4;
     canvas.drawPath(path, borderPaint);
   }
-  
+
   @override
   bool shouldRepaint(TrapezoidPainter old) => topW != old.topW || bottomW != old.bottomW;
 }
