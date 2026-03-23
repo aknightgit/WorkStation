@@ -18,8 +18,15 @@ class MahjongApp extends StatelessWidget {
   }
 }
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _maxDiceRolls = 2;
 
   @override
   Widget build(BuildContext context) {
@@ -65,12 +72,45 @@ class HomeScreen extends StatelessWidget {
                   letterSpacing: 2,
                 ),
               ),
-              const SizedBox(height: 60),
+              const SizedBox(height: 40),
+              // 掷骰次数选择
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white10,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white24),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('掷骰次数上限', style: TextStyle(color: Colors.white70)),
+                    const SizedBox(width: 12),
+                    DropdownButton<int>(
+                      value: _maxDiceRolls,
+                      dropdownColor: const Color(0xFF1B263B),
+                      iconEnabledColor: Colors.white70,
+                      underline: const SizedBox.shrink(),
+                      items: [1, 2, 3, 4].map((v) {
+                        return DropdownMenuItem(
+                          value: v,
+                          child: Text('$v 次', style: const TextStyle(color: Colors.white)),
+                        );
+                      }).toList(),
+                      onChanged: (v) {
+                        if (v == null) return;
+                        setState(() { _maxDiceRolls = v; });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
               // 开始按钮
               GestureDetector(
                 onTap: () {
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const GameScreen()),
+                    MaterialPageRoute(builder: (_) => GameScreen(maxDiceRolls: _maxDiceRolls)),
                   );
                 },
                 child: Container(

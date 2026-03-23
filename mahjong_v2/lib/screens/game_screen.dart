@@ -4,14 +4,15 @@ import 'dart:async';
 import 'package:mahjong_v2/game_logic/mahjong_game.dart';
 
 class GameScreen extends StatefulWidget {
-  const GameScreen({super.key});
+  final int maxDiceRolls;
+  const GameScreen({super.key, this.maxDiceRolls = 2});
 
   @override
   State<GameScreen> createState() => _GameScreenState();
 }
 
 class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
-  final MahjongGame _game = MahjongGame();
+  late final MahjongGame _game;
   bool isRolling = false;
   bool canPong = false, canKong = false, canHu = false, canChow = false;
   int? selectedTileIndex;
@@ -32,6 +33,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    _game = MahjongGame(maxDiceRolls: widget.maxDiceRolls);
     _game.onStateChanged = () {
       if (mounted) setState(() {});
     };
@@ -182,7 +184,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   child: Column(
                     children: [
                       _buildDiceWithAnimation(),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 10),
+                      Text('掷骰次数：${_game.diceRollCount}/${_game.maxDiceRolls}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                      const SizedBox(height: 12),
                       // 发牌按钮 - 骰子掷完后显示
                       if (_game.diceRolled || _game.phase == GamePhase.diceRolling)
                         _buildDealButton(),
@@ -811,6 +815,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   void _onDiceTap() {
     _cancelFreeze();
+    if (!_game.canRollDice) return;
     setState(() {
       isRolling = true;
       _displayDice = [Random().nextInt(6) + 1, Random().nextInt(6) + 1];

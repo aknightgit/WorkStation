@@ -157,6 +157,8 @@ class MahjongGame {
   Tile? wildTile;
   bool diceRolled = false;
   List<int> diceValues = [1, 1];
+  int maxDiceRolls = 2;
+  int diceRollCount = 0;
   GamePhase phase = GamePhase.waiting;
   Tile? lastPlayedTile;
   Tile? pendingTile; // 等待响应的牌
@@ -208,7 +210,7 @@ class MahjongGame {
   // 当前剩余玩家数
   int get activePlayerCount => 4 - eliminatedPlayers.length;
 
-  MahjongGame() {
+  MahjongGame({this.maxDiceRolls = 2}) {
     players = [
       Player(index: 0, name: '东家'),
       Player(index: 1, name: '南家'),
@@ -263,11 +265,15 @@ class MahjongGame {
 
   int get remainingTiles => wall.length;
 
+  bool get canRollDice => diceRollCount < maxDiceRolls;
+
   // 掷骰子
-  void rollDice() {
+  bool rollDice() {
+    if (!canRollDice) return false;
     diceValues[0] = Random().nextInt(6) + 1;
     diceValues[1] = Random().nextInt(6) + 1;
     diceRolled = true;
+    diceRollCount += 1;
     
     // 计算回合倍数（按最新规则）
     final d1 = diceValues[0];
@@ -281,6 +287,7 @@ class MahjongGame {
     } else {
       roundMultiplier = 1;
     }
+    return true;
   }
 
   // 发牌 - 庄家14张，闲家13张
@@ -1058,6 +1065,7 @@ class MahjongGame {
     initWall();
     diceRolled = false;
     diceValues = [1, 1];
+    diceRollCount = 0;
     pendingTile = null;
     lastPlayedTile = null;
     lastDiscarderIndex = null;
