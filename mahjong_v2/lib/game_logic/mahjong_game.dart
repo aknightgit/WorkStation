@@ -185,6 +185,7 @@ class MahjongGame {
   // 包关系: baoRelations[fromPlayer][toPlayer] = count
   // 表示 fromPlayer 吃了/碰了 toPlayer 多少口
   Map<int, Map<int, int>> baoRelations = {};
+  Map<String, int> hotTiles = {}; // 被吃/碰/杠过的热牌类型
   
   // 血战到底：记录已胡牌的玩家
   List<int> eliminatedPlayers = [];
@@ -484,6 +485,8 @@ class MahjongGame {
     final toPlayer = (currentPlayerIndex + 1) % 4; // 上家
     recordBao(fromPlayer, toPlayer);
     player.meldSourceCounts[toPlayer] = (player.meldSourceCounts[toPlayer] ?? 0) + 1;
+
+    if (pendingTile != null) _recordHotTile(pendingTile!);
     
     // 吃牌后轮到该玩家出牌
     pendingTile = null;
@@ -535,6 +538,8 @@ class MahjongGame {
     final toPlayer = currentPlayerIndex; // 打牌者
     recordBao(fromPlayer, toPlayer);
     player.meldSourceCounts[toPlayer] = (player.meldSourceCounts[toPlayer] ?? 0) + 1;
+
+    if (pendingTile != null) _recordHotTile(pendingTile!);
     
     // 碰牌后轮到该玩家出牌
     pendingTile = null;
@@ -973,6 +978,7 @@ class MahjongGame {
     gameEnded = false;
     eliminatedPlayers.clear();
     baoRelations.clear();
+    hotTiles.clear();
     lastSettlement = null;
     for (final p in players) {
       p.handTiles.clear();
@@ -1121,6 +1127,7 @@ class MahjongGame {
       final toPlayer = currentPlayerIndex; // 打牌者
       recordBao(fromPlayer, toPlayer);
       player.meldSourceCounts[toPlayer] = (player.meldSourceCounts[toPlayer] ?? 0) + 1;
+      _recordHotTile(pendingTile!);
     }
 
     final meld = <Tile>[];
@@ -1460,16 +1467,17 @@ class MahjongGame {
     final isolated = !_hasSameOrNeighbor(counts, discard);
 
     final riskWeight = _riskWeight(playerIndex);
+    final attackWeight = _attackWeight(playerIndex);
     final patternBias = _patternBiasScore(playerIndex, discard, counts);
 
     double score = 0;
     score += safety * riskWeight; // safety 为负数，优先规避
-    score += shantenDelta * 0.15;
+    score += shantenDelta * 0.15 * attackWeight;
     if (cnt >= 2) score -= 0.10; // 丢对子/刻子
     if (connected) score -= 0.06; // 丢连张
     if (isolated) score += 0.08; // 丢孤张
     if (_isWildTile(discard)) score -= 0.30; // 尽量不丢百搭
-    score += patternBias;
+    score += patternBias * attackWeight;
     return score;
   }
 
@@ -1496,6 +1504,26 @@ class MahjongGame {
       if (baoCount >= 2 && _canClaimDiscard(i, playerIndex, discard)) {
         penalty -= (baoCount >= 3 ? 0.8 : 0.5) * threat;
       }
+
+      // 一般风险：若下家可吃或对手可碰杠，略惩罚
+      if (_canClaimDiscard(i, playerIndex, discard)) {
+        penalty -= 0.12 * threat;
+      }
+
+      // 对手已副露该牌 → 更危险
+      if (_opponentHasMeldTile(i, discard)) {
+        penalty -= 0.25 * threat;
+      }
+
+      // 对手花色倾向：丢其优势花色更危险
+      final dom = _opponentDominantSuit(i);
+      if (dom != null && discard.suit == dom) {
+        penalty -= 0.12 * threat;
+      }
+
+      // 热牌记忆：被吃/碰/杠过的牌更危险
+      final hot = hotTiles[_tileKey(discard)] ?? 0;
+      if (hot > 0) penalty -= min(0.4, hot * 0.1) * threat;
 
       // 危险牌记忆：对手已打出的牌更安全
       if (_hasDiscarded(players[i].playedTiles, discard)) {
@@ -1665,6 +1693,20 @@ class MahjongGame {
     return w.clamp(0.8, 1.6).toDouble();
   }
 
+  double _attackWeight(int playerIndex) {
+    double w = 1.0;
+    final myScore = players[playerIndex].totalScore;
+    int bestOpp = -999999;
+    for (int i = 0; i < 4; i++) {
+      if (i == playerIndex) continue;
+      bestOpp = max(bestOpp, players[i].totalScore);
+    }
+    if (myScore + 30 < bestOpp) w += 0.15; // 落后更进攻
+    if (myScore > bestOpp) w -= 0.10; // 领先稍保守
+    if (wall.length < 30) w += 0.10; // 牌墙见底，略加速
+    return w.clamp(0.85, 1.3).toDouble();
+  }
+
   double _patternBiasScore(int playerIndex, Tile discard, Map<String, int> counts) {
     final hand = players[playerIndex].handTiles;
     int wan = 0, tong = 0, tiao = 0, honor = 0;
@@ -1742,6 +1784,42 @@ class MahjongGame {
         (nums.contains(n - 1) && nums.contains(n + 1)) ||
         (nums.contains(n + 1) && nums.contains(n + 2));
     return canSeq;
+  }
+
+  void _recordHotTile(Tile t) {
+    final key = _tileKey(t);
+    hotTiles[key] = (hotTiles[key] ?? 0) + 1;
+  }
+
+  String _tileKey(Tile t) => '${t.type.index}_${t.number}';
+
+  bool _opponentHasMeldTile(int oppIndex, Tile t) {
+    for (final m in players[oppIndex].melds) {
+      if (m.any((x) => x.type == t.type && x.number == t.number)) return true;
+    }
+    return false;
+  }
+
+  TileSuit? _opponentDominantSuit(int oppIndex) {
+    int wan = 0, tong = 0, tiao = 0;
+    for (final t in players[oppIndex].handTiles) {
+      if (t.suit == TileSuit.wan) wan++;
+      else if (t.suit == TileSuit.tong) tong++;
+      else if (t.suit == TileSuit.tiao) tiao++;
+    }
+    for (final m in players[oppIndex].melds) {
+      for (final t in m) {
+        if (t.suit == TileSuit.wan) wan++;
+        else if (t.suit == TileSuit.tong) tong++;
+        else if (t.suit == TileSuit.tiao) tiao++;
+      }
+    }
+    final maxSuit = max(wan, max(tong, tiao));
+    if (maxSuit < 5) return null;
+    if (maxSuit == wan) return TileSuit.wan;
+    if (maxSuit == tong) return TileSuit.tong;
+    if (maxSuit == tiao) return TileSuit.tiao;
+    return null;
   }
 
   bool _hasDiscarded(List<Tile> list, Tile t) {
