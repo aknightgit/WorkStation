@@ -580,7 +580,8 @@ class MahjongGame {
     final winner = players[winnerIndex];
     final isSelfDraw = pendingTile == null;
     final fixed = _calcFixedScore(winner, isSelfDraw);
-    final basePoints = fixed.points > 0 ? fixed.points : _calcBasePoints(winner);
+    final useFormula = _isPengPengHu(winner) || _isHunYiSe(winner);
+    final basePoints = fixed.points > 0 ? fixed.points : (useFormula ? _calcBasePoints(winner) : 0);
     final finalReason = fixed.points > 0 ? fixed.reason : (_calcHuType(winner) ?? reason);
     final extraMultiplier = _calcExtraMultiplier(winner);
     final total = basePoints * finalMultiplier * extraMultiplier;
@@ -614,6 +615,7 @@ class MahjongGame {
   FixedScore _calcFixedScore(Player winner, bool isSelfDraw) {
     if (_isFengPeng(winner)) return FixedScore(40, '风碰');
     if (_isFengYiSe(winner)) return FixedScore(20, '风一色');
+    if (_isQingPeng(winner)) return FixedScore(20, '清碰');
     if (_isQingYiSe(winner)) return FixedScore(10, '清一色');
     if (_isWuHuaZiMo(winner, isSelfDraw)) return FixedScore(10, '无花自摸');
     if (_isGangKai(winner, isSelfDraw)) return FixedScore(10, '杠开');
