@@ -161,6 +161,7 @@ class MahjongGame {
   bool awaitingPlayerResponse = false; // 等待玩家响应（吃碰杠胡/过）
   int? lastDiscarderIndex;
   bool lastKongDraw = false; // 是否为杠/补花后的补牌
+  int? lastWinnerIndex;
   SettlementResult? lastSettlement;
   
   // 包关系: baoRelations[fromPlayer][toPlayer] = count
@@ -327,9 +328,14 @@ class MahjongGame {
     processTurn();
   }
 
-  // 逆时针下一家
+  // 逆时针下一家（跳过已胡玩家）
   void nextPlayer() {
-    currentPlayerIndex = (currentPlayerIndex + 3) % 4;
+    for (int i = 0; i < 4; i++) {
+      currentPlayerIndex = (currentPlayerIndex + 3) % 4;
+      if (!eliminatedPlayers.contains(currentPlayerIndex)) {
+        return;
+      }
+    }
   }
 
   // 检查是否可以吃（上家动态）
@@ -750,6 +756,7 @@ class MahjongGame {
     lastDiscarderIndex = null;
     wildTile = null;
     lastKongDraw = false;
+    lastWinnerIndex = null;
     awaitingPlayerResponse = false;
     mustDiscard = false;
     phase = GamePhase.waiting;
@@ -769,16 +776,19 @@ class MahjongGame {
   // 血战到底：玩家胡牌
   // 返回 true 表示游戏结束，false 表示继续
   bool playerWins(int playerIndex) {
+    if (eliminatedPlayers.contains(playerIndex)) return false;
     eliminatedPlayers.add(playerIndex);
+    lastWinnerIndex = playerIndex;
+    pendingTile = null;
+    awaitingPlayerResponse = false;
     
     // 血战到底：重新计算上家关系
-    // 原来上家变成下家，继续游戏
     _recalculatePositionsAfterElimination(playerIndex);
     
     // 检查是否只剩一家
     if (activePlayerCount <= 1) {
-      // 游戏结束
-      _applySettlement(_settleWin(playerIndex));
+      // 游戏结束（用最后一次胡牌者结算）
+      _applySettlement(_settleWin(lastWinnerIndex ?? playerIndex, reason: '血战到底'));
       return true;
     }
     
@@ -1066,6 +1076,7 @@ class MahjongGame {
   // AI执行一步（吃/碰/摸/打）
   void aiPlay(int playerIndex) {
     if (playerIndex == 0) return; // 玩家自己控制
+    if (eliminatedPlayers.contains(playerIndex)) return;
     
     final player = players[playerIndex];
     
@@ -1152,6 +1163,7 @@ class MahjongGame {
     for (int offset = 1; offset <= 3; offset++) {
       final playerIdx = (currentPlayerIndex + offset) % 4;
       if (playerIdx == 0) continue;
+      if (eliminatedPlayers.contains(playerIdx)) continue;
       
       final player = players[playerIdx];
       if (canHu(player)) return playerIdx;
