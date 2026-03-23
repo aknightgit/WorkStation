@@ -80,9 +80,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     final canRespond = _game.awaitingPlayerResponse;
     final canActAfterDelay = _game.allowNextPlayerAction && _game.nextPlayerIndex == 0;
     final hasFlowerInHand = player.handTiles.any((t) => t.isFlower);
+    final canSelfAction = isMyTurn && _game.mustDiscard;
     canPong = canRespond && _game.pendingTile != null && _game.canPong(player);
-    canKong = canRespond && (_game.canKong(player) || hasFlowerInHand);
-    canHu = canRespond && _game.canHu(player);
+    canKong = (canRespond && (_game.canKong(player) || hasFlowerInHand)) || (canSelfAction && (_game.canKong(player) || hasFlowerInHand));
+    canHu = (canRespond && _game.canHu(player)) || (canSelfAction && _game.canHu(player));
     canChow = canActAfterDelay && _game.pendingTile != null && _game.canChow(player);
     final canRebelNow = _game.canRebel(0);
     if (canRebelNow && !_rebelAnimController.isAnimating) {
