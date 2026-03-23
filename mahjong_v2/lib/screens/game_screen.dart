@@ -21,12 +21,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   int _freezeCountdown = 0;
   Timer? _freezeTimer;
 
-  // 骰子动画
   late AnimationController _diceAnimController;
   late Animation<double> _diceRotateAnimation;
   List<int> _displayDice = [1, 1];
 
-  // 造反按钮心跳动画
   late AnimationController _rebelAnimController;
   late Animation<double> _rebelPulse;
 
@@ -74,7 +72,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    // 检查操作选项（花牌可以杠-补花）
     final player = _game.players[0];
     final isMyTurn = _game.currentPlayerIndex == 0;
     final canRespond = _game.awaitingPlayerResponse;
@@ -95,25 +92,30 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     return Scaffold(
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final w = constraints.maxWidth;
-          final h = constraints.maxHeight;
+          final sw = constraints.maxWidth;
+          final sh = constraints.maxHeight;
 
-          // 梯形: 上宽80%, 下宽100%, 高100%
-          final tableTop = 0.0;
-          final tableHeight = h;
-          final topWidth = w * 0.80;
-          final bottomWidth = w * 1.00;
+          // Table dimensions: ~85% width, ~75% height
+          final tableW = sw * 0.85;
+          final tableH = sh * 0.75;
+          final tableLeft = (sw - tableW) / 2;
+          final tableTop = (sh - tableH) / 2;
 
-          // 牌墙离桌边距离
-          final wallOffset = w * 0.08;
+          // Wall tile size: ~3% of screen width
+          final wallTileW = sw * 0.03;
+          final wallTileH = wallTileW * 1.3;
 
-          // 牌尺寸 - 长边紧靠
-          final tileW = w * 0.045;
-          final tileH = tileW * 1.3;
+          // River/discard tile: 60% of wall tile
+          final riverTileW = wallTileW * 0.6;
+          final riverTileH = wallTileH * 0.6;
+
+          // Hand tile: ~5% of screen width
+          final handTileW = sw * 0.05;
+          final handTileH = handTileW * 1.3;
 
           return Stack(
             children: [
-              // 木纹背景
+              // ===== Wood background =====
               Container(
                 decoration: const BoxDecoration(
                   image: DecorationImage(
@@ -123,107 +125,112 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 ),
               ),
 
-              // ===== 梯形桌布 =====
-              Center(
+              // ===== Rectangular green felt table =====
+              Positioned(
+                left: tableLeft,
+                top: tableTop,
+                width: tableW,
+                height: tableH,
                 child: Container(
-                  height: tableHeight,
-                  child: CustomPaint(
-                    size: Size(bottomWidth, tableHeight),
-                    painter: TrapezoidPainter(topWidth, bottomWidth),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFD4AF37), width: 3),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.6), blurRadius: 20, spreadRadius: 4),
+                    ],
                   ),
                 ),
               ),
 
-              // ===== 牌墙 - 4边各18堆，长边紧靠 =====
-              // 上牌墙 (平行于上边)
+              // ===== Wall tiles: Top =====
               Positioned(
-                left: (w - topWidth) / 2 + wallOffset,
-                right: (w - topWidth) / 2 + wallOffset,
-                top: wallOffset,
-                child: _buildWallRow(18, tileW * 0.7, tileH * 0.7),
+                left: tableLeft + wallTileW * 0.5,
+                top: tableTop + wallTileH * 0.3,
+                child: _buildWallRow(18, wallTileW * 0.7, wallTileH * 0.7),
               ),
-              // 下牌墙 (平行于下边)
+              // ===== Wall tiles: Bottom =====
               Positioned(
-                left: (w - bottomWidth) / 2 + wallOffset,
-                right: (w - bottomWidth) / 2 + wallOffset,
-                bottom: wallOffset,
-                child: _buildWallRow(18, tileW * 0.7, tileH * 0.7),
+                left: tableLeft + wallTileW * 0.5,
+                top: tableTop + tableH - wallTileH * 0.7 - wallTileH * 0.3,
+                child: _buildWallRow(18, wallTileW * 0.7, wallTileH * 0.7),
               ),
-              // 左牌墙 - 平行于梯形左边
+              // ===== Wall tiles: Left (vertical) =====
               Positioned(
-                left: wallOffset * 0.3,
-                top: h * 0.12,
-                bottom: h * 0.12,
-                child: Transform.rotate(
-                  angle: -0.15, // 与梯形左边平行
-                  child: _buildWallRow(18, tileW * 0.7, tileH * 0.7),
-                ),
+                left: tableLeft + wallTileW * 0.3,
+                top: tableTop + wallTileH * 0.5,
+                child: _buildWallCol(18, wallTileW * 0.7, wallTileH * 0.7),
               ),
-              // 右牌墙 - 平行于梯形右边
+              // ===== Wall tiles: Right (vertical) =====
               Positioned(
-                right: wallOffset * 0.3,
-                top: h * 0.12,
-                bottom: h * 0.12,
-                child: Transform.rotate(
-                  angle: 0.15, // 与梯形右边平行
-                  child: _buildWallRow(18, tileW * 0.7, tileH * 0.7),
-                ),
+                left: tableLeft + tableW - wallTileW * 0.7 - wallTileW * 0.3,
+                top: tableTop + wallTileH * 0.5,
+                child: _buildWallCol(18, wallTileW * 0.7, wallTileH * 0.7),
               ),
 
-              // ===== 头像 =====
-              _buildAvatar('东', Colors.red, w * 0.5, h * 0.05, _playerColors[0], _game.players[0].totalScore),
-              _buildAvatar('南', Colors.green, w * 0.95, h * 0.5, _playerColors[1], _game.players[1].totalScore),
-              _buildAvatar('西', Colors.blue, w * 0.5, h * 0.95, _playerColors[2], _game.players[2].totalScore),
-              _buildAvatar('北', Colors.orange, w * 0.05, h * 0.5, _playerColors[3], _game.players[3].totalScore),
+              // ===== Avatars =====
+              _buildAvatar('东', Colors.red, sw * 0.5, tableTop - 20, _playerColors[0], _game.players[0].totalScore),
+              _buildAvatar('南', Colors.green, tableLeft + tableW + 28, sh * 0.5, _playerColors[1], _game.players[1].totalScore),
+              _buildAvatar('西', Colors.blue, sw * 0.5, tableTop + tableH + 20, _playerColors[2], _game.players[2].totalScore),
+              _buildAvatar('北', Colors.orange, tableLeft - 28, sh * 0.5, _playerColors[3], _game.players[3].totalScore),
 
-              // ===== 骰子 + 发牌按钮 =====
+              // ===== Dice + Deal button =====
               if (_game.phase == GamePhase.waiting || _game.phase == GamePhase.diceRolling)
                 Positioned(
-                  left: w * 0.35,
-                  right: w * 0.35,
-                  top: h * 0.4,
+                  left: sw * 0.35,
+                  right: sw * 0.35,
+                  top: sh * 0.4,
                   child: Column(
                     children: [
                       _buildDiceWithAnimation(),
                       const SizedBox(height: 10),
-                      Text('掷骰次数：${_game.diceRollCount}/${_game.maxDiceRolls}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                      Text('掷骰次数：${_game.diceRollCount}/${_game.maxDiceRolls}',
+                          style: const TextStyle(color: Colors.white70, fontSize: 12)),
                       const SizedBox(height: 12),
-                      // 发牌按钮 - 骰子掷完后显示
-                      if (_game.diceRolled || _game.phase == GamePhase.diceRolling)
-                        _buildDealButton(),
+                      if (_game.diceRolled || _game.phase == GamePhase.diceRolling) _buildDealButton(),
                     ],
                   ),
                 ),
-              // ===== 倍数显示 =====
+
+              // ===== Multiplier display (top of table) =====
               if (_game.phase == GamePhase.playing)
-                Positioned.fill(
+                Positioned(
+                  left: 0, right: 0,
+                  top: tableTop + tableH * 0.05,
                   child: Center(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                       decoration: BoxDecoration(
                         color: Colors.black54,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFD4AF37), width: 2),
+                        border: Border.all(color: const Color(0xFFD4AF37), width: 1.5),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text('本局倍数 ×${_game.finalMultiplier}', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _multiplierColor(_game.finalMultiplier))),
-                          const SizedBox(width: 12),
+                          Text('×${_game.finalMultiplier}',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold,
+                                  color: _multiplierColor(_game.finalMultiplier))),
+                          const SizedBox(width: 10),
                           if (_game.wildTile != null)
                             Row(
                               children: [
-                                Text('百搭', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white.withValues(alpha: 0.9))),
-                                const SizedBox(width: 6),
+                                const Text('百搭', style: TextStyle(fontSize: 13, color: Colors.white70)),
+                                const SizedBox(width: 4),
                                 Container(
-                                  width: 36,
-                                  height: 48,
+                                  width: 28, height: 36,
                                   decoration: BoxDecoration(
                                     color: Colors.white,
-                                    borderRadius: BorderRadius.circular(4),
+                                    borderRadius: BorderRadius.circular(3),
                                     border: Border.all(color: const Color(0xFFD4AF37)),
                                   ),
-                                  child: Image.asset(_game.wildTile!.imagePath, fit: BoxFit.contain, errorBuilder: (_, __, ___) => Center(child: Text(_game.wildTile!.displayName, style: const TextStyle(fontSize: 8)))),
+                                  child: Image.asset(_game.wildTile!.imagePath, fit: BoxFit.contain,
+                                      errorBuilder: (_, __, ___) =>
+                                          Center(child: Text(_game.wildTile!.displayName, style: const TextStyle(fontSize: 7)))),
                                 ),
                               ],
                             ),
@@ -243,86 +250,65 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: Colors.white, width: 2),
                       ),
-                      child: Text('等待 $_freezeCountdown', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+                      child: Text('等待 $_freezeCountdown',
+                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
                     ),
                   ),
                 ),
 
-              // ===== 弃牌堆（Issue 3: 4个玩家的出牌区域） =====
+              // ===== Discard area (River/河) =====
               if (_game.phase == GamePhase.playing) ...[
-                // Player 0 (自己/East) 弃牌 - 底部中央，手牌和牌墙之间
-                _buildDiscardArea(
-                  left: w * 0.2, right: w * 0.2,
-                  bottom: h * 0.25,
-                  tiles: _game.players[0].playedTiles,
-                  tileW: tileW * 0.5, tileH: tileH * 0.5,
-                ),
-                // Player 1 (南/Right) 弃牌 - 右侧
-                _buildDiscardArea(
-                  right: w * 0.15,
-                  top: h * 0.3, bottom: h * 0.3,
-                  tiles: _game.players[1].playedTiles,
-                  tileW: tileW * 0.5, tileH: tileH * 0.5,
-                ),
-                // Player 2 (对面) 弃牌 - 顶部中央
-                _buildDiscardArea(
-                  left: w * 0.2, right: w * 0.2,
-                  top: h * 0.25,
-                  tiles: _game.players[2].playedTiles,
-                  tileW: tileW * 0.5, tileH: tileH * 0.5,
-                ),
-                // Player 3 (北/Left) 弃牌 - 左侧
-                _buildDiscardArea(
-                  left: w * 0.15,
-                  top: h * 0.3, bottom: h * 0.3,
-                  tiles: _game.players[3].playedTiles,
-                  tileW: tileW * 0.5, tileH: tileH * 0.5,
-                ),
+                _buildRiverArea(tableLeft, tableTop, tableW, tableH, riverTileW, riverTileH),
               ],
 
-              // ===== 手牌 =====
+              // ===== Hand tiles (bottom) =====
               if (_game.phase == GamePhase.playing)
                 Positioned(
-                  left: 10, right: 10, bottom: 20,
+                  left: sw * 0.12, right: sw * 0.12,
+                  bottom: sh * 0.02,
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       if (player.flowerTiles.isNotEmpty || player.melds.isNotEmpty)
-                        SizedBox(width: tileW * 4.2, child: _buildMeldsArea(tileW, tileH)),
+                        SizedBox(width: handTileW * 4, child: _buildMeldsArea(handTileW, handTileH)),
                       if (player.flowerTiles.isNotEmpty || player.melds.isNotEmpty)
                         const SizedBox(width: 6),
-                      Expanded(child: _buildMyHand(tileW, tileH)),
+                      Expanded(child: _buildMyHand(handTileW, handTileH)),
                     ],
                   ),
                 ),
 
-              // ===== 回合提示 =====
+              // ===== Turn hint (center of table, above river) =====
               if (_game.phase == GamePhase.playing)
                 Positioned(
-                  left: 0, right: 0, bottom: tileH + 50,
+                  left: 0, right: 0,
+                  top: tableTop + tableH * 0.32,
                   child: Center(
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                      decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(12)),
-                      child: Text(_turnHintText(), style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                      decoration: BoxDecoration(
+                        color: Colors.black45,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(_turnHintText(),
+                          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ),
 
-              // ===== 造反按钮 =====
+              // ===== Rebel button =====
               if (canRebelNow)
                 Positioned(
                   top: 50, left: 0, right: 0,
                   child: Center(child: _buildRebelButtons()),
                 ),
 
-              // ===== 操作按钮（置顶） =====
-              if (_game.phase == GamePhase.playing)
-                _buildActionButtons(),
+              // ===== Action buttons (right side) =====
+              if (_game.phase == GamePhase.playing) _buildActionButtons(),
 
-              // ===== 结算面板（置顶） =====
+              // ===== Settlement overlay =====
               if (_game.phase == GamePhase.scoring && _game.lastSettlement != null)
-                _buildSettlementOverlay(w, h),
+                _buildSettlementOverlay(sw, sh),
             ],
           );
         },
@@ -330,83 +316,139 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
-  // ===== Issue 2: 牌墙 - 使用Back.png图片替代绿色渐变 =====
+  // ===== Wall row: horizontal tiles using Back.png =====
   Widget _buildWallRow(int count, double w, double h) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(count, (i) => Container(
         width: w, height: h,
-        margin: const EdgeInsets.symmetric(horizontal: 0), // 长边紧靠
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(3),
-          border: Border.all(color: const Color(0xFFD4AF37), width: 1),
+          borderRadius: BorderRadius.circular(2),
+          border: Border.all(color: const Color(0xFFD4AF37), width: 0.8),
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(3),
-          child: Image.asset(
-            'assets/images/tiles/Regular/Back.png',
-            fit: BoxFit.cover,
-          ),
+          borderRadius: BorderRadius.circular(2),
+          child: Image.asset('assets/images/tiles/Regular/Back.png', fit: BoxFit.cover),
         ),
       )),
     );
   }
 
-  // 左右牌墙 - 长边相连（水平方向）
+  // ===== Wall column: vertical tiles using Back.png =====
   Widget _buildWallCol(int count, double w, double h) {
-    return SizedBox(
-      height: w * count, // 旋转90度后宽变高
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(count, (i) => Container(
-          width: h, height: w, // 长宽互换
-          margin: const EdgeInsets.symmetric(horizontal: 0),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(3),
-            border: Border.all(color: const Color(0xFFD4AF37), width: 1),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(3),
-            child: Image.asset(
-              'assets/images/tiles/Regular/Back.png',
-              fit: BoxFit.cover,
+    return Column(
+      children: List.generate(count, (i) => Container(
+        width: w, height: h,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(2),
+          border: Border.all(color: const Color(0xFFD4AF37), width: 0.8),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(2),
+          child: Image.asset('assets/images/tiles/Regular/Back.png', fit: BoxFit.cover),
+        ),
+      )),
+    );
+  }
+
+  // ===== River (discard area) - 4 quadrants =====
+  Widget _buildRiverArea(double tableLeft, double tableTop, double tableW, double tableH, double tw, double th) {
+    final riverW = tableW * 0.50;
+    final riverH = tableH * 0.40;
+    final riverLeft = tableLeft + (tableW - riverW) / 2;
+    final riverTop = tableTop + (tableH - riverH) / 2;
+
+    return Stack(
+      children: [
+        // Player 0 (South) - bottom half of river
+        _buildDiscardGrid(
+          left: riverLeft, top: riverTop + riverH * 0.52,
+          tiles: _game.players[0].playedTiles,
+          tileW: tw, tileH: th, cols: 6, reversed: false,
+        ),
+        // Player 2 (North) - top half of river (reversed: newest on top)
+        _buildDiscardGrid(
+          left: riverLeft, top: riverTop,
+          tiles: _game.players[2].playedTiles,
+          tileW: tw, tileH: th, cols: 6, reversed: true,
+        ),
+        // Player 1 (West) - right half of river
+        _buildDiscardGridVertical(
+          left: riverLeft + riverW * 0.52, top: riverTop,
+          tiles: _game.players[1].playedTiles,
+          tileW: tw, tileH: th, rows: 5,
+        ),
+        // Player 3 (East) - left half of river
+        _buildDiscardGridVertical(
+          left: riverLeft, top: riverTop,
+          tiles: _game.players[3].playedTiles,
+          tileW: tw, tileH: th, rows: 5,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDiscardGrid({
+    required double left, required double top,
+    required List<Tile> tiles,
+    required double tileW, required double tileH,
+    required int cols, required bool reversed,
+  }) {
+    if (tiles.isEmpty) return const SizedBox.shrink();
+    final displayTiles = reversed ? tiles.reversed.toList() : tiles;
+    return Positioned(
+      left: left, top: top,
+      child: SizedBox(
+        width: cols * (tileW + 1),
+        child: Wrap(
+          spacing: 1, runSpacing: 1,
+          children: displayTiles.map((t) => Container(
+            width: tileW, height: tileH,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(2),
+              border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.5), width: 0.5),
             ),
-          ),
-        )),
+            child: Image.asset(t.imagePath, fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) =>
+                    Center(child: Text(t.displayName, style: TextStyle(fontSize: tileW * 0.3)))),
+          )).toList(),
+        ),
       ),
     );
   }
 
-  // ===== Issue 3: 弃牌堆组件 =====
-  Widget _buildDiscardArea({
-    double? left, double? right, double? top, double? bottom,
+  Widget _buildDiscardGridVertical({
+    required double left, required double top,
     required List<Tile> tiles,
     required double tileW, required double tileH,
+    required int rows,
   }) {
     if (tiles.isEmpty) return const SizedBox.shrink();
     return Positioned(
-      left: left, right: right, top: top, bottom: bottom,
-      child: Center(
-        child: Wrap(
-          spacing: 1,
-          runSpacing: 1,
-          alignment: WrapAlignment.center,
-          children: tiles.map((t) => Container(
-            width: tileW,
-            height: tileH,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(2),
-              border: Border.all(color: const Color(0xFFD4AF37), width: 0.5),
-            ),
-            child: Image.asset(
-              t.imagePath,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => Center(
-                child: Text(t.displayName, style: TextStyle(fontSize: tileW * 0.3)),
-              ),
-            ),
-          )).toList(),
+      left: left, top: top,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: List.generate(
+          (tiles.length / rows).ceil(),
+          (col) {
+            final start = col * rows;
+            final end = (start + rows).clamp(0, tiles.length);
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: tiles.sublist(start, end).map((t) => Container(
+                width: tileW, height: tileH,
+                margin: const EdgeInsets.only(right: 1, bottom: 1),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(2),
+                  border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.5), width: 0.5),
+                ),
+                child: Image.asset(t.imagePath, fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) =>
+                        Center(child: Text(t.displayName, style: TextStyle(fontSize: tileW * 0.3)))),
+              )).toList(),
+            );
+          },
         ),
       ),
     );
@@ -414,7 +456,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   Widget _buildAvatar(String name, Color c, double x, double y, Color dotColor, int score) {
     return Positioned(
-      left: x - 30, top: y - 30,
+      left: x - 28, top: y - 28,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -422,41 +464,40 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             clipBehavior: Clip.none,
             children: [
               Container(
-                width: 50, height: 50,
+                width: 48, height: 48,
                 decoration: BoxDecoration(
                   color: c, shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 3),
+                  border: Border.all(color: Colors.white, width: 2.5),
                   boxShadow: [BoxShadow(color: c.withValues(alpha: 0.5), blurRadius: 8)],
                 ),
-                child: Center(child: Text(name, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold))),
+                child: Center(
+                    child: Text(name,
+                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold))),
               ),
               Positioned(
-                right: -2,
-                top: -2,
+                right: -2, top: -2,
                 child: Container(
-                  width: 14,
-                  height: 14,
-                  decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
+                  width: 12, height: 12,
+                  decoration: BoxDecoration(
+                      color: dotColor, shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 1.5)),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.black54,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text('${score > 0 ? "+" : ""}$score', style: TextStyle(color: score >= 0 ? Colors.green : Colors.red, fontSize: 12, fontWeight: FontWeight.bold)),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+            decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(8)),
+            child: Text('${score > 0 ? "+" : ""}$score',
+                style: TextStyle(color: score >= 0 ? Colors.green : Colors.red,
+                    fontSize: 11, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
   }
 
-  // 滚动骰子动画
-  // 精美3D骰子动画组件
   Widget _buildDiceWithAnimation() {
     return GestureDetector(
       onTap: isRolling ? null : _onDiceTap,
@@ -466,85 +507,52 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           color: Colors.black87,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: const Color(0xFFD4AF37), width: 3),
-          boxShadow: [
-            BoxShadow(color: Colors.black54, blurRadius: 20, offset: const Offset(0, 10)),
-          ],
+          boxShadow: [BoxShadow(color: Colors.black54, blurRadius: 20, offset: const Offset(0, 10))],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _build3DDice(_displayDice[0], 0),
+            _build3DDice(_displayDice[0]),
             const SizedBox(width: 24),
-            _build3DDice(_displayDice[1], 1),
+            _build3DDice(_displayDice[1]),
           ],
         ),
       ),
     );
   }
 
-  // 3D骰子
-  Widget _build3DDice(int value, int index) {
+  Widget _build3DDice(int value) {
     return AnimatedBuilder(
       animation: _diceRotateAnimation,
       builder: (context, child) {
-        // 弹跳 + 旋转效果
         final progress = isRolling ? _diceRotateAnimation.value : 0.0;
         final bounce = isRolling ? (1 - (progress * 2 - 1).abs()) * 1.5 : 0.0;
-        final rotation = isRolling ? progress * 6.28 : 0.0; // 完整旋转
+        final rotation = isRolling ? progress * 6.28 : 0.0;
 
         return Transform(
           transform: Matrix4.identity()
-            ..translate(0.0, -bounce)
+            ..translateByDouble(0.0, -bounce, 0.0, 1.0)
             ..rotateZ(rotation),
           alignment: Alignment.center,
           child: Container(
-            width: 60,
-            height: 60,
+            width: 60, height: 60,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.white,
-                  const Color(0xFFEEEEEE),
-                ],
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft, end: Alignment.bottomRight,
+                colors: [Colors.white, Color(0xFFEEEEEE)],
               ),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.black87, width: 2),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.4),
-                  blurRadius: 8,
-                  offset: const Offset(2, 4),
-                ),
-              ],
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 8, offset: const Offset(2, 4))],
             ),
-            child: Center(
-              child: _buildDiceDots(value),
-            ),
+            child: Center(child: _buildDiceDots(value)),
           ),
         );
       },
     );
   }
 
-  // 骰子点数（带点数样式）
   Widget _buildDiceDots(int value) {
-    return Container(
-      width: 50,
-      height: 50,
-      child: Stack(
-        children: _getDots(value),
-      ),
-    );
-  }
-
-  List<Widget> _getDots(int value) {
-    final dots = <Widget>[];
-    final dotSize = 12.0;
-    final color = Colors.red;
-
-    // 点位定义
     final positions = {
       1: [(0.5, 0.5)],
       2: [(0.2, 0.2), (0.8, 0.8)],
@@ -553,40 +561,21 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       5: [(0.2, 0.2), (0.2, 0.8), (0.5, 0.5), (0.8, 0.2), (0.8, 0.8)],
       6: [(0.2, 0.2), (0.2, 0.5), (0.2, 0.8), (0.8, 0.2), (0.8, 0.5), (0.8, 0.8)],
     };
-
-    for (final pos in positions[value] ?? []) {
-      dots.add(Positioned(
-        left: pos.$1 * 50 - dotSize / 2,
-        top: pos.$2 * 50 - dotSize / 2,
-        child: Container(
-          width: dotSize,
-          height: dotSize,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-            boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 2)],
+    final dotSize = 12.0;
+    return SizedBox(
+      width: 50, height: 50,
+      child: Stack(
+        children: (positions[value] ?? []).map((pos) => Positioned(
+          left: pos.$1 * 50 - dotSize / 2,
+          top: pos.$2 * 50 - dotSize / 2,
+          child: Container(
+            width: dotSize, height: dotSize,
+            decoration: BoxDecoration(
+              color: Colors.red, shape: BoxShape.circle,
+              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2)],
+            ),
           ),
-        ),
-      ));
-    }
-    return dots;
-  }
-
-  Widget _buildDiceFace(int v) {
-    return Container(
-      width: 60, height: 60,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.black, width: 2),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Colors.white, Color(0xFFEEEEEE)],
-        ),
-      ),
-      child: Center(
-        child: Text('$v', style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.red)),
+        )).toList(),
       ),
     );
   }
@@ -599,33 +588,52 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         decoration: BoxDecoration(
           gradient: const LinearGradient(colors: [Color(0xFF4CAF50), Color(0xFF2E7D32)]),
           borderRadius: BorderRadius.circular(25),
-          boxShadow: [BoxShadow(color: Colors.green.withOpacity(0.5), blurRadius: 10)],
+          boxShadow: [BoxShadow(color: Colors.green.withValues(alpha: 0.5), blurRadius: 10)],
         ),
         child: const Text('发牌', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
       ),
     );
   }
 
+  // ===== Hand tiles with selected pop-up =====
   Widget _buildMyHand(double w, double h) {
     final player = _game.players[0];
     return Container(
-      height: h + 30,
-      decoration: BoxDecoration(color: Colors.black38, borderRadius: BorderRadius.circular(8)),
+      height: h + 20,
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(8),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           for (int i = 0; i < player.handTiles.length; i++)
             GestureDetector(
               onTap: () => _playTile(i),
-              child: Container(
-                width: w, height: h,
-                margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 3),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                width: w,
+                height: h,
+                margin: const EdgeInsets.symmetric(horizontal: 1),
+                transform: Matrix4.translationValues(
+                    0, selectedTileIndex == i ? -h * 0.3 : 0, 0),
                 decoration: BoxDecoration(
                   color: selectedTileIndex == i ? Colors.yellow[200] : Colors.white,
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: const Color(0xFFD4AF37)),
+                  border: Border.all(
+                    color: selectedTileIndex == i
+                        ? Colors.yellow
+                        : const Color(0xFFD4AF37).withValues(alpha: 0.6),
+                    width: selectedTileIndex == i ? 2 : 1,
+                  ),
+                  boxShadow: selectedTileIndex == i
+                      ? [const BoxShadow(color: Colors.yellowAccent, blurRadius: 6)]
+                      : null,
                 ),
-                child: Image.asset(player.handTiles[i].imagePath, fit: BoxFit.contain, errorBuilder: (_, __, ___) => Center(child: Text(player.handTiles[i].displayName, style: const TextStyle(fontSize: 9)))),
+                child: Image.asset(player.handTiles[i].imagePath, fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) =>
+                        Center(child: Text(player.handTiles[i].displayName, style: const TextStyle(fontSize: 9)))),
               ),
             ),
         ],
@@ -633,7 +641,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
-  // ===== Issue 1: Fix blank tiles in melds/flowers area =====
   Widget _buildMeldsArea(double w, double h) {
     final player = _game.players[0];
     if (player.melds.isEmpty && player.flowerTiles.isEmpty) return const SizedBox.shrink();
@@ -642,8 +649,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     player.meldSourceCounts.forEach((idx, count) {
       final name = _game.players[idx].name;
       final color = _playerColors[idx % _playerColors.length];
-      sourceWidgets.add(Text('$name×$count', style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.bold)));
-      sourceWidgets.add(const SizedBox(width: 6));
+      sourceWidgets.add(Text('$name×$count',
+          style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.bold)));
+      sourceWidgets.add(const SizedBox(width: 5));
     });
     if (sourceWidgets.isNotEmpty) sourceWidgets.removeLast();
 
@@ -652,44 +660,41 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (sourceWidgets.isNotEmpty)
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(children: sourceWidgets),
-          ),
-        if (sourceWidgets.isNotEmpty) const SizedBox(height: 4),
+          SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children: sourceWidgets)),
+        if (sourceWidgets.isNotEmpty) const SizedBox(height: 3),
         SizedBox(
-          height: h * 0.7,
+          height: h * 0.65,
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
                 if (player.flowerTiles.isNotEmpty)
                   Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
                     child: Row(
-                      children: player.flowerTiles.map((t) {
-                        return Container(
-                          width: w * 0.6,
-                          height: h * 0.6,
-                          margin: const EdgeInsets.symmetric(horizontal: 1),
-                          child: Image.asset(t.imagePath, fit: BoxFit.contain, errorBuilder: (_, __, ___) => Center(child: Text(t.displayName, style: const TextStyle(fontSize: 8)))),
-                        );
-                      }).toList(),
+                      children: player.flowerTiles.map((t) => Container(
+                        width: w * 0.55, height: h * 0.55,
+                        margin: const EdgeInsets.symmetric(horizontal: 1),
+                        child: Image.asset(t.imagePath, fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) =>
+                                Center(child: Text(t.displayName, style: const TextStyle(fontSize: 7)))),
+                      )).toList(),
                     ),
                   ),
                 ...List.generate(player.melds.length, (mi) {
                   final meld = player.melds[mi];
                   final hidden = (mi < player.meldHidden.length) ? player.meldHidden[mi] : false;
                   return Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
                     child: Row(
                       children: meld.map((t) {
                         final img = hidden ? 'assets/images/tiles/Regular/Back.png' : t.imagePath;
                         return Container(
-                          width: w * 0.6,
-                          height: h * 0.6,
+                          width: w * 0.55, height: h * 0.55,
                           margin: const EdgeInsets.symmetric(horizontal: 1),
-                          child: Image.asset(img, fit: BoxFit.contain, errorBuilder: (_, __, ___) => Center(child: Text(t.displayName, style: const TextStyle(fontSize: 8)))),
+                          child: Image.asset(img, fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) =>
+                                  Center(child: Text(t.displayName, style: const TextStyle(fontSize: 7)))),
                         );
                       }).toList(),
                     ),
@@ -703,106 +708,63 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
-  // ===== Issue 4: Action buttons - move up to avoid overlap with hand =====
+  // ===== Action buttons - right side, vertically stacked =====
   Widget _buildActionButtons() {
-    final btnSize = 70.0;
-    final subBtnSize = btnSize * 0.55;
-    final orbitRadius = btnSize * 1.3;
+    final btnSize = 65.0;
+    final subBtnSize = btnSize * 0.52;
     final showDraw = _game.allowNextPlayerAction && _game.nextPlayerIndex == 0 && _game.pendingTile != null;
     final showWait = _game.canUseFreeze(0);
     final canFreeze = showWait && !_freezeActive;
-
-    // 检查抢杠状态
     final isRobbingKong = _game.robbingKong && _game.awaitingPlayerResponse;
     final canRobKong = isRobbingKong && canHu;
 
     return Positioned(
-      right: 10,
-      bottom: 120, // Issue 4: moved up from 30 to 120 to avoid overlap with hand tiles
-      child: SizedBox(
-        width: btnSize * 3,
-        height: btnSize * 3,
-        child: Stack(
+      right: 8,
+      top: 0, bottom: 0,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // 摸 - 中心
             if (showDraw)
-              Positioned(
-                left: btnSize * 0.5,
-                top: btnSize * 0.5,
-                child: GestureDetector(
-                  onTap: showDraw ? _drawTile : null,
-                  child: Container(
-                    width: btnSize,
-                    height: btnSize,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: showDraw ? Colors.red : Colors.grey[700],
-                      border: Border.all(color: Colors.white, width: 3),
-                      boxShadow: [BoxShadow(color: Colors.red.withValues(alpha: 0.5), blurRadius: 10)],
-                    ),
-                    child: Center(child: Text('摸', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white))),
-                  ),
-                ),
-              ),
-            // 等（冻结）- 左上
-            if (showWait)
-              Positioned(left: btnSize * 0.5 - orbitRadius * 0.8, top: btnSize * 0.5 - orbitRadius * 0.6, child: _buildOrbitBtn('等', Colors.indigo, canFreeze, subBtnSize * 0.9, _startFreeze)),
-            // 吃 - 右上
-            Positioned(left: btnSize * 0.5 + orbitRadius * 0.8, top: btnSize * 0.5 - orbitRadius * 0.6, child: _buildOrbitBtn('吃', Colors.orange, canChow, subBtnSize, _onChow)),
-            // 碰 - 右
-            Positioned(left: btnSize * 0.5 + orbitRadius, top: btnSize * 0.5, child: _buildOrbitBtn('碰', Colors.cyan, canPong, subBtnSize, _onPong)),
-            // 杠 - 右下
-            Positioned(left: btnSize * 0.5 + orbitRadius * 0.8, top: btnSize * 0.5 + orbitRadius * 0.6, child: _buildOrbitBtn('杠', Colors.purple, canKong, subBtnSize, _onKong)),
-            // 胡/抢杠 - 左下
+              _buildCircleBtn('摸', Colors.red, showDraw, btnSize, _drawTile),
+            if (showDraw) const SizedBox(height: 8),
+            _buildCircleBtn('吃', Colors.orange, canChow, subBtnSize, _onChow),
+            const SizedBox(height: 6),
+            _buildCircleBtn('碰', Colors.cyan, canPong, subBtnSize, _onPong),
+            const SizedBox(height: 6),
+            _buildCircleBtn('杠', Colors.purple, canKong, subBtnSize, _onKong),
+            const SizedBox(height: 6),
             if (canRobKong)
-              Positioned(left: btnSize * 0.5 - orbitRadius * 0.8, top: btnSize * 0.5 + orbitRadius * 0.6, child: _buildPulseBtn('抢杠', Colors.red, true, subBtnSize, _onHu))
+              _buildCircleBtn('抢杠', Colors.red, true, subBtnSize, _onHu)
             else
-              Positioned(left: btnSize * 0.5 - orbitRadius * 0.8, top: btnSize * 0.5 + orbitRadius * 0.6, child: _buildOrbitBtn('胡', Colors.yellow[700]!, canHu, subBtnSize, _onHu)),
+              _buildCircleBtn('胡', Colors.yellow[700]!, canHu, subBtnSize, _onHu),
+            if (showWait) ...[
+              const SizedBox(height: 6),
+              _buildCircleBtn('等', Colors.indigo, canFreeze, subBtnSize * 0.9, _startFreeze),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildPulseBtn(String label, Color baseColor, bool enabled, double size, VoidCallback onTap) {
-    return AnimatedBuilder(
-      animation: _rebelPulse,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: _rebelPulse.value,
-          child: GestureDetector(
-            onTap: enabled ? onTap : null,
-            child: Container(
-              width: size,
-              height: size,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: enabled ? baseColor : Colors.grey[600]!,
-                border: Border.all(color: enabled ? Colors.white : Colors.grey[400]!, width: 2),
-                boxShadow: [BoxShadow(color: baseColor.withValues(alpha: 0.6), blurRadius: 15, spreadRadius: 2)],
-              ),
-              child: Center(child: Text(label, style: TextStyle(fontSize: size * 0.3, fontWeight: FontWeight.bold, color: enabled ? Colors.white : Colors.grey[400]))),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildOrbitBtn(String label, Color baseColor, bool enabled, double size, VoidCallback onTap) {
+  Widget _buildCircleBtn(String label, Color baseColor, bool enabled, double size, VoidCallback onTap) {
     final color = enabled ? baseColor : Colors.grey[600]!;
     return GestureDetector(
       onTap: enabled ? onTap : null,
       child: Container(
-        width: size,
-        height: size,
+        width: size, height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: color,
           border: Border.all(color: enabled ? Colors.white : Colors.grey[400]!, width: 2),
-          boxShadow: enabled ? [BoxShadow(color: color.withValues(alpha: 0.6), blurRadius: 10)] : null,
+          boxShadow: enabled ? [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 10)] : null,
         ),
-        child: Center(child: Text(label, style: TextStyle(fontSize: size * 0.35, fontWeight: FontWeight.bold, color: enabled ? Colors.white : Colors.grey[400]))),
+        child: Center(
+          child: Text(label,
+              style: TextStyle(fontSize: size * 0.32, fontWeight: FontWeight.bold,
+                  color: enabled ? Colors.white : Colors.grey[400])),
+        ),
       ),
     );
   }
@@ -818,9 +780,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               scale: _rebelPulse.value,
               child: Container(
                 decoration: BoxDecoration(
-                  boxShadow: [
-                    BoxShadow(color: Colors.red.withValues(alpha: 0.6), blurRadius: 18, spreadRadius: 2),
-                  ],
+                  boxShadow: [BoxShadow(color: Colors.red.withValues(alpha: 0.6), blurRadius: 18, spreadRadius: 2)],
                   borderRadius: BorderRadius.circular(28),
                 ),
                 child: child,
@@ -831,8 +791,11 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             onTap: _rebelAccept,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 14),
-              decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(28), border: Border.all(color: Colors.white, width: 2)),
-              child: const Text('我要造反', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+              decoration: BoxDecoration(
+                  color: Colors.red, borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: Colors.white, width: 2)),
+              child: const Text('我要造反',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
             ),
           ),
         ),
@@ -841,8 +804,11 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           onTap: _rebelDecline,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 12),
-            decoration: BoxDecoration(color: Colors.grey[700], borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.white70, width: 1.5)),
-            child: const Text('不造反', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+            decoration: BoxDecoration(
+                color: Colors.grey[700], borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.white70, width: 1.5)),
+            child: const Text('不造反',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
           ),
         ),
       ],
@@ -884,19 +850,24 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(s.isDraw ? '流局结算' : '本局结算', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                Text(s.isDraw ? '流局结算' : '本局结算',
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 if (!s.isDraw && s.winnerIndex != null)
-                  Text('胜者：${_game.players[s.winnerIndex!].name}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  Text('胜者：${_game.players[s.winnerIndex!].name}',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 Text('原因：${s.reason}', style: const TextStyle(fontSize: 14)),
                 const SizedBox(height: 4),
-                Text('底分 ${s.basePoints} × 回合${s.roundMultiplier} × 额外${s.extraMultiplier} = ${s.totalPoints}', style: const TextStyle(fontSize: 14)),
+                Text('底分 ${s.basePoints} × 回合${s.roundMultiplier} × 额外${s.extraMultiplier} = ${s.totalPoints}',
+                    style: const TextStyle(fontSize: 14)),
                 if (s.details.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: s.details.map((d) => Text(d, style: const TextStyle(fontSize: 12, color: Colors.black87))).toList(),
+                    children: s.details
+                        .map((d) => Text(d, style: const TextStyle(fontSize: 12, color: Colors.black87)))
+                        .toList(),
                   ),
                 ],
                 const SizedBox(height: 10),
@@ -910,7 +881,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(_game.players[i].name, style: const TextStyle(fontSize: 14)),
-                          Text(delta >= 0 ? '+$delta' : '$delta', style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+                          Text(delta >= 0 ? '+$delta' : '$delta',
+                              style: TextStyle(color: color, fontWeight: FontWeight.bold)),
                         ],
                       ),
                     );
@@ -929,6 +901,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       ),
     );
   }
+
+  // ========== Game logic methods (unchanged) ==========
 
   void _onNextRound() {
     _cancelFreeze();
@@ -953,7 +927,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     setState(() {
       _game.deal();
     });
-    // 如果庄家不是玩家，AI先出牌
     if (_game.currentPlayerIndex != 0) {
       Future.delayed(const Duration(milliseconds: 500), () {
         _game.aiDiscard(_game.currentPlayerIndex);
@@ -1008,7 +981,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     final p = _game.players[0];
     if (_game.currentPlayerIndex != 0 && !_game.awaitingPlayerResponse) return;
 
-    // 优先补花
     if (p.handTiles.any((t) => t.isFlower)) {
       while (_game.wall.isNotEmpty) {
         final flowerIndex = p.handTiles.indexWhere((t) => t.isFlower);
@@ -1027,7 +999,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       return;
     }
 
-    // 普通杠
     if (_game.canKong(p)) {
       final kongTiles = _game.getKongableTiles(p);
       if (kongTiles.isNotEmpty) {
@@ -1035,13 +1006,12 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         final ok = _game.doKong(p, kongTiles.first, isHidden: isHidden);
         if (!ok) {
           setState(() {});
-          return; // 等待抢杠
+          return;
         }
         _game.awaitingPlayerResponse = false;
         if (p.index == 0) {
-          _game.mustDiscard = false; // 允许补牌
+          _game.mustDiscard = false;
         }
-        // 杠后补牌（若补到花，继续补）
         while (_game.wall.isNotEmpty) {
           final newTile = _game.drawTile(p, isKongDraw: true);
           if (newTile == null) break;
@@ -1087,7 +1057,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     setState(() {});
   }
 
-  // 过（已移除按钮，保留方法备用）
+  // ignore: unused_element
   void _onPass() {
     _cancelFreeze();
     _game.playerPass();
@@ -1096,7 +1066,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   void _playTile(int i) {
     if (_game.currentPlayerIndex != 0) return;
-    if (!_game.mustDiscard) return; // 必须先摸牌
+    if (!_game.mustDiscard) return;
     _cancelFreeze();
     final p = _game.players[0];
     final t = p.handTiles[i];
@@ -1104,45 +1074,27 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     selectedTileIndex = null;
     setState(() {});
 
-    // 玩家打牌后，触发AI回合
     _triggerAIAfterPlayer();
   }
 
   void _triggerAIAfterPlayer() {
-    // 延迟触发AI，确保UI更新
     Future.delayed(const Duration(milliseconds: 300), () {
       if (_game.gameEnded) return;
+      if (_game.pendingTile != null) return;
 
-      // 检查是否有人响应（吃/碰/杠/胡）
-      if (_game.pendingTile != null) {
-        // 等待响应
-        return;
-      }
-
-      // 轮到AI玩家
       _game.nextPlayer();
       while (_game.currentPlayerIndex != 0 && !_game.gameEnded) {
         final idx = _game.currentPlayerIndex;
-
-        // 摸牌
         _game.drawTile(_game.players[idx]);
 
-        // 检查胡
         if (_game.canHu(_game.players[idx])) {
           _game.playerWins(idx);
           break;
         }
 
-        // AI打牌
         _game.aiDiscard(idx);
 
-        // 检查是否有人响应
-        if (_game.pendingTile != null) {
-          // 等待响应或超时
-          break;
-        }
-
-        // 继续下一个玩家
+        if (_game.pendingTile != null) break;
         _game.nextPlayer();
       }
       setState(() {});
@@ -1158,38 +1110,4 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _game.decideRebel(0, false);
     setState(() {});
   }
-}
-
-// 梯形画家
-class TrapezoidPainter extends CustomPainter {
-  final double topW, bottomW;
-  TrapezoidPainter(this.topW, this.bottomW);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..shader = const LinearGradient(
-        colors: [Color(0xFF87CEEB), Color(0xFFB0C4DE)],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
-
-    final path = Path();
-    final topOffset = (size.width - topW) / 2;
-    path.moveTo(topOffset, 0);
-    path.lineTo(topOffset + topW, 0);
-    path.lineTo(size.width, size.height);
-    path.lineTo(0, size.height);
-    path.close();
-
-    canvas.drawPath(path, paint);
-
-    // 金边
-    final borderPaint = Paint()
-      ..color = const Color(0xFFD4AF37)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4;
-    canvas.drawPath(path, borderPaint);
-  }
-
-  @override
-  bool shouldRepaint(TrapezoidPainter old) => topW != old.topW || bottomW != old.bottomW;
 }
