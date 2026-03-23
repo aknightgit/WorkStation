@@ -148,6 +148,7 @@ class MahjongGame {
   int dealerIndex = 0;
   int roundMultiplier = 1;
   int globalMultiplier = 1;
+  int get finalMultiplier => (roundMultiplier * globalMultiplier).clamp(1, 8);
   Tile? wildTile;
   bool diceRolled = false;
   List<int> diceValues = [1, 1];
@@ -545,7 +546,7 @@ class MahjongGame {
       isDraw: true,
       winnerIndex: null,
       basePoints: 0,
-      roundMultiplier: roundMultiplier,
+      roundMultiplier: finalMultiplier,
       extraMultiplier: 1,
       totalPoints: 0,
       deltas: deltas,
@@ -560,7 +561,7 @@ class MahjongGame {
     final basePoints = fixed.points > 0 ? fixed.points : _calcBasePoints(winner);
     final finalReason = fixed.points > 0 ? fixed.reason : reason;
     final extraMultiplier = _calcExtraMultiplier(winner);
-    final total = basePoints * roundMultiplier * extraMultiplier;
+    final total = basePoints * finalMultiplier * extraMultiplier;
 
     final active = <int>[];
     for (int i = 0; i < 4; i++) {
@@ -580,7 +581,7 @@ class MahjongGame {
       isDraw: false,
       winnerIndex: winnerIndex,
       basePoints: basePoints,
-      roundMultiplier: roundMultiplier,
+      roundMultiplier: finalMultiplier,
       extraMultiplier: extraMultiplier,
       totalPoints: total,
       deltas: deltas,
@@ -715,6 +716,10 @@ class MahjongGame {
     for (int i = 0; i < 4; i++) {
       players[i].score += result.deltas[i] ?? 0;
       players[i].totalScore += result.deltas[i] ?? 0;
+    }
+    // 非流局则重置全局倍数
+    if (!result.isDraw) {
+      globalMultiplier = 1;
     }
     phase = GamePhase.scoring;
     gameEnded = true;

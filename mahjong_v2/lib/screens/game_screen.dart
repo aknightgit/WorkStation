@@ -161,10 +161,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 ),
               // ===== 倍数显示 =====
               if (_game.phase == GamePhase.playing)
-                Positioned(
-                  left: w * 0.35,
-                  right: w * 0.35,
-                  top: h * 0.4,
+                Positioned.fill(
                   child: Center(
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -173,7 +170,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: const Color(0xFFD4AF37), width: 2),
                       ),
-                      child: Text('本局倍数 x${_game.roundMultiplier}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                      child: Text('本局倍数 x${_game.finalMultiplier}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
                     ),
                   ),
                 ),
