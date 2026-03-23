@@ -86,28 +86,42 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
-  // ===== Helper: wall tile with real Back.png image =====
+  // ===== Helper: wall tile with gradient back =====
   Widget _wallTile({required double w, required double h}) {
     return Container(
       width: w,
       height: h,
-      margin: const EdgeInsets.all(0.3),
+      margin: const EdgeInsets.all(0.4),
       decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF1565C0),  // blue top
+            Color(0xFF0D47A1),  // darker blue
+          ],
+        ),
         borderRadius: BorderRadius.circular(3),
+        border: Border.all(color: const Color(0xFFD4AF37), width: 0.8),
         boxShadow: const [
-          BoxShadow(color: Colors.black26, blurRadius: 2, offset: Offset(1, 1)),
+          BoxShadow(color: Colors.black38, blurRadius: 2, offset: Offset(1, 1)),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(3),
-        child: Image.asset(
-          'assets/images/tiles/Regular/Back.png',
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFF1565C0),
-              borderRadius: BorderRadius.circular(3),
+      child: Center(
+        child: Container(
+          width: w * 0.6,
+          height: h * 0.5,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                const Color(0xFF0D47A1).withValues(alpha: 0.6),
+                const Color(0xFF1565C0).withValues(alpha: 0.3),
+              ],
             ),
+            borderRadius: BorderRadius.circular(2),
+            border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.5), width: 0.5),
           ),
         ),
       ),
@@ -162,11 +176,23 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             children: [
               // ===== 1. Full-screen wood background =====
               Positioned.fill(
-                child: Image.asset(
-                  'assets/backgrounds/light_wood.png',
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) =>
-                      Container(color: const Color(0xFF5D4037)),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Color(0xFF5D4037),
+                        Color(0xFF4E342E),
+                        Color(0xFF3E2723),
+                      ],
+                    ),
+                  ),
+                  child: Image.asset(
+                    'assets/backgrounds/light_wood.png',
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const SizedBox(),
+                  ),
                 ),
               ),
 
@@ -183,9 +209,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                     boxShadow: const [
                       BoxShadow(color: Colors.black54, blurRadius: 20, offset: Offset(0, 8)),
                     ],
-                    image: const DecorationImage(
-                      image: AssetImage('assets/backgrounds/felt.png'),
-                      fit: BoxFit.cover,
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Color(0xFF1B5E20),
+                        Color(0xFF2E7D32),
+                        Color(0xFF1B5E20),
+                      ],
+                      stops: [0.0, 0.5, 1.0],
                     ),
                   ),
                 ),
