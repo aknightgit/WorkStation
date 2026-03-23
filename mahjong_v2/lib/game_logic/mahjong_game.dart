@@ -167,6 +167,9 @@ class MahjongGame {
   bool allowNextPlayerAction = false; // 响应窗口结束，允许下家摸/吃
   bool responseTimerActive = false;
   int? nextPlayerIndex;
+  Duration responseWindowDuration = const Duration(seconds: 1);
+  Duration aiRespondDelay = const Duration(milliseconds: 300);
+  Duration aiDiscardDelay = const Duration(milliseconds: 500);
   List<int> freezeChances = [3, 3, 3, 3];
   void Function()? onStateChanged;
   int? lastDiscarderIndex;
@@ -1415,7 +1418,7 @@ class MahjongGame {
     // 启动1秒响应窗口计时（不强制卡住）
     if (!responseTimerActive) {
       responseTimerActive = true;
-      Future.delayed(const Duration(seconds: 1), () {
+      Future.delayed(responseWindowDuration, () {
         responseTimerActive = false;
         if (freezeActive) return;
         if (pendingTile == null || !responseWindowOpen) return;
@@ -1425,8 +1428,15 @@ class MahjongGame {
         if (responder != null) {
           responseWindowOpen = false;
           allowNextPlayerAction = false;
-          aiPlay(responder);
-          onStateChanged?.call();
+          if (aiRespondDelay == Duration.zero) {
+            aiPlay(responder);
+            onStateChanged?.call();
+          } else {
+            Future.delayed(aiRespondDelay, () {
+              aiPlay(responder);
+              onStateChanged?.call();
+            });
+          }
           return;
         }
 
@@ -1448,13 +1458,25 @@ class MahjongGame {
     // 下家只能吃或摸
     if (canChow(player)) {
       doChow(player, null);
-      aiDiscard(playerIndex);
+      if (aiDiscardDelay == Duration.zero) {
+        aiDiscard(playerIndex);
+      } else {
+        Future.delayed(aiDiscardDelay, () {
+          aiDiscard(playerIndex);
+        });
+      }
     } else {
       _clearResponseWindowFlags();
       pendingTile = null;
       currentPlayerIndex = playerIndex;
       drawTile(player);
-      aiDiscard(playerIndex);
+      if (aiDiscardDelay == Duration.zero) {
+        aiDiscard(playerIndex);
+      } else {
+        Future.delayed(aiDiscardDelay, () {
+          aiDiscard(playerIndex);
+        });
+      }
     }
   }
 
