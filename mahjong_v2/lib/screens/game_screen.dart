@@ -949,6 +949,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _game.awaitingPlayerResponse = false;
     if (_game.robbingKong) {
       _game.playerRobKongHu();
+    } else if (_game.pendingTile != null) {
+      _game.claimHu(0);
+      _game.resolveMultiHuFromPlayer();
     } else {
       _game.playerWins(0);
     }

@@ -188,6 +188,8 @@ class MahjongGame {
   int? robKongMeldIndex;
   List<int> freezeChances = [3, 3, 3, 3];
   List<bool> rebelDecided = [false, false, false, false];
+  Set<int> huClaimers = {};
+  int? firstHuClaimer;
   void Function()? onStateChanged;
   int? lastDiscarderIndex;
   bool lastKongDraw = false; // 是否为杠/补花后的补牌
@@ -367,6 +369,7 @@ class MahjongGame {
     nextPlayerIndex = _peekNextPlayerIndex();
     turnCounter += 1;
     rebelDecided[player.index] = true;
+    _resetHuClaims();
     _recordDeadTile(tile);
     if (player.index == 0) {
       mustDiscard = false; // 打牌后可进入下一轮
@@ -401,6 +404,11 @@ class MahjongGame {
     responseTimerActive = false;
     nextPlayerIndex = null;
     awaitingPlayerResponse = false;
+  }
+
+  void _resetHuClaims() {
+    huClaimers.clear();
+    firstHuClaimer = null;
   }
 
   bool canUseFreeze(int playerIndex) => freezeChances[playerIndex] > 0;
@@ -1117,6 +1125,81 @@ class MahjongGame {
     
     // 继续游戏（跳过已胡牌的玩家）
     _nextActivePlayer();
+    return false;
+  }
+
+  bool claimHu(int playerIndex) {
+    if (pendingTile == null) return false;
+    if (eliminatedPlayers.contains(playerIndex)) return false;
+    if (!canHu(players[playerIndex])) return false;
+    huClaimers.add(playerIndex);
+    firstHuClaimer ??= playerIndex;
+    return true;
+  }
+
+  List<int> _collectHuClaimers({bool includeHuman = false}) {
+    final result = <int>[];
+    if (pendingTile == null) return result;
+    for (int offset = 1; offset <= 3; offset++) {
+      final idx = (currentPlayerIndex + offset) % 4;
+      if (eliminatedPlayers.contains(idx)) continue;
+      if (idx == 0 && !includeHuman) continue;
+      if (canHu(players[idx])) result.add(idx);
+    }
+    return result;
+  }
+
+  bool resolveMultiHuFromPlayer() {
+    final autoHu = _collectHuClaimers(includeHuman: false);
+    return _resolveMultiHu(autoClaimers: autoHu);
+  }
+
+  bool _resolveMultiHu({List<int>? autoClaimers}) {
+    if (pendingTile == null) return false;
+    final winnersOrdered = <int>[];
+    if (autoClaimers != null) {
+      for (final idx in autoClaimers) {
+        if (!winnersOrdered.contains(idx)) winnersOrdered.add(idx);
+      }
+    }
+    for (final idx in huClaimers) {
+      if (!winnersOrdered.contains(idx)) winnersOrdered.add(idx);
+    }
+    if (winnersOrdered.isEmpty) return false;
+
+    final firstWinner = firstHuClaimer ?? winnersOrdered.first;
+
+    for (final w in winnersOrdered) {
+      if (!eliminatedPlayers.contains(w)) {
+        eliminatedPlayers.add(w);
+      }
+    }
+
+    lastWinnerIndex = firstWinner;
+    lastWinFromDiscard = true;
+    pendingTile = null;
+    _clearResponseWindowFlags();
+    awaitingPlayerResponse = false;
+    _resetHuClaims();
+
+    if (activePlayerCount <= 1) {
+      _applySettlement(_settleWin(lastWinnerIndex ?? firstWinner, reason: '血战到底'));
+      return true;
+    }
+
+    if (wall.isEmpty) {
+      resolveDraw();
+      return true;
+    }
+
+    // 回合流转到首个胡牌者的右手玩家
+    currentPlayerIndex = _nextActiveIndexLocal(firstWinner);
+    drawTile(players[currentPlayerIndex]);
+    if (currentPlayerIndex != 0) {
+      Future.delayed(aiDiscardDelay, () {
+        aiDiscard(currentPlayerIndex);
+      });
+    }
     return false;
   }
   
@@ -2364,7 +2447,14 @@ class MahjongGame {
         if (freezeActive) return;
         if (pendingTile == null || !responseWindowOpen) return;
 
-        // 窗口结束时，先判定是否有人碰/杠/胡
+        // 窗口结束时，先判定是否有人胡（支持一炮多响）
+        final autoHu = _collectHuClaimers(includeHuman: false);
+        if (_resolveMultiHu(autoClaimers: autoHu)) {
+          onStateChanged?.call();
+          return;
+        }
+
+        // 再判定是否有人碰/杠
         final responder = checkPlayerResponses(allowChow: false);
         if (responder != null) {
           responseWindowOpen = false;
