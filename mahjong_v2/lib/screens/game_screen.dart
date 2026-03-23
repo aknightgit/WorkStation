@@ -29,6 +29,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    _game.onStateChanged = () {
+      if (mounted) setState(() {});
+    };
     _diceAnimController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -49,6 +52,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   @override
   void dispose() {
     _freezeTimer?.cancel();
+    _game.onStateChanged = null;
     _diceAnimController.dispose();
     super.dispose();
   }
@@ -58,12 +62,13 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     // 检查操作选项（花牌可以杠-补花）
     final player = _game.players[0];
     final isMyTurn = _game.currentPlayerIndex == 0;
-    final canRespond = _game.awaitingPlayerResponse || isMyTurn;
+    final canRespond = _game.awaitingPlayerResponse;
+    final canActAfterDelay = _game.allowNextPlayerAction && _game.nextPlayerIndex == 0;
     final hasFlowerInHand = player.handTiles.any((t) => t.isFlower);
     canPong = canRespond && _game.pendingTile != null && _game.canPong(player);
     canKong = canRespond && (_game.canKong(player) || hasFlowerInHand);
     canHu = canRespond && _game.canHu(player);
-    canChow = canRespond && _game.pendingTile != null && _game.canChow(player);
+    canChow = canActAfterDelay && _game.pendingTile != null && _game.canChow(player);
     
     return Scaffold(
       body: LayoutBuilder(
@@ -588,8 +593,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     final btnSize = 70.0;
     final subBtnSize = btnSize * 0.55;
     final orbitRadius = btnSize * 1.1;
-    final showDraw = false; // 发牌后隐藏“摸”按钮
-    final canFreeze = _game.pendingTile != null && !_freezeActive;
+    final showDraw = _game.allowNextPlayerAction && _game.nextPlayerIndex == 0 && _game.pendingTile != null; 
+    final canFreeze = !_freezeActive && _game.canUseFreeze(0);
     
     return Positioned(
       right: 10,
@@ -599,19 +604,19 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         height: btnSize * 2.5,
         child: Stack(
           children: [
-            // 摸（隐藏）
+            // 摸
             if (showDraw)
               Positioned(
                 left: btnSize * 0.5,
                 top: btnSize * 0.5,
                 child: GestureDetector(
-                  onTap: (!_game.mustDiscard && _game.pendingTile == null) ? _drawTile : null,
+                  onTap: showDraw ? _drawTile : null,
                   child: Container(
                     width: btnSize,
                     height: btnSize,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: (!_game.mustDiscard && _game.pendingTile == null) ? Colors.red : Colors.grey[700],
+                      color: showDraw ? Colors.red : Colors.grey[700],
                       border: Border.all(color: Colors.white, width: 3),
                       boxShadow: [BoxShadow(color: Colors.red.withValues(alpha: 0.5), blurRadius: 10)],
                     ),
@@ -619,6 +624,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   ),
                 ),
               ),
+            // 等（冻结）
+            Positioned(left: btnSize * 0.5 - orbitRadius * 0.7, top: btnSize * 0.5, child: _buildOrbitBtn('等', Colors.indigo, canFreeze, subBtnSize * 0.9, _startFreeze)),
             // 吃
             Positioned(left: btnSize * 0.5 + orbitRadius, top: btnSize * 0.5, child: _buildOrbitBtn('吃', Colors.orange, canChow, subBtnSize, _onChow)),
             // 碰
@@ -627,10 +634,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             Positioned(left: btnSize * 0.5 + orbitRadius * 0.85, top: btnSize * 0.5 + orbitRadius * 0.7, child: _buildOrbitBtn('杠', Colors.purple, canKong, subBtnSize, _onKong)),
             // 胡
             Positioned(left: btnSize * 0.5 + orbitRadius * 1.3, top: btnSize * 0.5, child: _buildOrbitBtn('胡', Colors.yellow[700]!, canHu, subBtnSize, _onHu)),
-            // 过
-            Positioned(left: btnSize * 0.5 + orbitRadius * 0.4, top: btnSize * 0.5 + orbitRadius * 1.2, child: _buildOrbitBtn('过', Colors.blueGrey, _game.awaitingPlayerResponse, subBtnSize * 0.9, _onPass)),
-            // 冻结
-            Positioned(left: btnSize * 0.5 - orbitRadius * 0.3, top: btnSize * 0.5 + orbitRadius * 1.05, child: _buildOrbitBtn('冻', Colors.indigo, canFreeze, subBtnSize * 0.9, _startFreeze)),
           ],
         ),
       ),
@@ -667,7 +670,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   String _turnHintText() {
-    if (_game.awaitingPlayerResponse) return '可吃/碰/杠/胡，或点“过”';
+    if (_freezeActive) return '冻结中…';
+    if (_game.awaitingPlayerResponse) return '可碰/杠/胡';
+    if (_game.allowNextPlayerAction && _game.nextPlayerIndex == 0) return '可摸牌/可吃牌';
     if (_game.currentPlayerIndex == 0) {
       return _game.mustDiscard ? '轮到你出牌' : '轮到你摸牌';
     }
@@ -788,7 +793,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _startFreeze() {
-    if (_freezeActive || _game.pendingTile == null) return;
+    if (_freezeActive || !_game.canUseFreeze(0)) return;
+    _game.useFreeze(0);
     _freezeTimer?.cancel();
     _freezeActive = true;
     _freezeCountdown = 3;
@@ -810,10 +816,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _drawTile() {
-    if (_game.currentPlayerIndex != 0 || _game.mustDiscard) return;
+    if (!(_game.allowNextPlayerAction && _game.nextPlayerIndex == 0)) return;
     _cancelFreeze();
-    final p = _game.players[_game.currentPlayerIndex];
-    _game.drawTile(p);
+    _game.playerDrawAfterDelay(0);
     setState(() {});
   }
 
@@ -890,6 +895,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     setState(() {});
   }
 
+  // 过（已移除按钮，保留方法备用）
   void _onPass() {
     _cancelFreeze();
     _game.playerPass();

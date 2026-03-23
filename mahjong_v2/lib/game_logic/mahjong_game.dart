@@ -163,6 +163,12 @@ class MahjongGame {
   bool mustDiscard = false; // 当前玩家是否必须打牌
   bool awaitingPlayerResponse = false; // 等待玩家响应（吃碰杠胡/过）
   bool freezeActive = false; // 冻结：暂停其他玩家响应
+  bool responseWindowOpen = false; // 出牌后的1秒响应窗口
+  bool allowNextPlayerAction = false; // 响应窗口结束，允许下家摸/吃
+  bool responseTimerActive = false;
+  int? nextPlayerIndex;
+  List<int> freezeChances = [3, 3, 3, 3];
+  void Function()? onStateChanged;
   int? lastDiscarderIndex;
   bool lastKongDraw = false; // 是否为杠/补花后的补牌
   int? lastWinnerIndex;
@@ -326,6 +332,10 @@ class MahjongGame {
     lastDiscarderIndex = player.index;
     awaitingPlayerResponse = false;
     lastKongDraw = false;
+    responseWindowOpen = true;
+    allowNextPlayerAction = false;
+    responseTimerActive = false;
+    nextPlayerIndex = _peekNextPlayerIndex();
     if (player.index == 0) {
       mustDiscard = false; // 打牌后可进入下一轮
     }
@@ -341,6 +351,31 @@ class MahjongGame {
       if (!eliminatedPlayers.contains(currentPlayerIndex)) {
         return;
       }
+    }
+  }
+
+  int _peekNextPlayerIndex() {
+    int idx = currentPlayerIndex;
+    for (int i = 0; i < 4; i++) {
+      idx = (idx + 3) % 4;
+      if (!eliminatedPlayers.contains(idx)) return idx;
+    }
+    return currentPlayerIndex;
+  }
+
+  void _clearResponseWindowFlags() {
+    responseWindowOpen = false;
+    allowNextPlayerAction = false;
+    responseTimerActive = false;
+    nextPlayerIndex = null;
+    awaitingPlayerResponse = false;
+  }
+
+  bool canUseFreeze(int playerIndex) => freezeChances[playerIndex] > 0;
+
+  void useFreeze(int playerIndex) {
+    if (freezeChances[playerIndex] > 0) {
+      freezeChances[playerIndex] -= 1;
     }
   }
 
@@ -445,6 +480,7 @@ class MahjongGame {
     
     // 吃牌后轮到该玩家出牌
     pendingTile = null;
+    _clearResponseWindowFlags();
     currentPlayerIndex = player.index;
     if (player.index == 0) {
       mustDiscard = true;
@@ -495,6 +531,7 @@ class MahjongGame {
     
     // 碰牌后轮到该玩家出牌
     pendingTile = null;
+    _clearResponseWindowFlags();
     currentPlayerIndex = player.index;
     if (player.index == 0) {
       mustDiscard = true;
@@ -585,9 +622,10 @@ class MahjongGame {
     final winner = players[winnerIndex];
     final isSelfDraw = !lastWinFromDiscard;
     final fixed = _calcFixedScore(winner, isSelfDraw);
-    final useFormula = _isPengPengHu(winner) || _isHunYiSe(winner);
-    final basePoints = fixed.points > 0 ? fixed.points : (useFormula ? _calcBasePoints(winner) : 0);
-    final finalReason = fixed.points > 0 ? fixed.reason : (_calcHuType(winner) ?? reason);
+    final huType = _calcHuType(winner);
+    final useFormula = huType == '混一色' || huType == '碰碰胡';
+    final basePoints = fixed.points > 0 ? fixed.points : (useFormula ? min(10, _calcBasePoints(winner)) : 0);
+    final finalReason = fixed.points > 0 ? fixed.reason : (huType ?? reason);
     final extraMultiplier = _calcExtraMultiplier(winner);
     final total = basePoints * finalMultiplier * extraMultiplier;
 
@@ -677,10 +715,11 @@ class MahjongGame {
   }
 
   FixedScore _calcFixedScore(Player winner, bool isSelfDraw) {
-    if (_isFengPeng(winner)) return FixedScore(40, '风碰');
-    if (_isFengYiSe(winner)) return FixedScore(20, '风一色');
-    if (_isQingPeng(winner)) return FixedScore(20, '清碰');
-    if (_isQingYiSe(winner)) return FixedScore(10, '清一色');
+    final huType = _calcHuType(winner);
+    if (huType == '风碰') return FixedScore(40, '风碰');
+    if (huType == '风一色') return FixedScore(20, '风一色');
+    if (huType == '清碰') return FixedScore(20, '清碰');
+    if (huType == '清一色') return FixedScore(10, '清一色');
     if (_isWuHuaZiMo(winner, isSelfDraw)) return FixedScore(10, '无花自摸');
     if (_isGangKai(winner, isSelfDraw)) return FixedScore(10, '杠开');
     return FixedScore(0, '');
@@ -856,7 +895,11 @@ class MahjongGame {
   }
 
   String? _calcHuType(Player winner) {
+    // 按优先级（高→低）
+    if (_isFengPeng(winner)) return '风碰';
+    if (_isFengYiSe(winner)) return '风一色';
     if (_isQingPeng(winner)) return '清碰';
+    if (_isQingYiSe(winner)) return '清一色';
     if (_isHunYiSe(winner)) return '混一色';
     if (_isPengPengHu(winner)) return '碰碰胡';
     return null;
@@ -912,7 +955,12 @@ class MahjongGame {
     lastWinnerIndex = null;
     lastWinFromDiscard = false;
     awaitingPlayerResponse = false;
+    responseWindowOpen = false;
+    allowNextPlayerAction = false;
+    responseTimerActive = false;
+    nextPlayerIndex = null;
     freezeActive = false;
+    freezeChances = [3, 3, 3, 3];
     mustDiscard = false;
     phase = GamePhase.waiting;
     gameEnded = false;
@@ -937,6 +985,7 @@ class MahjongGame {
     lastWinnerIndex = playerIndex;
     lastWinFromDiscard = pendingTile != null;
     pendingTile = null;
+    _clearResponseWindowFlags();
     awaitingPlayerResponse = false;
     
     // 血战到底：重新计算上家关系
@@ -1108,6 +1157,7 @@ class MahjongGame {
       player.meldHidden.add(true);
     }
 
+    _clearResponseWindowFlags();
     currentPlayerIndex = player.index;
     if (player.index == 0) {
       mustDiscard = true;
@@ -1316,6 +1366,10 @@ class MahjongGame {
     lastDiscarderIndex = playerIndex;
     awaitingPlayerResponse = false;
     lastKongDraw = false;
+    responseWindowOpen = true;
+    allowNextPlayerAction = false;
+    responseTimerActive = false;
+    nextPlayerIndex = _peekNextPlayerIndex();
     
     // AI打牌后，检查响应
     processTurn();
@@ -1324,7 +1378,7 @@ class MahjongGame {
   // ===== 游戏状态机 =====
   
   // 检查所有玩家是否可响应（吃/碰/杠/胡）
-  int? checkPlayerResponses() {
+  int? checkPlayerResponses({bool allowChow = true}) {
     if (pendingTile == null) return null;
     
     // 按逆时针顺序检查：下家→对家→上家
@@ -1337,7 +1391,7 @@ class MahjongGame {
       if (canHu(player)) return playerIdx;
       if (canKong(player)) return playerIdx;
       if (canPong(player)) return playerIdx;
-      if (playerIdx == (currentPlayerIndex + 1) % 4 && canChow(player)) return playerIdx;
+      if (allowChow && playerIdx == (currentPlayerIndex + 1) % 4 && canChow(player)) return playerIdx;
     }
     return null;
   }
@@ -1346,34 +1400,74 @@ class MahjongGame {
   void processTurn({bool skipPlayerResponse = false}) {
     if (pendingTile == null) return;
     if (freezeActive) return;
+    if (allowNextPlayerAction) return;
 
-    // 玩家有响应权（只在AI打牌后）
+    // 响应窗口开启时，仅允许碰/杠/胡
     if (!skipPlayerResponse && currentPlayerIndex != 0) {
       final player = players[0];
-      final canRespond = canHu(player) || canKong(player) || canPong(player) || canChow(player);
+      final canRespond = canHu(player) || canKong(player) || canPong(player);
       if (canRespond) {
         awaitingPlayerResponse = true;
+        onStateChanged?.call();
         return;
       }
     }
 
     awaitingPlayerResponse = false;
-    final responder = checkPlayerResponses();
+    final responder = checkPlayerResponses(allowChow: false);
     if (responder != null) {
+      responseWindowOpen = false;
+      allowNextPlayerAction = false;
       Future.delayed(const Duration(milliseconds: 300), () {
         aiPlay(responder);
+        onStateChanged?.call();
       });
-    } else {
-      // 无人响应，下家摸牌
-      pendingTile = null;
-      nextPlayer();
-      drawTile(players[currentPlayerIndex]);
-      if (currentPlayerIndex != 0) {
-        Future.delayed(const Duration(milliseconds: 500), () {
-          aiDiscard(currentPlayerIndex);
-        });
-      }
+      return;
     }
+
+    // 启动1秒响应窗口计时
+    if (!responseTimerActive) {
+      responseTimerActive = true;
+      Future.delayed(const Duration(seconds: 1), () {
+        responseTimerActive = false;
+        if (freezeActive) return;
+        if (pendingTile == null || !responseWindowOpen) return;
+        responseWindowOpen = false;
+        allowNextPlayerAction = true;
+        awaitingPlayerResponse = false;
+        nextPlayerIndex ??= _peekNextPlayerIndex();
+        if (nextPlayerIndex != null && nextPlayerIndex != 0) {
+          _aiAfterDelay(nextPlayerIndex!);
+        }
+        onStateChanged?.call();
+      });
+    }
+  }
+
+  void _aiAfterDelay(int playerIndex) {
+    if (!allowNextPlayerAction || pendingTile == null) return;
+    final player = players[playerIndex];
+    // 下家只能吃或摸
+    if (canChow(player)) {
+      doChow(player, null);
+      aiDiscard(playerIndex);
+    } else {
+      _clearResponseWindowFlags();
+      pendingTile = null;
+      currentPlayerIndex = playerIndex;
+      drawTile(player);
+      aiDiscard(playerIndex);
+    }
+  }
+
+  bool playerDrawAfterDelay(int playerIndex) {
+    if (!allowNextPlayerAction || pendingTile == null) return false;
+    if (nextPlayerIndex != playerIndex) return false;
+    _clearResponseWindowFlags();
+    pendingTile = null;
+    currentPlayerIndex = playerIndex;
+    drawTile(players[playerIndex]);
+    return true;
   }
 
   // 玩家选择“过”
