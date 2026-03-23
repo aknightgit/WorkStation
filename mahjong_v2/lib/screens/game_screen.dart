@@ -80,7 +80,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       fit: fit,
       errorBuilder: (_, __, ___) => Container(
         width: width, height: height,
-        color: Colors.white,
+        color: const Color(0xFFF5ECD7),
         child: const Center(child: Icon(Icons.error_outline, size: 12)),
       ),
     );
@@ -456,7 +456,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             t.imagePath,
             fit: BoxFit.contain,
             errorBuilder: (_, __, ___) => Container(
-              color: Colors.white,
+              color: const Color(0xFFF5ECD7),
               child: Center(
                 child: Text(
                   t.displayName,
@@ -847,7 +847,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                     player.handTiles[i].imagePath,
                     fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) => Container(
-                      color: Colors.white,
+                      color: const Color(0xFFF5ECD7),
                       child: Center(
                         child: Text(
                           player.handTiles[i].displayName,
@@ -913,7 +913,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                         t.imagePath,
                         fit: BoxFit.contain,
                         errorBuilder: (_, __, ___) => Container(
-                          color: Colors.white,
+                          color: const Color(0xFFF5ECD7),
                           child: Center(
                             child: Text(t.displayName, style: const TextStyle(fontSize: 6)),
                           ),
@@ -938,7 +938,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                           imgPath,
                           fit: BoxFit.contain,
                           errorBuilder: (_, __, ___) => Container(
-                            color: hidden ? const Color(0xFF1565C0) : Colors.white,
+                            color: hidden ? const Color(0xFF1565C0) : const Color(0xFFF5ECD7),
                             child: Center(
                               child: Text(
                                 hidden ? '' : t.displayName,
@@ -1149,7 +1149,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             width: w * 0.72,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: const Color(0xFFF5ECD7),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: const Color(0xFFD4AF37), width: 2),
             ),
