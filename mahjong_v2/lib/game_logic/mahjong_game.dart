@@ -133,6 +133,12 @@ class SettlementResult {
   });
 }
 
+class FixedScore {
+  final int points;
+  final String reason;
+  FixedScore(this.points, this.reason);
+}
+
 // 游戏逻辑核心
 class MahjongGame {
   List<Tile> wall = []; // 牌墙
@@ -549,7 +555,10 @@ class MahjongGame {
 
   SettlementResult _settleWin(int winnerIndex, {String reason = '胡牌'}) {
     final winner = players[winnerIndex];
-    final basePoints = _calcBasePoints(winner);
+    final isSelfDraw = pendingTile == null;
+    final fixed = _calcFixedScore(winner, isSelfDraw);
+    final basePoints = fixed.points > 0 ? fixed.points : _calcBasePoints(winner);
+    final finalReason = fixed.points > 0 ? fixed.reason : reason;
     final extraMultiplier = _calcExtraMultiplier(winner);
     final total = basePoints * roundMultiplier * extraMultiplier;
 
@@ -575,30 +584,51 @@ class MahjongGame {
       extraMultiplier: extraMultiplier,
       totalPoints: total,
       deltas: deltas,
-      reason: reason,
+      reason: finalReason,
     );
   }
 
+  FixedScore _calcFixedScore(Player winner, bool isSelfDraw) {
+    if (_isFengPeng(winner)) return FixedScore(40, '风碰');
+    if (_isFengYiSe(winner)) return FixedScore(20, '风一色');
+    if (_isQingYiSe(winner)) return FixedScore(10, '清一色');
+    if (_isWuHuaZiMo(winner, isSelfDraw)) return FixedScore(10, '无花自摸');
+    if (_isGangKai(winner, isSelfDraw)) return FixedScore(10, '杠开');
+    return FixedScore(0, '');
+  }
+
   int _calcBasePoints(Player winner) {
-    final flowerCount = winner.flowerTiles.length;
+    final flowerCount = _countFlowers(winner);
     final meldPoints = _calcMeldPoints(winner);
     return 2 + flowerCount + meldPoints;
   }
 
+  int _countFlowers(Player winner) {
+    final inHand = winner.handTiles.where((t) => t.isFlower || t.suit == TileSuit.hua).length;
+    return winner.flowerTiles.length + inHand;
+  }
+
   int _calcMeldPoints(Player winner) {
     int points = 0;
-    for (final meld in winner.melds) {
-      if (meld.isEmpty) continue;
-      final first = meld.first;
-      final isAllSame = meld.every((t) => t.type == first.type && t.number == first.number);
-      if (!isAllSame) continue;
-      final isKong = meld.length == 4;
-      if (first.type == TileType.wind) {
-        points += isKong ? 2 : 1;
-      } else if (first.type == TileType.dragon) {
-        points += isKong ? 3 : 2;
-      } else if (isKong) {
-        points += 1;
+    final tiles = _allNonFlowerTiles(winner);
+    final counts = <String, int>{};
+    for (final t in tiles) {
+      final key = '${t.type.index}_${t.number}';
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+    for (final entry in counts.entries) {
+      final parts = entry.key.split('_');
+      final typeIdx = int.parse(parts[0]);
+      final cnt = entry.value;
+      if (cnt >= 3) {
+        final isKong = cnt == 4;
+        if (typeIdx == TileType.wind.index) {
+          points += isKong ? 2 : 1;
+        } else if (typeIdx == TileType.dragon.index) {
+          points += isKong ? 3 : 2;
+        } else if (isKong) {
+          points += 1;
+        }
       }
     }
     return points;
@@ -611,6 +641,73 @@ class MahjongGame {
     // 门清（没有吃/碰）: 简化为没有明刻/顺
     if (winner.melds.isEmpty) extra *= 2;
     return extra;
+  }
+
+  List<Tile> _allNonFlowerTiles(Player winner) {
+    final tiles = <Tile>[];
+    tiles.addAll(winner.handTiles);
+    for (final m in winner.melds) {
+      tiles.addAll(m);
+    }
+    return tiles.where((t) => !t.isFlower && t.suit != TileSuit.hua).toList();
+  }
+
+  bool _isFengYiSe(Player winner) {
+    final tiles = _allNonFlowerTiles(winner);
+    if (tiles.isEmpty) return false;
+    return tiles.every((t) => t.type == TileType.wind);
+  }
+
+  bool _isFengPeng(Player winner) {
+    final tiles = _allNonFlowerTiles(winner);
+    if (tiles.isEmpty) return false;
+    if (!tiles.every((t) => t.type == TileType.wind)) return false;
+    final counts = <String, int>{};
+    for (final t in tiles) {
+      final key = '${t.type.index}_${t.number}';
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+    // 风碰：所有牌应成刻子/对子
+    return counts.values.every((c) => c == 2 || c == 3 || c == 4);
+  }
+
+  bool _isQingYiSe(Player winner) {
+    final tiles = _allNonFlowerTiles(winner);
+    if (tiles.isEmpty) return false;
+    // 不能包含风/箭
+    if (tiles.any((t) => t.type == TileType.wind || t.type == TileType.dragon)) return false;
+    TileSuit? suit;
+    for (final t in tiles) {
+      if (t.suit == TileSuit.wan || t.suit == TileSuit.tong || t.suit == TileSuit.tiao) {
+        suit ??= t.suit;
+        if (t.suit != suit) return false;
+      }
+    }
+    return suit != null;
+  }
+
+  bool _isWuHuaZiMo(Player winner, bool isSelfDraw) {
+    if (!isSelfDraw) return false;
+    if (_countFlowers(winner) > 0) return false;
+    final tiles = _allNonFlowerTiles(winner);
+    final counts = <String, int>{};
+    for (final t in tiles) {
+      final key = '${t.type.index}_${t.number}';
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+    for (final entry in counts.entries) {
+      final typeIdx = int.parse(entry.key.split('_')[0]);
+      final cnt = entry.value;
+      if ((typeIdx == TileType.wind.index || typeIdx == TileType.dragon.index) && cnt >= 3) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool _isGangKai(Player winner, bool isSelfDraw) {
+    // TODO: 缺少杠后补牌标记，暂不判定
+    return false;
   }
 
   void _applySettlement(SettlementResult result) {

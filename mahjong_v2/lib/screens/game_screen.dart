@@ -582,6 +582,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 if (!s.isDraw && s.winnerIndex != null)
                   Text('胜者：${_game.players[s.winnerIndex!].name}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
+                Text('原因：${s.reason}', style: const TextStyle(fontSize: 14)),
+                const SizedBox(height: 4),
                 Text('底分 ${s.basePoints} × 回合${s.roundMultiplier} × 额外${s.extraMultiplier} = ${s.totalPoints}', style: const TextStyle(fontSize: 14)),
                 const SizedBox(height: 10),
                 Column(
