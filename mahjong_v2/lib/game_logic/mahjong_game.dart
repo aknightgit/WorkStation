@@ -87,13 +87,12 @@ class Player {
     
     if (!hasWan || !hasTong || !hasTiao || !hasWind || !hasDragon || hasFlower || hasWild) return false;
     
-    // 检查是否有对子或刻子
-    final counts = <TileType, int>{};
+    // 检查是否有对子或刻子（按具体牌面）
+    final counts = <String, int>{};
     for (final t in hand) {
-      counts[t.type] = (counts[t.type] ?? 0) + 1;
-    }
-    for (final c in counts.values) {
-      if (c >= 2) return false;
+      final key = '${t.type.index}_${t.number}';
+      counts[key] = (counts[key] ?? 0) + 1;
+      if (counts[key]! >= 2) return false;
     }
     return true;
   }
