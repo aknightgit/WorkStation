@@ -330,13 +330,14 @@ class MahjongGame {
   // 检查是否可以吃（上家动态）
   bool canChow(Player player) {
     if (pendingTile == null) return false;
+    final t = pendingTile!;
+    if (_isWildTile(t)) return false; // 百搭牌不可吃碰杠
     // 只能吃上家（逆时针方向）
     // 当前是 playerIndex，上家是 (playerIndex + 1) % 4
     final fromPlayer = (currentPlayerIndex + 1) % 4;
     // 只有当前玩家是下家时才能吃上家的牌
     if (player.index != fromPlayer) return false;
     
-    final t = pendingTile!;
     // 只能吃顺子，不能吃字牌
     if (t.suit == TileSuit.hua) return false;
     
@@ -810,10 +811,16 @@ class MahjongGame {
     return eliminatedPlayers.contains(playerIndex);
   }
 
+  bool _isWildTile(Tile t) {
+    if (wildTile == null) return false;
+    return t.type == wildTile!.type && t.number == wildTile!.number;
+  }
+
   // 检查是否可以碰
   bool canPong(Player player) {
     if (pendingTile == null) return false;
     final t = pendingTile!;
+    if (_isWildTile(t)) return false; // 百搭牌不可吃碰杠
     return player.handTiles.where((tile) => tile.type == t.type && tile.number == t.number).length >= 2;
   }
 
@@ -822,6 +829,7 @@ class MahjongGame {
     // 明杠：手里有三张，碰哪家打出的牌
     if (pendingTile != null) {
       final t = pendingTile!;
+      if (_isWildTile(t)) return false; // 百搭牌不可吃碰杠
       if (player.handTiles.where((tile) => tile.type == t.type && tile.number == t.number).length >= 3) {
         return true;
       }
@@ -917,65 +925,115 @@ class MahjongGame {
 
   // 检查是否可以胡
   bool canHu(Player player) {
-    return checkHu(player.handTiles);
+    final tiles = <Tile>[...player.handTiles];
+    if (pendingTile != null) {
+      tiles.add(pendingTile!); // 点炮胡
+    }
+    return checkHu(tiles);
   }
 
-  // 核心胡牌检测（简化版）
+  // 核心胡牌检测（支持百搭）
   bool checkHu(List<Tile> tiles) {
-    final hand = tiles.where((t) => !t.isFlower && t.suit != TileSuit.hua).toList();
-    if (hand.length % 3 != 2) return false;
-
     final counts = <String, int>{};
-    for (final t in hand) {
+    int wildCount = 0;
+
+    for (final t in tiles) {
+      if (_isWildTile(t)) {
+        wildCount++;
+        continue;
+      }
+      if (t.isFlower || t.suit == TileSuit.hua) continue;
       final key = '${t.type.index}_${t.number}';
       counts[key] = (counts[key] ?? 0) + 1;
     }
 
-    bool canFormMelds(Map<String, int> c) {
+    int totalTiles = wildCount;
+    for (final v in counts.values) {
+      totalTiles += v;
+    }
+    if (totalTiles % 3 != 2) return false;
+
+    bool canMelds(Map<String, int> c, int wild) {
       String? firstKey;
       for (final k in c.keys) {
         if ((c[k] ?? 0) > 0) { firstKey = k; break; }
       }
-      if (firstKey == null) return true;
+      if (firstKey == null) {
+        return wild % 3 == 0;
+      }
 
       final parts = firstKey.split('_');
       final typeIdx = int.parse(parts[0]);
       final number = int.parse(parts[1]);
+      final countFirst = c[firstKey] ?? 0;
 
-      // 刻子
-      if ((c[firstKey] ?? 0) >= 3) {
-        c[firstKey] = (c[firstKey] ?? 0) - 3;
-        if (canFormMelds(c)) return true;
-        c[firstKey] = (c[firstKey] ?? 0) + 3;
+      // 刻子（用百搭补）
+      if (countFirst >= 3) {
+        c[firstKey] = countFirst - 3;
+        if (canMelds(c, wild)) return true;
+        c[firstKey] = countFirst;
+      }
+      if (countFirst == 2 && wild >= 1) {
+        c[firstKey] = 0;
+        if (canMelds(c, wild - 1)) return true;
+        c[firstKey] = 2;
+      }
+      if (countFirst == 1 && wild >= 2) {
+        c[firstKey] = 0;
+        if (canMelds(c, wild - 2)) return true;
+        c[firstKey] = 1;
       }
 
-      // 顺子（仅万/筒/条）
+      // 顺子（仅万/筒/条，百搭可补）
       if (typeIdx <= TileType.tiao.index && number <= 7) {
         final k1 = '${typeIdx}_${number + 1}';
         final k2 = '${typeIdx}_${number + 2}';
-        if ((c[k1] ?? 0) > 0 && (c[k2] ?? 0) > 0) {
-          c[firstKey] = (c[firstKey] ?? 0) - 1;
-          c[k1] = (c[k1] ?? 0) - 1;
-          c[k2] = (c[k2] ?? 0) - 1;
-          if (canFormMelds(c)) return true;
-          c[firstKey] = (c[firstKey] ?? 0) + 1;
-          c[k1] = (c[k1] ?? 0) + 1;
-          c[k2] = (c[k2] ?? 0) + 1;
+        final c1 = c[k1] ?? 0;
+        final c2 = c[k2] ?? 0;
+        int needWild = 0;
+        if (c1 == 0) needWild++;
+        if (c2 == 0) needWild++;
+        if (wild >= needWild) {
+          c[firstKey] = countFirst - 1;
+          if (c1 > 0) c[k1] = c1 - 1;
+          if (c2 > 0) c[k2] = c2 - 1;
+          if (canMelds(c, wild - needWild)) return true;
+          c[firstKey] = countFirst;
+          if (c1 > 0) c[k1] = c1;
+          if (c2 > 0) c[k2] = c2;
         }
       }
 
       return false;
     }
 
-    for (final k in counts.keys) {
-      if ((counts[k] ?? 0) >= 2) {
-        counts[k] = (counts[k] ?? 0) - 2;
-        if (canFormMelds(counts)) return true;
-        counts[k] = (counts[k] ?? 0) + 2;
+    bool canWinWithPair(Map<String, int> c, int wild) {
+      // 1) 真实对子
+      for (final k in c.keys) {
+        if ((c[k] ?? 0) >= 2) {
+          c[k] = (c[k] ?? 0) - 2;
+          if (canMelds(c, wild)) return true;
+          c[k] = (c[k] ?? 0) + 2;
+        }
       }
+      // 2) 1张+百搭
+      if (wild >= 1) {
+        for (final k in c.keys) {
+          if ((c[k] ?? 0) >= 1) {
+            c[k] = (c[k] ?? 0) - 1;
+            if (canMelds(c, wild - 1)) return true;
+            c[k] = (c[k] ?? 0) + 1;
+          }
+        }
+      }
+      // 3) 百搭对
+      if (wild >= 2) {
+        if (canMelds(c, wild - 2)) return true;
+      }
+      return false;
     }
 
-    return false;
+    return canWinWithPair(counts, wildCount);
   }
 
   // 检查是否满足五毒散
