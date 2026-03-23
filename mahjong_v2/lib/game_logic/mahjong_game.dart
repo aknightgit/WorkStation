@@ -177,6 +177,7 @@ class MahjongGame {
   int monteCarloMaxSteps = 80;
   Duration monteCarloBudget = const Duration(milliseconds: 300);
   bool simulationMode = false;
+  double aiAggression = 1.0; // 1.0 = normal, >1.0 = more aggressive
   bool aiPersistStatsEnabled = true;
   bool aiPersistStrategyEnabled = false;
   bool aiPersistDecisionEnabled = false;
@@ -279,8 +280,8 @@ class MahjongGame {
     final d1 = diceValues[0];
     final d2 = diceValues[1];
     if (d1 == d2) {
-      // 对子：11/44 为4倍，其他对子2倍
-      roundMultiplier = (d1 == 1 || d1 == 4) ? 4 : 2;
+      // 对子：只有 1+1 为4倍，其他对子2倍
+      roundMultiplier = (d1 == 1) ? 4 : 2;
     } else if ((d1 == 1 && d2 == 4) || (d1 == 4 && d2 == 1)) {
       // 1-4 组合两倍
       roundMultiplier = 2;
@@ -2178,7 +2179,8 @@ class MahjongGame {
     if (myScore > bestOpp) w -= 0.10; // 领先稍保守
     if (wall.length < 20) w += 0.15; // 牌墙见底，略加速
     if (wall.length > 100) w -= 0.10; // 早期略保守
-    return w.clamp(0.85, 1.3).toDouble();
+    w *= aiAggression; // 应用进攻系数
+    return w.clamp(0.5, 2.0).toDouble();
   }
 
   double _patternBiasScore(int playerIndex, Tile discard, Map<String, int> counts) {
