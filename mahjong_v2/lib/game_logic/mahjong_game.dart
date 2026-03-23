@@ -175,10 +175,13 @@ class MahjongGame {
   int monteCarloTrials = 100;
   int monteCarloMaxSteps = 80;
   Duration monteCarloBudget = const Duration(milliseconds: 300);
-  bool aiPersistEnabled = true;
+  bool aiPersistStatsEnabled = true;
+  bool aiPersistStrategyEnabled = false;
+  bool aiPersistDecisionEnabled = false;
   String currentGameId = '';
   int aiDecisionSeq = 0;
   int _lastMcTrials = 0;
+  int turnCounter = 0;
   List<int> freezeChances = [3, 3, 3, 3];
   void Function()? onStateChanged;
   int? lastDiscarderIndex;
@@ -319,6 +322,7 @@ class MahjongGame {
 
     currentGameId = DateTime.now().millisecondsSinceEpoch.toString();
     aiDecisionSeq = 0;
+    turnCounter = 0;
     _persistAIStrategy();
   }
 
@@ -354,6 +358,7 @@ class MahjongGame {
     allowNextPlayerAction = false;
     responseTimerActive = false;
     nextPlayerIndex = _peekNextPlayerIndex();
+    turnCounter += 1;
     if (player.index == 0) {
       mustDiscard = false; // 打牌后可进入下一轮
     }
@@ -956,6 +961,7 @@ class MahjongGame {
       players[i].score += result.deltas[i] ?? 0;
       players[i].totalScore += result.deltas[i] ?? 0;
     }
+    _persistGameStats(result);
     // 非流局则重置全局倍数
     if (!result.isDraw) {
       globalMultiplier = 1;
@@ -990,6 +996,7 @@ class MahjongGame {
     baoRelations.clear();
     hotTiles.clear();
     lastSettlement = null;
+    turnCounter = 0;
     for (final p in players) {
       p.handTiles.clear();
       p.melds.clear();
@@ -1392,6 +1399,7 @@ class MahjongGame {
     lastDiscarderIndex = playerIndex;
     awaitingPlayerResponse = false;
     lastKongDraw = false;
+    turnCounter += 1;
     responseWindowOpen = true;
     allowNextPlayerAction = false;
     responseTimerActive = false;
@@ -1847,7 +1855,7 @@ class MahjongGame {
   }
 
   void _persistAIStrategy() {
-    if (!aiPersistEnabled) return;
+    if (!aiPersistStrategyEnabled) return;
     DatabaseService().saveAIStrategy({
       'game_id': currentGameId,
       'timestamp': DateTime.now().toIso8601String(),
@@ -1858,7 +1866,7 @@ class MahjongGame {
   }
 
   void _logAIDecision(int playerIndex, Tile discard, double bestScore, List<Map<String, dynamic>> evals) {
-    if (!aiPersistEnabled) return;
+    if (!aiPersistDecisionEnabled) return;
     evals.sort((a, b) => (b['score'] as num).compareTo(a['score'] as num));
     final top = evals.take(5).toList();
     DatabaseService().saveAIDecision({
@@ -1869,6 +1877,24 @@ class MahjongGame {
       'score': bestScore,
       'top_candidates': top,
       'timestamp': DateTime.now().toIso8601String(),
+    });
+  }
+
+  void _persistGameStats(SettlementResult result) {
+    if (!aiPersistStatsEnabled) return;
+    DatabaseService().saveAIGameStats({
+      'game_id': currentGameId,
+      'timestamp': DateTime.now().toIso8601String(),
+      'is_draw': result.isDraw,
+      'winner_index': result.winnerIndex,
+      'reason': result.reason,
+      'base_points': result.basePoints,
+      'round_multiplier': result.roundMultiplier,
+      'extra_multiplier': result.extraMultiplier,
+      'total_points': result.totalPoints,
+      'turns': turnCounter,
+      'scores': players.map((p) => p.totalScore).toList(),
+      'deltas': result.deltas,
     });
   }
 
