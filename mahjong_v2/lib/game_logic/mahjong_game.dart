@@ -1207,6 +1207,10 @@ class MahjongGame {
 
     // 回合流转到首个胡牌者的右手玩家
     currentPlayerIndex = _nextActiveIndexLocal(firstWinner);
+    if (simulationMode) {
+      // 模拟模式下由外部驱动摸/打，避免异步干扰
+      return false;
+    }
     drawTile(players[currentPlayerIndex]);
     if (currentPlayerIndex != 0) {
       Future.delayed(aiDiscardDelay, () {

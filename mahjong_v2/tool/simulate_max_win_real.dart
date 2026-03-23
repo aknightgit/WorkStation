@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:mahjong_v2/game_logic/mahjong_game.dart';
 
 void main() {
-  final sim = MaxWinSimulator(games: 200, maxSteps: 8000);
+  final sim = MaxWinSimulator(games: 1000, maxSteps: 8000);
   final best = sim.run();
   if (best == null) {
     print('No wins found.');
@@ -25,15 +25,30 @@ class MaxWinSimulator {
   Map<String, dynamic>? run() {
     Map<String, dynamic>? best;
     int bestDelta = -999999;
+    int wins = 0;
+    int draws = 0;
+    int bloodBattleMultiWins = 0;
     for (int g = 1; g <= games; g++) {
       final res = _runOne(g);
-      if (res == null) continue;
+      if (res == null) {
+        draws++;
+        continue;
+      }
+      wins++;
+      final allWins = res['all_wins'] as List;
+      if (allWins.length > 1) bloodBattleMultiWins++;
       final win = res['max_win'] as Map<String, dynamic>;
       final delta = win['winner_delta'] as int;
       if (delta > bestDelta) {
         bestDelta = delta;
         best = res;
       }
+    }
+    if (best != null) {
+      best['total_games'] = games;
+      best['wins'] = wins;
+      best['draws'] = draws;
+      best['blood_battle_multi_wins'] = bloodBattleMultiWins;
     }
     return best;
   }
@@ -68,9 +83,11 @@ class MaxWinSimulator {
           for (final w in huPlayers) {
             final rec = _buildWinRecord(game, w, isSelfDraw: false, fromIndex: shooter);
             winRecords.add(rec);
-            game.claimHu(w);
           }
+          // 一炮多响：调用 resolveMultiHuFromPlayer 处理
           game.resolveMultiHuFromPlayer();
+          // 检查游戏是否结束（血战到底）
+          if (game.gameEnded) break;
           continue;
         }
 
@@ -106,7 +123,10 @@ class MaxWinSimulator {
       if (game.canHu(p)) {
         final rec = _buildWinRecord(game, idx, isSelfDraw: true);
         winRecords.add(rec);
+        // playerWins 会自动处理血战到底：只剩一家时结算，否则继续
         game.playerWins(idx);
+        // 检查游戏是否真正结束（只剩一家或流局）
+        if (game.gameEnded) break;
         continue;
       }
 
@@ -218,6 +238,12 @@ class MaxWinSimulator {
 
 String _pretty(Map<String, dynamic> best) {
   final buf = StringBuffer();
+  buf.writeln('=== 1000局模拟统计 ===');
+  buf.writeln('总局数: ${best['total_games']}');
+  buf.writeln('分胜负: ${best['wins']}');
+  buf.writeln('流局: ${best['draws']}');
+  buf.writeln('血战多局（>1次胡牌）: ${best['blood_battle_multi_wins']}');
+  buf.writeln('');
   final maxWin = best['max_win'] as Map<String, dynamic>;
   buf.writeln('Max win game: #${best['game_index']} steps=${best['steps']}');
   buf.writeln('Winner: ${maxWin['winner_name']}(${maxWin['winner_index']}) delta=${maxWin['winner_delta']}');
