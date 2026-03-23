@@ -994,6 +994,8 @@ class MahjongGame {
 
   bool _isWuHuaZiMo(Player winner, bool isSelfDraw) {
     if (!isSelfDraw) return false;
+    // 仅限：碰碰胡 或 混一色
+    if (!(_isPengPengHu(winner) || _isHunYiSe(winner))) return false;
     if (_countFlowers(winner) > 0) return false;
     final tiles = _allNonFlowerTiles(winner);
     final counts = <String, int>{};
