@@ -280,8 +280,8 @@ class MahjongGame {
     final d1 = diceValues[0];
     final d2 = diceValues[1];
     if (d1 == d2) {
-      // 对子：只有 1+1 为4倍，其他对子2倍
-      roundMultiplier = (d1 == 1) ? 4 : 2;
+      // 对子：1+1 和 4+4 为4倍，其他对子2倍
+      roundMultiplier = (d1 == 1 || d1 == 4) ? 4 : 2;
     } else if ((d1 == 1 && d2 == 4) || (d1 == 4 && d2 == 1)) {
       // 1-4 组合两倍
       roundMultiplier = 2;
