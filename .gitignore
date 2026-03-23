@@ -7,3 +7,6 @@ mahjong-game/.packages
 
 # Misc
 .DS_Store
+
+# AI logs
+mahjong_v2/ai_logs/

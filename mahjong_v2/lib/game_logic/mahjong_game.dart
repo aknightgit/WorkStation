@@ -1898,6 +1898,61 @@ class MahjongGame {
     });
   }
 
+  Map<String, dynamic> buildWinSummary(int winnerIndex, {required bool isSelfDraw}) {
+    final winner = players[winnerIndex];
+    final fixed = _calcFixedScore(winner, isSelfDraw);
+    final huType = _calcHuType(winner);
+    final useFormula = huType == '混一色' || huType == '碰碰胡';
+    final basePoints = fixed.points > 0 ? fixed.points : (useFormula ? min(10, _calcBasePoints(winner)) : 0);
+    final reason = fixed.points > 0 ? fixed.reason : (huType ?? '胡牌');
+    final extra = _calcExtraMultiplier(winner);
+    final total = basePoints * finalMultiplier * extra;
+
+    final melds = <String>[];
+    for (int i = 0; i < winner.melds.length; i++) {
+      final m = winner.melds[i];
+      final hidden = (i < winner.meldHidden.length) ? winner.meldHidden[i] : false;
+      melds.add(_formatMeld(m, hidden));
+    }
+
+    final sources = <String>[];
+    winner.meldSourceCounts.forEach((idx, cnt) {
+      sources.add('${players[idx].name}×$cnt');
+    });
+
+    return {
+      'winner_index': winnerIndex,
+      'winner_name': winner.name,
+      'win_type': isSelfDraw ? '自摸' : '点炮',
+      'hu_type': huType ?? '',
+      'reason': reason,
+      'base_points': basePoints,
+      'round_multiplier': finalMultiplier,
+      'extra_multiplier': extra,
+      'total_points': total,
+      'melds': melds,
+      'meld_sources': sources,
+    };
+  }
+
+  String _formatMeld(List<Tile> meld, bool hidden) {
+    final tiles = meld.map((t) => t.displayName).toList().join(' ');
+    final type = _meldType(meld, hidden);
+    return '$type: $tiles';
+  }
+
+  String _meldType(List<Tile> meld, bool hidden) {
+    if (meld.length == 4) return hidden ? '暗杠' : '明杠';
+    if (meld.length == 3) {
+      final same = meld.every((t) => t.type == meld.first.type && t.number == meld.first.number);
+      if (same) return '碰';
+      final nums = meld.map((t) => t.number).toList()..sort();
+      final isSeq = nums[0] + 1 == nums[1] && nums[1] + 1 == nums[2];
+      if (isSeq) return '吃';
+    }
+    return '副露';
+  }
+
   bool _canHuWithExtra(List<Tile> hand, Tile? extra) {
     final tiles = <Tile>[...hand];
     if (extra != null) tiles.add(extra);

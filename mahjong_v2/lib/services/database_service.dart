@@ -44,6 +44,11 @@ class DatabaseService {
     await _appendJsonLine('ai_game_stats.jsonl', payload);
   }
 
+  // 保存AI首次胡牌明细
+  Future<void> saveAIFirstWin(Map<String, dynamic> payload) async {
+    await _appendJsonLine('ai_first_win.jsonl', payload);
+  }
+
   // 保存游戏结果
   Future<void> saveGameResult({
     required String gameId,
