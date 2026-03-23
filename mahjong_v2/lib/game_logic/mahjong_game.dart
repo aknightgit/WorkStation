@@ -1399,22 +1399,35 @@ class MahjongGame {
     }
     if (candidates.isEmpty) return player.handTiles.first;
 
+    // 控制候选数量，避免爆耗时
+    if (candidates.length > 10) {
+      candidates.shuffle();
+      candidates.removeRange(10, candidates.length);
+    }
+
     final rng = Random();
-    Tile best = candidates.first;
+    Tile? best;
     double bestScore = -9999;
+    double bestSafety = -9999;
 
     for (final c in candidates) {
       if (DateTime.now().difference(start) > monteCarloBudget) break;
-      final score = _simulateDiscardScore(playerIndex, c, rng, start);
+      final safety = _calcSafetyPenalty(playerIndex, c);
+      if (safety > bestSafety) {
+        bestSafety = safety;
+        best ??= c;
+      }
+      if (safety <= -2.0) continue; // 强烈危险，跳过
+      final score = _simulateDiscardScore(playerIndex, c, rng, start, safety);
       if (score > bestScore) {
         bestScore = score;
         best = c;
       }
     }
-    return best;
+    return best ?? player.handTiles.first;
   }
 
-  double _simulateDiscardScore(int playerIndex, Tile discard, Random rng, DateTime start) {
+  double _simulateDiscardScore(int playerIndex, Tile discard, Random rng, DateTime start, double safety) {
     int trials = 0;
     int win = 0;
     int lose = 0;
@@ -1427,7 +1440,48 @@ class MahjongGame {
       trials++;
     }
     if (trials == 0) return -9999;
-    return (win - lose * 0.5) / trials;
+    final mc = (win - lose * 0.5) / trials;
+    final heuristic = _heuristicScore(playerIndex, discard, safety);
+    return mc + heuristic;
+  }
+
+  double _heuristicScore(int playerIndex, Tile discard, double safety) {
+    final player = players[playerIndex];
+    final oldShanten = _calcShantenProxy(player.handTiles);
+    final temp = List<Tile>.from(player.handTiles);
+    _removeOne(temp, discard);
+    final newShanten = _calcShantenProxy(temp);
+    final shantenDelta = oldShanten - newShanten;
+
+    final counts = _countTiles(player.handTiles);
+    final key = '${discard.type.index}_${discard.number}';
+    final cnt = counts[key] ?? 0;
+    final connected = _hasNeighbor(counts, discard);
+    final isolated = !_hasSameOrNeighbor(counts, discard);
+
+    double score = 0;
+    score += safety; // safety 为负数，优先规避
+    score += shantenDelta * 0.15;
+    if (cnt >= 2) score -= 0.10; // 丢对子/刻子
+    if (connected) score -= 0.06; // 丢连张
+    if (isolated) score += 0.08; // 丢孤张
+    if (_isWildTile(discard)) score -= 0.30; // 尽量不丢百搭
+    return score;
+  }
+
+  double _calcSafetyPenalty(int playerIndex, Tile discard) {
+    if (_isWildTile(discard)) return 0; // 百搭打出不可被吃碰杠/点炮
+    double penalty = 0;
+    for (int i = 0; i < 4; i++) {
+      if (i == playerIndex || eliminatedPlayers.contains(i)) continue;
+      if (_canHuWithExtra(players[i].handTiles, discard)) {
+        penalty -= 2.0;
+        penalty -= players[i].melds.length * 0.1;
+      }
+      final match = players[i].handTiles.where((t) => t.type == discard.type && t.number == discard.number).length;
+      if (match >= 2) penalty -= 0.2; // 给对手碰机会
+    }
+    return penalty;
   }
 
   int _simulateOneTrial(int playerIndex, Tile discard, Random rng) {
@@ -1437,17 +1491,15 @@ class MahjongGame {
     wallCopy.shuffle(rng);
 
     final hands = List.generate(4, (i) => List<Tile>.from(players[i].handTiles));
-    int idx = hands[playerIndex].indexWhere((t) => t.id == discard.id);
-    if (idx < 0) {
-      idx = hands[playerIndex].indexWhere((t) => t.type == discard.type && t.number == discard.number);
-    }
-    if (idx >= 0) hands[playerIndex].removeAt(idx);
+    _removeOne(hands[playerIndex], discard);
 
     // 若弃牌直接放炮给他人 → 视为失败
-    for (int i = 0; i < 4; i++) {
-      if (i == playerIndex) continue;
-      if (eliminatedPlayers.contains(i)) continue;
-      if (_canHuWithExtra(hands[i], discard)) return -1;
+    if (!_isWildTile(discard)) {
+      for (int i = 0; i < 4; i++) {
+        if (i == playerIndex) continue;
+        if (eliminatedPlayers.contains(i)) continue;
+        if (_canHuWithExtra(hands[i], discard)) return -1;
+      }
     }
 
     int current = playerIndex;
@@ -1465,12 +1517,107 @@ class MahjongGame {
         return current == playerIndex ? 1 : -1;
       }
 
-      // 简化：随机弃一张
+      // 简化：启发式弃牌
       if (hand.isNotEmpty) {
-        hand.removeAt(rng.nextInt(hand.length));
+        final discardTile = _smartRolloutDiscard(hand, rng);
+        _removeOne(hand, discardTile);
       }
     }
     return 0;
+  }
+
+  Tile _smartRolloutDiscard(List<Tile> hand, Random rng) {
+    if (hand.length <= 1) return hand.first;
+    final counts = _countTiles(hand);
+    Tile best = hand.first;
+    double bestScore = 9999; // 选择“最差”的牌丢掉
+    for (final t in hand) {
+      final key = '${t.type.index}_${t.number}';
+      final cnt = counts[key] ?? 0;
+      final connected = _hasNeighbor(counts, t);
+      final isolated = !_hasSameOrNeighbor(counts, t);
+      double s = 0;
+      if (_isWildTile(t)) s -= 1.0; // rollout里也尽量保百搭
+      if (cnt >= 2) s -= 0.6;
+      if (connected) s -= 0.4;
+      if (isolated) s += 0.5;
+      if (s < bestScore) {
+        bestScore = s;
+        best = t;
+      } else if (s == bestScore && rng.nextBool()) {
+        best = t;
+      }
+    }
+    return best;
+  }
+
+  int _calcShantenProxy(List<Tile> hand) {
+    final counts = _countTiles(hand);
+    int pairs = 0;
+    int triplets = 0;
+    for (final v in counts.values) {
+      if (v >= 2) pairs++;
+      if (v >= 3) triplets++;
+    }
+    int sequences = 0;
+    sequences += _countSequences(hand, TileSuit.wan);
+    sequences += _countSequences(hand, TileSuit.tong);
+    sequences += _countSequences(hand, TileSuit.tiao);
+    final melds = triplets + sequences;
+    final groups = melds + pairs;
+    final shanten = (6 - groups).clamp(0, 6);
+    return shanten;
+  }
+
+  int _countSequences(List<Tile> hand, TileSuit suit) {
+    final nums = List<int>.filled(10, 0);
+    for (final t in hand) {
+      if (t.suit == suit) nums[t.number]++;
+    }
+    int seq = 0;
+    for (int n = 1; n <= 7; n++) {
+      final m = min(nums[n], min(nums[n + 1], nums[n + 2]));
+      if (m > 0) {
+        seq += m;
+        nums[n] -= m;
+        nums[n + 1] -= m;
+        nums[n + 2] -= m;
+      }
+    }
+    return seq;
+  }
+
+  Map<String, int> _countTiles(List<Tile> hand) {
+    final counts = <String, int>{};
+    for (final t in hand) {
+      if (t.isFlower || t.suit == TileSuit.hua) continue;
+      final key = '${t.type.index}_${t.number}';
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+    return counts;
+  }
+
+  bool _hasNeighbor(Map<String, int> counts, Tile t) {
+    if (t.suit != TileSuit.wan && t.suit != TileSuit.tong && t.suit != TileSuit.tiao) return false;
+    final leftKey = '${t.type.index}_${t.number - 1}';
+    final rightKey = '${t.type.index}_${t.number + 1}';
+    return (counts[leftKey] ?? 0) > 0 || (counts[rightKey] ?? 0) > 0;
+  }
+
+  bool _hasSameOrNeighbor(Map<String, int> counts, Tile t) {
+    final key = '${t.type.index}_${t.number}';
+    if ((counts[key] ?? 0) >= 2) return true;
+    return _hasNeighbor(counts, t);
+  }
+
+  void _removeOne(List<Tile> hand, Tile target) {
+    final idx = hand.indexWhere((t) => t.id == target.id);
+    if (idx >= 0) {
+      hand.removeAt(idx);
+      return;
+    }
+    final idx2 = hand.indexWhere((t) => t.type == target.type && t.number == target.number);
+    if (idx2 >= 0) hand.removeAt(idx2);
   }
 
   bool _canHuWithExtra(List<Tile> hand, Tile? extra) {
