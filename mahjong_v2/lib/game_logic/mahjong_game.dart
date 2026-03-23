@@ -1476,20 +1476,39 @@ class MahjongGame {
   double _calcSafetyPenalty(int playerIndex, Tile discard) {
     if (_isWildTile(discard)) return 0; // 百搭打出不可被吃碰杠/点炮
     double penalty = 0;
+    int safeCount = 0;
+    int activeOpp = 0;
+
     for (int i = 0; i < 4; i++) {
       if (i == playerIndex || eliminatedPlayers.contains(i)) continue;
+      activeOpp++;
+      final threat = _opponentThreat(i);
+
       if (_canHuWithExtra(players[i].handTiles, discard)) {
-        penalty -= 2.0;
-        penalty -= players[i].melds.length * 0.1;
+        penalty -= 2.0 * threat;
+        penalty -= players[i].melds.length * 0.1 * threat;
       }
       final match = players[i].handTiles.where((t) => t.type == discard.type && t.number == discard.number).length;
-      if (match >= 2) penalty -= 0.2; // 给对手碰机会
+      if (match >= 2) penalty -= 0.2 * threat; // 给对手碰机会
+
+      // 包三/包四风险：对手已吃/碰我>=2口时，避免给可吃/碰/杠的牌
+      final baoCount = baoRelations[i]?[playerIndex] ?? 0;
+      if (baoCount >= 2 && _canClaimDiscard(i, playerIndex, discard)) {
+        penalty -= (baoCount >= 3 ? 0.8 : 0.5) * threat;
+      }
 
       // 危险牌记忆：对手已打出的牌更安全
       if (_hasDiscarded(players[i].playedTiles, discard)) {
-        penalty += 0.2;
+        safeCount++;
       }
     }
+
+    if (activeOpp > 0) {
+      if (safeCount == activeOpp) penalty += 0.3; // 全员现物更安全
+      else if (safeCount == 0) penalty -= 0.1; // 无现物更危险
+      else penalty += 0.08 * safeCount;
+    }
+
     return penalty;
   }
 
@@ -1693,6 +1712,36 @@ class MahjongGame {
       if (_hasNeighbor(counts, discard)) score += 0.05;
     }
     return score;
+  }
+
+  double _opponentThreat(int oppIndex) {
+    final melds = players[oppIndex].melds.length;
+    int sh = _calcShantenProxy(players[oppIndex].handTiles);
+    sh = max(0, sh - melds);
+    double t = 1.0 + melds * 0.15;
+    if (sh <= 1) t += 0.3;
+    if (sh == 0) t += 0.2;
+    return t.clamp(1.0, 1.8).toDouble();
+  }
+
+  bool _canClaimDiscard(int oppIndex, int discarderIndex, Tile discard) {
+    final hand = players[oppIndex].handTiles;
+    final same = hand.where((t) => t.type == discard.type && t.number == discard.number).length;
+    if (same >= 2) return true; // 可碰
+    if (same >= 3) return true; // 可杠
+    // 可吃：只允许下家
+    final next = _nextActiveIndexLocal(discarderIndex);
+    if (oppIndex != next) return false;
+    if (discard.suit != TileSuit.wan && discard.suit != TileSuit.tong && discard.suit != TileSuit.tiao) return false;
+    final nums = <int>{};
+    for (final t in hand) {
+      if (t.suit == discard.suit) nums.add(t.number);
+    }
+    final n = discard.number;
+    final canSeq = (nums.contains(n - 2) && nums.contains(n - 1)) ||
+        (nums.contains(n - 1) && nums.contains(n + 1)) ||
+        (nums.contains(n + 1) && nums.contains(n + 2));
+    return canSeq;
   }
 
   bool _hasDiscarded(List<Tile> list, Tile t) {
