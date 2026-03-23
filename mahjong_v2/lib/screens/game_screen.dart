@@ -170,7 +170,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: const Color(0xFFD4AF37), width: 2),
                       ),
-                      child: Text('本局倍数 x${_game.finalMultiplier}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                      child: Text('本局倍数 ×${_game.finalMultiplier}', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _multiplierColor(_game.finalMultiplier))),
                     ),
                   ),
                 ),
@@ -555,6 +555,13 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       return _game.mustDiscard ? '轮到你出牌' : '轮到你摸牌';
     }
     return '等待其他玩家...';
+  }
+
+  Color _multiplierColor(int m) {
+    if (m >= 8) return Colors.red;
+    if (m >= 4) return Colors.orange;
+    if (m >= 2) return Colors.yellow;
+    return Colors.green;
   }
 
   Widget _buildSettlementOverlay(double w, double h) {
