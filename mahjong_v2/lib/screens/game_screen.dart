@@ -683,6 +683,13 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 Text('原因：${s.reason}', style: const TextStyle(fontSize: 14)),
                 const SizedBox(height: 4),
                 Text('底分 ${s.basePoints} × 回合${s.roundMultiplier} × 额外${s.extraMultiplier} = ${s.totalPoints}', style: const TextStyle(fontSize: 14)),
+                if (s.details.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: s.details.map((d) => Text(d, style: const TextStyle(fontSize: 12, color: Colors.black87))).toList(),
+                  ),
+                ],
                 const SizedBox(height: 10),
                 Column(
                   children: List.generate(4, (i) {

@@ -122,6 +122,7 @@ class SettlementResult {
   final int totalPoints;
   final Map<int, int> deltas; // 每个玩家的输赢
   final String reason;
+  final List<String> details;
 
   SettlementResult({
     required this.isDraw,
@@ -132,6 +133,7 @@ class SettlementResult {
     required this.totalPoints,
     required this.deltas,
     required this.reason,
+    this.details = const [],
   });
 }
 
@@ -163,6 +165,7 @@ class MahjongGame {
   int? lastDiscarderIndex;
   bool lastKongDraw = false; // 是否为杠/补花后的补牌
   int? lastWinnerIndex;
+  bool lastWinFromDiscard = false;
   SettlementResult? lastSettlement;
   
   // 包关系: baoRelations[fromPlayer][toPlayer] = count
@@ -573,12 +576,13 @@ class MahjongGame {
       totalPoints: 0,
       deltas: deltas,
       reason: reason,
+      details: const [],
     );
   }
 
   SettlementResult _settleWin(int winnerIndex, {String reason = '胡牌'}) {
     final winner = players[winnerIndex];
-    final isSelfDraw = pendingTile == null;
+    final isSelfDraw = !lastWinFromDiscard;
     final fixed = _calcFixedScore(winner, isSelfDraw);
     final useFormula = _isPengPengHu(winner) || _isHunYiSe(winner);
     final basePoints = fixed.points > 0 ? fixed.points : (useFormula ? _calcBasePoints(winner) : 0);
@@ -595,9 +599,67 @@ class MahjongGame {
     for (int i = 0; i < 4; i++) {
       deltas[i] = 0;
     }
-    deltas[winnerIndex] = total * payers.length;
+
+    // 找互包对象（取最高倍）
+    int? baoPartner;
+    int baoMult = 0;
     for (final p in payers) {
-      deltas[p] = -total;
+      final m = getBaoMultiplier(winnerIndex, p);
+      if (m > baoMult) { baoMult = m; baoPartner = p; }
+    }
+
+    final details = <String>[];
+
+    if (!isSelfDraw) {
+      final shooter = lastDiscarderIndex;
+      if (shooter != null) {
+        if (baoPartner != null && shooter == baoPartner) {
+          // 互包互相放冲：2倍
+          deltas[winnerIndex] = total * 2;
+          deltas[shooter] = -total * 2;
+          details.add('互包互相放冲：${players[shooter].name} ×2');
+        } else if (baoPartner != null && shooter != baoPartner) {
+          // 第三方放冲：放冲者×1，互包方×1
+          deltas[winnerIndex] = total * 2;
+          deltas[shooter] = -total;
+          deltas[baoPartner] = -total;
+          details.add('第三方放冲：${players[shooter].name} ×1 + ${players[baoPartner].name} ×1');
+        } else {
+          deltas[winnerIndex] = total;
+          deltas[shooter] = -total;
+          details.add('放冲：${players[shooter].name} ×1');
+        }
+      } else {
+        // 兜底：按自摸×1
+        deltas[winnerIndex] = total * payers.length;
+        for (final p in payers) {
+          deltas[p] = -total;
+        }
+        details.add('放冲未知，按自摸×1');
+      }
+    } else {
+      if (baoPartner != null && baoMult >= 5) {
+        // 四口自摸：互包方×5，其他0
+        deltas[winnerIndex] = total * 5;
+        deltas[baoPartner] = -total * 5;
+        details.add('互包四口自摸：${players[baoPartner].name} ×5，其余0');
+      } else if (baoPartner != null && baoMult >= 3) {
+        // 三口自摸：互包方×3，其余×1
+        deltas[winnerIndex] = total * (payers.length + 2);
+        deltas[baoPartner] = -total * 3;
+        for (final p in payers) {
+          if (p == baoPartner) continue;
+          deltas[p] = -total;
+        }
+        details.add('互包三口自摸：${players[baoPartner].name} ×3，其余×1');
+      } else {
+        // 普通自摸：全员×1
+        deltas[winnerIndex] = total * payers.length;
+        for (final p in payers) {
+          deltas[p] = -total;
+        }
+        details.add('自摸：其余玩家×1');
+      }
     }
 
     return SettlementResult(
@@ -609,6 +671,7 @@ class MahjongGame {
       totalPoints: total,
       deltas: deltas,
       reason: finalReason,
+      details: details,
     );
   }
 
@@ -831,6 +894,7 @@ class MahjongGame {
     if (!result.isDraw) {
       globalMultiplier = 1;
     }
+    lastWinFromDiscard = false;
     phase = GamePhase.scoring;
     gameEnded = true;
   }
@@ -845,6 +909,7 @@ class MahjongGame {
     wildTile = null;
     lastKongDraw = false;
     lastWinnerIndex = null;
+    lastWinFromDiscard = false;
     awaitingPlayerResponse = false;
     mustDiscard = false;
     phase = GamePhase.waiting;
@@ -868,6 +933,7 @@ class MahjongGame {
     if (eliminatedPlayers.contains(playerIndex)) return false;
     eliminatedPlayers.add(playerIndex);
     lastWinnerIndex = playerIndex;
+    lastWinFromDiscard = pendingTile != null;
     pendingTile = null;
     awaitingPlayerResponse = false;
     
