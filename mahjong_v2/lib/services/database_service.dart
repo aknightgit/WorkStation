@@ -1,7 +1,12 @@
+import 'dart:convert';
+import 'dart:io';
+
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
   factory DatabaseService() => _instance;
   DatabaseService._internal();
+
+  final String _baseDir = 'ai_logs';
 
   // TODO: 连接到 Python REST API 或直接连接 MariaDB
   // 示例连接信息:
@@ -10,6 +15,29 @@ class DatabaseService {
   // user: openclaw
   // password: 0penC1aw
   // database: changqingge
+
+  Future<void> _appendJsonLine(String fileName, Map<String, dynamic> data) async {
+    try {
+      final dir = Directory(_baseDir);
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+      final file = File('${dir.path}/$fileName');
+      await file.writeAsString('${jsonEncode(data)}\n', mode: FileMode.append);
+    } catch (_) {
+      // 忽略写入失败
+    }
+  }
+
+  // 保存AI策略参数
+  Future<void> saveAIStrategy(Map<String, dynamic> payload) async {
+    await _appendJsonLine('ai_strategy.jsonl', payload);
+  }
+
+  // 保存AI决策日志
+  Future<void> saveAIDecision(Map<String, dynamic> payload) async {
+    await _appendJsonLine('ai_decisions.jsonl', payload);
+  }
 
   // 保存游戏结果
   Future<void> saveGameResult({

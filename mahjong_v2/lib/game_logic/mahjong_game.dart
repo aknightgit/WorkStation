@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:mahjong_v2/services/database_service.dart';
 // 牌定义
 class Tile {
   final int id;
@@ -174,6 +175,10 @@ class MahjongGame {
   int monteCarloTrials = 100;
   int monteCarloMaxSteps = 80;
   Duration monteCarloBudget = const Duration(milliseconds: 300);
+  bool aiPersistEnabled = true;
+  String currentGameId = '';
+  int aiDecisionSeq = 0;
+  int _lastMcTrials = 0;
   List<int> freezeChances = [3, 3, 3, 3];
   void Function()? onStateChanged;
   int? lastDiscarderIndex;
@@ -199,6 +204,7 @@ class MahjongGame {
       Player(index: 2, name: '西家'),
       Player(index: 3, name: '北家'),
     ];
+    currentGameId = DateTime.now().millisecondsSinceEpoch.toString();
     initWall();
   }
 
@@ -310,6 +316,10 @@ class MahjongGame {
     currentPlayerIndex = dealerIndex;
     mustDiscard = currentPlayerIndex == 0;
     phase = GamePhase.playing;
+
+    currentGameId = DateTime.now().millisecondsSinceEpoch.toString();
+    aiDecisionSeq = 0;
+    _persistAIStrategy();
   }
 
   // 摸牌
@@ -1417,6 +1427,8 @@ class MahjongGame {
     double bestScore = -9999;
     double bestSafety = -9999;
 
+    final evals = <Map<String, dynamic>>[];
+
     for (final c in candidates) {
       if (DateTime.now().difference(start) > monteCarloBudget) break;
       final safety = _calcSafetyPenalty(playerIndex, c);
@@ -1424,14 +1436,21 @@ class MahjongGame {
         bestSafety = safety;
         best ??= c;
       }
-      if (safety <= -2.0) continue; // 强烈危险，跳过
+      if (safety <= -2.0) {
+        evals.add({'tile': _tileKey(c), 'score': -9999, 'safety': safety});
+        continue; // 强烈危险，跳过
+      }
       final score = _simulateDiscardScore(playerIndex, c, rng, start, safety);
+      evals.add({'tile': _tileKey(c), 'score': score, 'safety': safety, 'trials': _lastMcTrials});
       if (score > bestScore) {
         bestScore = score;
         best = c;
       }
     }
-    return best ?? player.handTiles.first;
+
+    final chosen = best ?? player.handTiles.first;
+    _logAIDecision(playerIndex, chosen, bestScore, evals);
+    return chosen;
   }
 
   double _simulateDiscardScore(int playerIndex, Tile discard, Random rng, DateTime start, double safety) {
@@ -1446,6 +1465,7 @@ class MahjongGame {
       if (r < 0) lose++;
       trials++;
     }
+    _lastMcTrials = trials;
     if (trials == 0) return -9999;
     final mc = (win - lose * 0.5) / trials;
     final heuristic = _heuristicScore(playerIndex, discard, safety);
@@ -1824,6 +1844,32 @@ class MahjongGame {
 
   bool _hasDiscarded(List<Tile> list, Tile t) {
     return list.any((x) => x.type == t.type && x.number == t.number);
+  }
+
+  void _persistAIStrategy() {
+    if (!aiPersistEnabled) return;
+    DatabaseService().saveAIStrategy({
+      'game_id': currentGameId,
+      'timestamp': DateTime.now().toIso8601String(),
+      'mc_trials': monteCarloTrials,
+      'mc_steps': monteCarloMaxSteps,
+      'mc_budget_ms': monteCarloBudget.inMilliseconds,
+    });
+  }
+
+  void _logAIDecision(int playerIndex, Tile discard, double bestScore, List<Map<String, dynamic>> evals) {
+    if (!aiPersistEnabled) return;
+    evals.sort((a, b) => (b['score'] as num).compareTo(a['score'] as num));
+    final top = evals.take(5).toList();
+    DatabaseService().saveAIDecision({
+      'game_id': currentGameId,
+      'seq': aiDecisionSeq++,
+      'player_index': playerIndex,
+      'discard': _tileKey(discard),
+      'score': bestScore,
+      'top_candidates': top,
+      'timestamp': DateTime.now().toIso8601String(),
+    });
   }
 
   bool _canHuWithExtra(List<Tile> hand, Tile? extra) {
