@@ -664,7 +664,7 @@ class MahjongGame {
     final useFormula = huType == '混一色' || huType == '碰碰胡';
     final basePoints = fixed.points > 0 ? fixed.points : (useFormula ? min(10, _calcBasePoints(winner, extra: extraTile)) : 0);
     final finalReason = fixed.points > 0 ? fixed.reason : (huType ?? reason);
-    final extraMultiplier = _calcExtraMultiplier(winner);
+    final extraMultiplier = _calcExtraMultiplier(winner, extraTile: extraTile);
     final total = basePoints * finalMultiplier * extraMultiplier;
 
     final active = <int>[];
@@ -800,10 +800,10 @@ class MahjongGame {
     return points;
   }
 
-  int _calcExtraMultiplier(Player winner) {
+  int _calcExtraMultiplier(Player winner, {Tile? extraTile}) {
     int extra = 1;
-    // 无百搭（目前未实现百搭，视为无百搭）
-    if (wildTile == null) extra *= 2;
+    // 无百搭：胡牌牌面中不包含百搭
+    if (!_hasWildInWinningTiles(winner, extra: extraTile)) extra *= 2;
     // 门清：没有吃/碰/明杠（暗杠不破门清）
     bool hasExposed = false;
     for (int i = 0; i < winner.melds.length; i++) {
@@ -812,6 +812,19 @@ class MahjongGame {
     }
     if (!hasExposed) extra *= 2;
     return extra;
+  }
+
+  bool _hasWildInWinningTiles(Player winner, {Tile? extra}) {
+    for (final t in winner.handTiles) {
+      if (_isWildTile(t)) return true;
+    }
+    if (extra != null && _isWildTile(extra)) return true;
+    for (final m in winner.melds) {
+      for (final t in m) {
+        if (_isWildTile(t)) return true;
+      }
+    }
+    return false;
   }
 
   List<Tile> _allNonFlowerTiles(Player winner) {
@@ -1416,7 +1429,7 @@ class MahjongGame {
     final huType = _calcHuType(winner, extra: robKongTile);
     final useFormula = huType == '混一色' || huType == '碰碰胡';
     final basePoints = fixed.points > 0 ? fixed.points : (useFormula ? min(10, _calcBasePoints(winner, extra: robKongTile)) : 0);
-    final extra = _calcExtraMultiplier(winner);
+    final extra = _calcExtraMultiplier(winner, extraTile: robKongTile);
     final total = basePoints * finalMultiplier * extra;
     final robTotal = total * 3;
 
@@ -2243,7 +2256,7 @@ class MahjongGame {
     final useFormula = huType == '混一色' || huType == '碰碰胡';
     final basePoints = fixed.points > 0 ? fixed.points : (useFormula ? min(10, _calcBasePoints(winner, extra: extraTile)) : 0);
     final reason = fixed.points > 0 ? fixed.reason : (huType ?? '胡牌');
-    final extra = _calcExtraMultiplier(winner);
+    final extra = _calcExtraMultiplier(winner, extraTile: extraTile);
     final total = basePoints * finalMultiplier * extra;
 
     final melds = <String>[];
