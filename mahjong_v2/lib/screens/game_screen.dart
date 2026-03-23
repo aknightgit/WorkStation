@@ -238,13 +238,16 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     const topCount = 18;
     const botCount = 18;
     const sideCount = 18;
+    final gap = 0.8;
 
-    // Total width/height of a wall
-    final hWallW = topCount * (tileW + 0.8); // horizontal wall width
-    final vWallH = sideCount * (tileW + 0.8); // vertical wall height (tiles rotated)
+    // Horizontal wall: tiles side by side in a Row
+    final hWallW = topCount * (tileW + gap);
+    // Vertical wall: tiles stacked in a Column, each rotated 90°
+    // After rotation, each tile's visual height = tileW (the long side)
+    final vWallH = sideCount * (tileW + gap);
 
     return [
-      // Top wall — centered, at top 4% of table
+      // Top wall — centered
       Positioned(
         left: tableLeft + (tableW - hWallW) / 2,
         top: tableTop + tableH * 0.04,
@@ -252,7 +255,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           children: List.generate(topCount, (_) => _wallTile(w: tileW, h: tileH)),
         ),
       ),
-      // Bottom wall — centered, at bottom 4% of table
+      // Bottom wall — centered
       Positioned(
         left: tableLeft + (tableW - hWallW) / 2,
         top: tableTop + tableH * 0.96 - tileH,
@@ -260,20 +263,30 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           children: List.generate(botCount, (_) => _wallTile(w: tileW, h: tileH)),
         ),
       ),
-      // Left wall — column, rotated so long edge is vertical, at left 4% of table
+      // Left wall — each tile rotated 90° clockwise so long edge faces table
       Positioned(
         left: tableLeft + tableW * 0.04,
         top: tableTop + (tableH - vWallH) / 2,
         child: Column(
-          children: List.generate(sideCount, (_) => _wallTile(w: tileW, h: tileH)),
+          children: List.generate(sideCount, (_) =>
+            Transform.rotate(
+              angle: pi / 2,  // 90° clockwise
+              child: _wallTile(w: tileW, h: tileH),
+            ),
+          ),
         ),
       ),
-      // Right wall — column, rotated so long edge is vertical, at right 4% of table
+      // Right wall — each tile rotated 90° counter-clockwise
       Positioned(
-        left: tableLeft + tableW * 0.96 - tileH,
+        left: tableLeft + tableW * 0.96 - tileW,
         top: tableTop + (tableH - vWallH) / 2,
         child: Column(
-          children: List.generate(sideCount, (_) => _wallTile(w: tileW, h: tileH)),
+          children: List.generate(sideCount, (_) =>
+            Transform.rotate(
+              angle: -pi / 2,  // 90° counter-clockwise
+              child: _wallTile(w: tileW, h: tileH),
+            ),
+          ),
         ),
       ),
     ];
