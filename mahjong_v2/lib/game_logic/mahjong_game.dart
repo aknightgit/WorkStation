@@ -159,6 +159,7 @@ class MahjongGame {
   bool mustDiscard = false; // 当前玩家是否必须打牌
   bool awaitingPlayerResponse = false; // 等待玩家响应（吃碰杠胡/过）
   int? lastDiscarderIndex;
+  bool lastKongDraw = false; // 是否为杠/补花后的补牌
   SettlementResult? lastSettlement;
   
   // 包关系: baoRelations[fromPlayer][toPlayer] = count
@@ -289,20 +290,21 @@ class MahjongGame {
   }
 
   // 摸牌
-  Tile? drawTile(Player player) {
+  Tile? drawTile(Player player, {bool isKongDraw = false}) {
     if (wall.isEmpty) {
       // 流局
       resolveDraw();
       return null;
     }
-    // 玩家已摸过牌则不可再次摸牌
-    if (player.index == 0 && mustDiscard) return null;
+    // 玩家已摸过牌则不可再次摸牌（杠/补花补牌不受此限制）
+    if (player.index == 0 && mustDiscard && !isKongDraw) return null;
 
     final tile = wall.removeLast();
     player.handTiles.add(tile);
     if (player.index == 0) {
       mustDiscard = true; // 玩家必须打牌
     }
+    lastKongDraw = isKongDraw;
     return tile;
   }
 
@@ -314,6 +316,7 @@ class MahjongGame {
     lastPlayedTile = tile;
     lastDiscarderIndex = player.index;
     awaitingPlayerResponse = false;
+    lastKongDraw = false;
     if (player.index == 0) {
       mustDiscard = false; // 打牌后可进入下一轮
     }
@@ -712,8 +715,7 @@ class MahjongGame {
   }
 
   bool _isGangKai(Player winner, bool isSelfDraw) {
-    // TODO: 缺少杠后补牌标记，暂不判定
-    return false;
+    return isSelfDraw && lastKongDraw;
   }
 
   void _applySettlement(SettlementResult result) {
@@ -738,6 +740,7 @@ class MahjongGame {
     lastPlayedTile = null;
     lastDiscarderIndex = null;
     wildTile = null;
+    lastKongDraw = false;
     awaitingPlayerResponse = false;
     mustDiscard = false;
     phase = GamePhase.waiting;
@@ -1061,7 +1064,21 @@ class MahjongGame {
       final kongTiles = getKongableTiles(player);
       if (kongTiles.isNotEmpty) {
         doKong(player, kongTiles.first, isHidden: false);
-        drawTile(player);
+        // 杠后补牌（若补到花，继续补）
+        while (wall.isNotEmpty) {
+          final newTile = drawTile(player, isKongDraw: true);
+          if (newTile == null) break;
+          if (newTile.isFlower) {
+            player.handTiles.remove(newTile);
+            player.flowerTiles.add(newTile);
+            continue;
+          }
+          break;
+        }
+        if (canHu(player)) {
+          playerWins(playerIndex);
+          return;
+        }
         aiDiscard(playerIndex);
         return;
       }
@@ -1102,6 +1119,7 @@ class MahjongGame {
     lastPlayedTile = discard;
     lastDiscarderIndex = playerIndex;
     awaitingPlayerResponse = false;
+    lastKongDraw = false;
     
     // AI打牌后，检查响应
     processTurn();

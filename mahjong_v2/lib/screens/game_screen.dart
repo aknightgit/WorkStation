@@ -682,7 +682,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   void _onKong() {
     final p = _game.players[0];
     if (_game.currentPlayerIndex != 0 && !_game.awaitingPlayerResponse) return;
-    
+
     // 优先补花
     if (p.handTiles.any((t) => t.isFlower)) {
       while (_game.wall.isNotEmpty) {
@@ -690,12 +690,12 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         if (flowerIndex == -1) break;
         final flower = p.handTiles.removeAt(flowerIndex);
         p.flowerTiles.add(flower);
-        final newTile = _game.wall.removeLast();
+        final newTile = _game.drawTile(p, isKongDraw: true);
+        if (newTile == null) break;
         if (newTile.isFlower) {
+          p.handTiles.remove(newTile);
           p.flowerTiles.add(newTile);
           continue;
-        } else {
-          p.handTiles.add(newTile);
         }
       }
       setState(() {});
@@ -712,7 +712,17 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         if (p.index == 0) {
           _game.mustDiscard = false; // 允许补牌
         }
-        _game.drawTile(p);
+        // 杠后补牌（若补到花，继续补）
+        while (_game.wall.isNotEmpty) {
+          final newTile = _game.drawTile(p, isKongDraw: true);
+          if (newTile == null) break;
+          if (newTile.isFlower) {
+            p.handTiles.remove(newTile);
+            p.flowerTiles.add(newTile);
+            continue;
+          }
+          break;
+        }
       }
     }
     setState(() {});
