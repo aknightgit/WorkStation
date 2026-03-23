@@ -157,9 +157,11 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           final tableTopY = sh * 0.06;  // table starts here
           final centerX = sw / 2;
 
-          // Base tile sizes (at bottom/near side, full size)
-          final baseTileW = sw * 0.036;
-          final baseTileH = baseTileW * 0.52;  // wall tiles: wide and short (横放)
+          // Base tile sizes — 墙牌横放（宽>高）
+          // pomax图片 61x80，宽高比 ~0.76
+          // 横放时显示高度=sw*0.028，宽度=高度/0.76
+          final baseTileH = sw * 0.028;  // 显示高度（短边）
+          final baseTileW = baseTileH / 0.76;  // 显示宽度（长边）
 
           // Wall tile count
           const topWallCount = 12;
