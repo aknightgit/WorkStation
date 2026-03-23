@@ -176,6 +176,7 @@ class MahjongGame {
   int monteCarloTrials = 100;
   int monteCarloMaxSteps = 80;
   Duration monteCarloBudget = const Duration(milliseconds: 300);
+  bool simulationMode = false;
   bool aiPersistStatsEnabled = true;
   bool aiPersistStrategyEnabled = false;
   bool aiPersistDecisionEnabled = false;
@@ -764,6 +765,11 @@ class MahjongGame {
       reason: finalReason,
       details: details,
     );
+  }
+
+  // 预览单次胡牌结算（不改动分数，仅计算）
+  SettlementResult previewSettlement(int winnerIndex, {String reason = '胡牌'}) {
+    return _settleWin(winnerIndex, reason: reason);
   }
 
   FixedScore _calcFixedScore(Player winner, bool isSelfDraw, {Tile? extra}) {
@@ -1811,7 +1817,9 @@ class MahjongGame {
     _recordDeadTile(discard);
 
     // AI打牌后，检查响应
-    processTurn();
+    if (!simulationMode) {
+      processTurn();
+    }
   }
 
   Tile _chooseAIDiscard(int playerIndex) {
