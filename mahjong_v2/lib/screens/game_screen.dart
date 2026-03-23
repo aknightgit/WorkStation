@@ -673,6 +673,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   String _turnHintText() {
     if (_freezeActive) return '等待中…';
+    if (_game.robbingKong && _game.awaitingPlayerResponse) return '可抢杠胡';
     if (_game.awaitingPlayerResponse) return '可碰/杠/胡';
     if (_game.allowNextPlayerAction && _game.nextPlayerIndex == 0) return '可摸牌/可吃牌';
     if (_game.currentPlayerIndex == 0) {
@@ -853,7 +854,11 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       final kongTiles = _game.getKongableTiles(p);
       if (kongTiles.isNotEmpty) {
         final isHidden = _game.pendingTile == null;
-        _game.doKong(p, kongTiles.first, isHidden: isHidden);
+        final ok = _game.doKong(p, kongTiles.first, isHidden: isHidden);
+        if (!ok) {
+          setState(() {});
+          return; // 等待抢杠
+        }
         _game.awaitingPlayerResponse = false;
         if (p.index == 0) {
           _game.mustDiscard = false; // 允许补牌
@@ -893,7 +898,11 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   void _onHu() {
     _cancelFreeze();
     _game.awaitingPlayerResponse = false;
-    _game.playerWins(0);
+    if (_game.robbingKong) {
+      _game.playerRobKongHu();
+    } else {
+      _game.playerWins(0);
+    }
     setState(() {});
   }
 

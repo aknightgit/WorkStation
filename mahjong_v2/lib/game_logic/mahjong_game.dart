@@ -182,6 +182,10 @@ class MahjongGame {
   int aiDecisionSeq = 0;
   int _lastMcTrials = 0;
   int turnCounter = 0;
+  bool robbingKong = false;
+  int? robKongOwnerIndex;
+  Tile? robKongTile;
+  int? robKongMeldIndex;
   List<int> freezeChances = [3, 3, 3, 3];
   void Function()? onStateChanged;
   int? lastDiscarderIndex;
@@ -406,6 +410,7 @@ class MahjongGame {
 
   // 检查是否可以吃（上家动态）
   bool canChow(Player player) {
+    if (robbingKong) return false;
     if (pendingTile == null) return false;
     final t = pendingTile!;
     if (_isWildTile(t)) return false; // 百搭牌不可吃碰杠
@@ -848,6 +853,16 @@ class MahjongGame {
     return suit != null;
   }
 
+  List<Tile> _allNonFlowerTilesWithExtra(Player winner, Tile? extra) {
+    final tiles = <Tile>[];
+    tiles.addAll(winner.handTiles);
+    if (extra != null) tiles.add(extra);
+    for (final m in winner.melds) {
+      tiles.addAll(m);
+    }
+    return tiles.where((t) => !t.isFlower && t.suit != TileSuit.hua && !_isWildTile(t)).toList();
+  }
+
   bool _isHunYiSe(Player winner) {
     final tiles = _allNonFlowerTiles(winner);
     if (tiles.isEmpty) return false;
@@ -866,10 +881,33 @@ class MahjongGame {
     return suit != null && hasHonor;
   }
 
+  bool _isHunYiSeWithExtra(Player winner, Tile? extra) {
+    final tiles = _allNonFlowerTilesWithExtra(winner, extra);
+    if (tiles.isEmpty) return false;
+    bool hasHonor = false;
+    TileSuit? suit;
+    for (final t in tiles) {
+      if (t.type == TileType.wind || t.type == TileType.dragon) {
+        hasHonor = true;
+        continue;
+      }
+      if (t.suit == TileSuit.wan || t.suit == TileSuit.tong || t.suit == TileSuit.tiao) {
+        suit ??= t.suit;
+        if (t.suit != suit) return false;
+      }
+    }
+    return suit != null && hasHonor;
+  }
+
   bool _isPengPengHu(Player winner) {
+    return _isPengPengHuWithExtra(winner, null);
+  }
+
+  bool _isPengPengHuWithExtra(Player winner, Tile? extra) {
     // 对对胡=碰碰胡（允许百搭补成刻子/对子）
     final tiles = <Tile>[];
     tiles.addAll(winner.handTiles);
+    if (extra != null) tiles.add(extra);
     for (final m in winner.melds) {
       tiles.addAll(m);
     }
@@ -1000,6 +1038,10 @@ class MahjongGame {
     deadTiles.clear();
     lastSettlement = null;
     turnCounter = 0;
+    robbingKong = false;
+    robKongOwnerIndex = null;
+    robKongTile = null;
+    robKongMeldIndex = null;
     for (final p in players) {
       p.handTiles.clear();
       p.melds.clear();
@@ -1080,6 +1122,7 @@ class MahjongGame {
 
   // 检查是否可以碰
   bool canPong(Player player) {
+    if (robbingKong) return false;
     if (pendingTile == null) return false;
     final t = pendingTile!;
     if (_isWildTile(t)) return false; // 百搭牌不可吃碰杠
@@ -1088,6 +1131,7 @@ class MahjongGame {
 
   // 检查是否可以杠
   bool canKong(Player player) {
+    if (robbingKong) return false;
     // 明杠：手里有三张或已有刻子，碰哪家打出的牌
     if (pendingTile != null) {
       final t = pendingTile!;
@@ -1098,8 +1142,8 @@ class MahjongGame {
       return false; // 有弃牌时，不允许暗杠
     }
     
-    // 暗杠：手里有四张相同的牌
-    return canHiddenKong(player);
+    // 暗杠或补杠
+    return canHiddenKong(player) || _canAddKong(player);
   }
   
   // 检查暗杠
@@ -1110,6 +1154,16 @@ class MahjongGame {
       counts[key] = (counts[key] ?? 0) + 1;
     }
     return counts.values.any((c) => c == 4);
+  }
+
+  bool _canAddKong(Player player) {
+    for (final m in player.melds) {
+      if (m.length == 3 && m.every((x) => x.type == m.first.type && x.number == m.first.number)) {
+        final same = player.handTiles.any((t) => t.type == m.first.type && t.number == m.first.number);
+        if (same) return true;
+      }
+    }
+    return false;
   }
   
   // 获取可以杠的牌
@@ -1135,12 +1189,38 @@ class MahjongGame {
         result.add(tiles.first);
       }
     }
+
+    // 补杠（门口已有刻子 + 手里摸到第4张）
+    if (pendingTile == null) {
+      for (final m in player.melds) {
+        if (m.length == 3 && m.every((x) => x.type == m.first.type && x.number == m.first.number)) {
+          final same = player.handTiles.firstWhere(
+            (t) => t.type == m.first.type && t.number == m.first.number,
+            orElse: () => Tile(id: -999, type: TileType.blank, number: 0, suit: TileSuit.hua),
+          );
+          if (same.id != -999) {
+            result.add(same);
+          }
+        }
+      }
+    }
     
     return result;
   }
   
   // 执行杠牌（明杠记录包关系，暗杠不记录）
   bool doKong(Player player, Tile kongTile, {bool isHidden = false}) {
+    // 补杠（门口已有刻子 + 自摸第四张） -> 允许抢杠
+    if (pendingTile == null) {
+      final meldIndex = player.melds.indexWhere((m) => m.length == 3 && m.every((x) => x.type == kongTile.type && x.number == kongTile.number));
+      if (meldIndex >= 0) {
+        final hasTile = player.handTiles.any((t) => t.type == kongTile.type && t.number == kongTile.number);
+        if (hasTile) {
+          return _tryRobKong(player, kongTile, meldIndex);
+        }
+      }
+    }
+
     // 明杠：记录包关系（杠别人打出的牌）
     if (!isHidden && pendingTile != null) {
       final fromPlayer = player.index; // 杠牌者
@@ -1199,6 +1279,166 @@ class MahjongGame {
     return true;
   }
 
+  bool _tryRobKong(Player owner, Tile kongTile, int meldIndex) {
+    robbingKong = true;
+    robKongOwnerIndex = owner.index;
+    robKongTile = kongTile;
+    robKongMeldIndex = meldIndex;
+    pendingTile = kongTile;
+    lastDiscarderIndex = owner.index;
+    awaitingPlayerResponse = false;
+    responseWindowOpen = false;
+    allowNextPlayerAction = false;
+    responseTimerActive = false;
+
+    final responder = _checkRobKongResponder();
+    if (responder != null) {
+      if (responder == 0) {
+        awaitingPlayerResponse = true;
+        onStateChanged?.call();
+        Future.delayed(responseWindowDuration, () {
+          if (robbingKong && awaitingPlayerResponse && robKongOwnerIndex == owner.index) {
+            playerDeclineRobKong();
+            onStateChanged?.call();
+          }
+        });
+        return false; // 等待玩家是否抢杠
+      } else {
+        _robKongHu(responder);
+        return false; // 已被抢杠，杠家流程终止
+      }
+    }
+
+    _completeAddKong(owner, kongTile, meldIndex);
+    return true;
+  }
+
+  int? _checkRobKongResponder() {
+    if (!robbingKong || robKongOwnerIndex == null) return null;
+    for (int offset = 1; offset <= 3; offset++) {
+      final idx = (robKongOwnerIndex! + offset) % 4;
+      if (eliminatedPlayers.contains(idx)) continue;
+      if (canHu(players[idx])) return idx;
+    }
+    return null;
+  }
+
+  void _completeAddKong(Player owner, Tile kongTile, int meldIndex) {
+    final idx = owner.handTiles.indexWhere((t) => t.type == kongTile.type && t.number == kongTile.number);
+    if (idx >= 0) owner.handTiles.removeAt(idx);
+    owner.melds[meldIndex] = [...owner.melds[meldIndex], kongTile];
+    owner.meldHidden[meldIndex] = false;
+
+    robbingKong = false;
+    robKongOwnerIndex = null;
+    robKongTile = null;
+    robKongMeldIndex = null;
+    pendingTile = null;
+
+    _clearResponseWindowFlags();
+    currentPlayerIndex = owner.index;
+    if (owner.index == 0) {
+      mustDiscard = true;
+    }
+  }
+
+  void playerDeclineRobKong() {
+    if (!robbingKong || robKongOwnerIndex == null || robKongTile == null || robKongMeldIndex == null) return;
+    final owner = players[robKongOwnerIndex!];
+    final tile = robKongTile!;
+    final meldIndex = robKongMeldIndex!;
+
+    _completeAddKong(owner, tile, meldIndex);
+
+    // 杠后补牌（含补到花继续补）
+    while (wall.isNotEmpty) {
+      final newTile = drawTile(owner, isKongDraw: true);
+      if (newTile == null) break;
+      if (newTile.isFlower) {
+        owner.handTiles.remove(newTile);
+        owner.flowerTiles.add(newTile);
+        continue;
+      }
+      break;
+    }
+
+    awaitingPlayerResponse = false;
+
+    if (owner.index != 0) {
+      if (canHu(owner)) {
+        playerWins(owner.index);
+        return;
+      }
+      if (aiDiscardDelay == Duration.zero) {
+        aiDiscard(owner.index);
+      } else {
+        Future.delayed(aiDiscardDelay, () {
+          aiDiscard(owner.index);
+        });
+      }
+    }
+  }
+
+  bool playerRobKongHu() {
+    if (!robbingKong) return false;
+    return _robKongHu(0);
+  }
+
+  bool _robKongHu(int winnerIndex) {
+    if (!robbingKong || robKongOwnerIndex == null) return playerWins(winnerIndex);
+    final ownerIndex = robKongOwnerIndex!;
+    final winner = players[winnerIndex];
+    final isSelfDraw = false;
+    final fixed = _calcFixedScore(winner, isSelfDraw);
+    final huType = _calcHuType(winner);
+    final useFormula = huType == '混一色' || huType == '碰碰胡';
+    final basePoints = fixed.points > 0 ? fixed.points : (useFormula ? min(10, _calcBasePoints(winner)) : 0);
+    final extra = _calcExtraMultiplier(winner);
+    final total = basePoints * finalMultiplier * extra;
+    final robTotal = total * 3;
+
+    // 记录抢杠赔付
+    players[winnerIndex].score += robTotal;
+    players[winnerIndex].totalScore += robTotal;
+    players[ownerIndex].score -= robTotal;
+    players[ownerIndex].totalScore -= robTotal;
+
+    // 从被抢杠者手里移除那张
+    if (robKongTile != null) {
+      final idx = players[ownerIndex].handTiles.indexWhere((t) => t.type == robKongTile!.type && t.number == robKongTile!.number);
+      if (idx >= 0) players[ownerIndex].handTiles.removeAt(idx);
+    }
+
+    eliminatedPlayers.add(winnerIndex);
+    lastWinnerIndex = winnerIndex;
+    lastWinFromDiscard = true;
+
+    robbingKong = false;
+    robKongOwnerIndex = null;
+    robKongTile = null;
+    robKongMeldIndex = null;
+    pendingTile = null;
+    _clearResponseWindowFlags();
+
+    // 继续游戏：赢家右手玩家摸牌
+    if (activePlayerCount > 1 && wall.isNotEmpty) {
+      currentPlayerIndex = _nextActiveIndexLocal(winnerIndex);
+      drawTile(players[currentPlayerIndex]);
+      if (currentPlayerIndex != 0) {
+        Future.delayed(aiDiscardDelay, () {
+          aiDiscard(currentPlayerIndex);
+        });
+      }
+      return true;
+    }
+
+    // 若只剩一家或牌墙空，则结束
+    if (activePlayerCount <= 1 || wall.isEmpty) {
+      _applySettlement(_settleWin(lastWinnerIndex ?? winnerIndex, reason: '血战到底'));
+    }
+    return true;
+  }
+
   // 检查是否可以胡
   bool canHu(Player player) {
     // 百搭打出时，仅允许自摸胡，不能捉冲
@@ -1209,7 +1449,15 @@ class MahjongGame {
     if (pendingTile != null) {
       tiles.add(pendingTile!); // 点炮胡
     }
-    return checkHu(tiles);
+    if (!checkHu(tiles)) return false;
+
+    // 门口无花的碰碰胡/混一色不能捉冲（点炮/抢杠）
+    if (pendingTile != null && player.flowerTiles.isEmpty) {
+      if (_isPengPengHuWithExtra(player, pendingTile) || _isHunYiSeWithExtra(player, pendingTile)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   // 核心胡牌检测（支持百搭）
@@ -1343,7 +1591,9 @@ class MahjongGame {
       final kongTiles = getKongableTiles(player);
       if (kongTiles.isNotEmpty) {
         final isHidden = pendingTile == null;
-        doKong(player, kongTiles.first, isHidden: isHidden);
+        final ok = doKong(player, kongTiles.first, isHidden: isHidden);
+        if (!ok) return; // 等待抢杠或被抢杠
+
         // 杠后补牌（若补到花，继续补）
         while (wall.isNotEmpty) {
           final newTile = drawTile(player, isKongDraw: true);
