@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
+import 'dart:async';
 import 'package:mahjong_v2/game_logic/mahjong_game.dart';
 
 class GameScreen extends StatefulWidget {
@@ -16,6 +17,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   bool canPong = false, canKong = false, canHu = false, canChow = false;
   int? selectedTileIndex;
   final List<Color> _playerColors = [Colors.red, Colors.green, Colors.blue, Colors.orange];
+  bool _freezeActive = false;
+  int _freezeCountdown = 0;
+  Timer? _freezeTimer;
   
   // 骰子动画
   late AnimationController _diceAnimController;
@@ -44,6 +48,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    _freezeTimer?.cancel();
     _diceAnimController.dispose();
     super.dispose();
   }
@@ -195,6 +200,21 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                             ),
                         ],
                       ),
+                    ),
+                  ),
+                ),
+
+              if (_freezeActive)
+                Positioned.fill(
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      child: Text('冻结 $_freezeCountdown', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
                     ),
                   ),
                 ),
@@ -569,6 +589,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     final subBtnSize = btnSize * 0.55;
     final orbitRadius = btnSize * 1.1;
     final showDraw = false; // 发牌后隐藏“摸”按钮
+    final canFreeze = _game.pendingTile != null && !_freezeActive;
     
     return Positioned(
       right: 10,
@@ -608,6 +629,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             Positioned(left: btnSize * 0.5 + orbitRadius * 1.3, top: btnSize * 0.5, child: _buildOrbitBtn('胡', Colors.yellow[700]!, canHu, subBtnSize, _onHu)),
             // 过
             Positioned(left: btnSize * 0.5 + orbitRadius * 0.4, top: btnSize * 0.5 + orbitRadius * 1.2, child: _buildOrbitBtn('过', Colors.blueGrey, _game.awaitingPlayerResponse, subBtnSize * 0.9, _onPass)),
+            // 冻结
+            Positioned(left: btnSize * 0.5 - orbitRadius * 0.3, top: btnSize * 0.5 + orbitRadius * 1.05, child: _buildOrbitBtn('冻', Colors.indigo, canFreeze, subBtnSize * 0.9, _startFreeze)),
           ],
         ),
       ),
@@ -722,12 +745,14 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _onNextRound() {
+    _cancelFreeze();
     setState(() {
       _game.resetForNextRound();
     });
   }
 
   void _onDiceTap() {
+    _cancelFreeze();
     setState(() {
       isRolling = true;
       _displayDice = [Random().nextInt(6) + 1, Random().nextInt(6) + 1];
@@ -737,6 +762,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _onDealTap() {
+    _cancelFreeze();
     setState(() { 
       _game.deal(); 
       canRebel = _game.checkWuDuSan();
@@ -750,14 +776,49 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     }
   }
 
+  void _cancelFreeze({bool resume = false}) {
+    if (!_freezeActive) return;
+    _freezeTimer?.cancel();
+    _freezeActive = false;
+    _freezeCountdown = 0;
+    _game.freezeActive = false;
+    if (resume) {
+      _game.processTurn();
+    }
+  }
+
+  void _startFreeze() {
+    if (_freezeActive || _game.pendingTile == null) return;
+    _freezeTimer?.cancel();
+    _freezeActive = true;
+    _freezeCountdown = 3;
+    _game.freezeActive = true;
+    setState(() {});
+    _freezeTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_freezeCountdown <= 1) {
+        timer.cancel();
+        _freezeActive = false;
+        _freezeCountdown = 0;
+        _game.freezeActive = false;
+        _game.processTurn();
+        setState(() {});
+      } else {
+        _freezeCountdown -= 1;
+        setState(() {});
+      }
+    });
+  }
+
   void _drawTile() {
     if (_game.currentPlayerIndex != 0 || _game.mustDiscard) return;
+    _cancelFreeze();
     final p = _game.players[_game.currentPlayerIndex];
     _game.drawTile(p);
     setState(() {});
   }
 
   void _onKong() {
+    _cancelFreeze();
     final p = _game.players[0];
     if (_game.currentPlayerIndex != 0 && !_game.awaitingPlayerResponse) return;
 
@@ -807,6 +868,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _onChow() {
+    _cancelFreeze();
     final p = _game.players[0];
     if (!_game.doChow(p, null)) return;
     _game.awaitingPlayerResponse = false;
@@ -814,6 +876,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _onPong() {
+    _cancelFreeze();
     final p = _game.players[0];
     if (!_game.doPong(p)) return;
     _game.awaitingPlayerResponse = false;
@@ -821,12 +884,14 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _onHu() {
+    _cancelFreeze();
     _game.awaitingPlayerResponse = false;
     _game.playerWins(0);
     setState(() {});
   }
 
   void _onPass() {
+    _cancelFreeze();
     _game.playerPass();
     setState(() {});
   }
@@ -834,6 +899,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   void _playTile(int i) {
     if (_game.currentPlayerIndex != 0) return;
     if (!_game.mustDiscard) return; // 必须先摸牌
+    _cancelFreeze();
     final p = _game.players[0];
     final t = p.handTiles[i];
     _game.playTile(p, t);

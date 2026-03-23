@@ -162,6 +162,7 @@ class MahjongGame {
   bool gameEnded = false;
   bool mustDiscard = false; // 当前玩家是否必须打牌
   bool awaitingPlayerResponse = false; // 等待玩家响应（吃碰杠胡/过）
+  bool freezeActive = false; // 冻结：暂停其他玩家响应
   int? lastDiscarderIndex;
   bool lastKongDraw = false; // 是否为杠/补花后的补牌
   int? lastWinnerIndex;
@@ -911,6 +912,7 @@ class MahjongGame {
     lastWinnerIndex = null;
     lastWinFromDiscard = false;
     awaitingPlayerResponse = false;
+    freezeActive = false;
     mustDiscard = false;
     phase = GamePhase.waiting;
     gameEnded = false;
@@ -1242,6 +1244,7 @@ class MahjongGame {
   void aiPlay(int playerIndex) {
     if (playerIndex == 0) return; // 玩家自己控制
     if (eliminatedPlayers.contains(playerIndex)) return;
+    if (freezeActive) return;
     
     final player = players[playerIndex];
     
@@ -1342,6 +1345,7 @@ class MahjongGame {
   // 强制回合流转
   void processTurn({bool skipPlayerResponse = false}) {
     if (pendingTile == null) return;
+    if (freezeActive) return;
 
     // 玩家有响应权（只在AI打牌后）
     if (!skipPlayerResponse && currentPlayerIndex != 0) {
