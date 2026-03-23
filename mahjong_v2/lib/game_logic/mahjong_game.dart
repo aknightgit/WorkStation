@@ -577,7 +577,7 @@ class MahjongGame {
     final isSelfDraw = pendingTile == null;
     final fixed = _calcFixedScore(winner, isSelfDraw);
     final basePoints = fixed.points > 0 ? fixed.points : _calcBasePoints(winner);
-    final finalReason = fixed.points > 0 ? fixed.reason : reason;
+    final finalReason = fixed.points > 0 ? fixed.reason : (_calcHuType(winner) ?? reason);
     final extraMultiplier = _calcExtraMultiplier(winner);
     final total = basePoints * finalMultiplier * extraMultiplier;
 
@@ -673,7 +673,7 @@ class MahjongGame {
     for (final m in winner.melds) {
       tiles.addAll(m);
     }
-    return tiles.where((t) => !t.isFlower && t.suit != TileSuit.hua).toList();
+    return tiles.where((t) => !t.isFlower && t.suit != TileSuit.hua && !_isWildTile(t)).toList();
   }
 
   bool _isFengYiSe(Player winner) {
@@ -708,6 +708,88 @@ class MahjongGame {
       }
     }
     return suit != null;
+  }
+
+  bool _isHunYiSe(Player winner) {
+    final tiles = _allNonFlowerTiles(winner);
+    if (tiles.isEmpty) return false;
+    bool hasHonor = false;
+    TileSuit? suit;
+    for (final t in tiles) {
+      if (t.type == TileType.wind || t.type == TileType.dragon) {
+        hasHonor = true;
+        continue;
+      }
+      if (t.suit == TileSuit.wan || t.suit == TileSuit.tong || t.suit == TileSuit.tiao) {
+        suit ??= t.suit;
+        if (t.suit != suit) return false;
+      }
+    }
+    return suit != null && hasHonor;
+  }
+
+  bool _isPengPengHu(Player winner) {
+    // 对对胡=碰碰胡（允许百搭补成刻子/对子）
+    final tiles = <Tile>[];
+    tiles.addAll(winner.handTiles);
+    for (final m in winner.melds) {
+      tiles.addAll(m);
+    }
+    final counts = <String, int>{};
+    int wild = 0;
+    for (final t in tiles) {
+      if (t.isFlower || t.suit == TileSuit.hua) continue;
+      if (_isWildTile(t)) { wild++; continue; }
+      final key = '${t.type.index}_${t.number}';
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+
+    int totalTiles = wild;
+    for (final v in counts.values) { totalTiles += v; }
+    if (totalTiles % 3 != 2) return false;
+
+    bool canMelds(Map<String, int> c, int w) {
+      String? firstKey;
+      for (final k in c.keys) { if ((c[k] ?? 0) > 0) { firstKey = k; break; } }
+      if (firstKey == null) return w % 3 == 0;
+      final cnt = c[firstKey] ?? 0;
+      final need = (3 - (cnt % 3)) % 3;
+      if (need <= w) {
+        c[firstKey] = 0; // 全部视作刻子组合
+        if (canMelds(c, w - need)) return true;
+        c[firstKey] = cnt;
+      }
+      return false;
+    }
+
+    // 选择对子
+    for (final k in counts.keys) {
+      if ((counts[k] ?? 0) >= 2) {
+        counts[k] = (counts[k] ?? 0) - 2;
+        if (canMelds(counts, wild)) return true;
+        counts[k] = (counts[k] ?? 0) + 2;
+      }
+      if ((counts[k] ?? 0) >= 1 && wild >= 1) {
+        counts[k] = (counts[k] ?? 0) - 1;
+        if (canMelds(counts, wild - 1)) return true;
+        counts[k] = (counts[k] ?? 0) + 1;
+      }
+    }
+    if (wild >= 2) {
+      if (canMelds(counts, wild - 2)) return true;
+    }
+    return false;
+  }
+
+  bool _isQingPeng(Player winner) {
+    return _isQingYiSe(winner) && _isPengPengHu(winner);
+  }
+
+  String? _calcHuType(Player winner) {
+    if (_isQingPeng(winner)) return '清碰';
+    if (_isHunYiSe(winner)) return '混一色';
+    if (_isPengPengHu(winner)) return '碰碰胡';
+    return null;
   }
 
   bool _isWuHuaZiMo(Player winner, bool isSelfDraw) {
