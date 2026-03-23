@@ -940,6 +940,10 @@ class MahjongGame {
 
   // 检查是否可以胡
   bool canHu(Player player) {
+    // 百搭打出时，仅允许自摸胡，不能捉冲
+    if (pendingTile != null && _isWildTile(pendingTile!)) {
+      return false;
+    }
     final tiles = <Tile>[...player.handTiles];
     if (pendingTile != null) {
       tiles.add(pendingTile!); // 点炮胡
