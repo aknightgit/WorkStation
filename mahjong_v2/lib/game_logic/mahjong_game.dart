@@ -194,6 +194,7 @@ class MahjongGame {
   // 表示 fromPlayer 吃了/碰了 toPlayer 多少口
   Map<int, Map<int, int>> baoRelations = {};
   Map<String, int> hotTiles = {}; // 被吃/碰/杠过的热牌类型
+  Map<String, int> deadTiles = {}; // 被打出的安全牌
   
   // 血战到底：记录已胡牌的玩家
   List<int> eliminatedPlayers = [];
@@ -359,6 +360,7 @@ class MahjongGame {
     responseTimerActive = false;
     nextPlayerIndex = _peekNextPlayerIndex();
     turnCounter += 1;
+    _recordDeadTile(tile);
     if (player.index == 0) {
       mustDiscard = false; // 打牌后可进入下一轮
     }
@@ -995,6 +997,7 @@ class MahjongGame {
     eliminatedPlayers.clear();
     baoRelations.clear();
     hotTiles.clear();
+    deadTiles.clear();
     lastSettlement = null;
     turnCounter = 0;
     for (final p in players) {
@@ -1404,6 +1407,7 @@ class MahjongGame {
     allowNextPlayerAction = false;
     responseTimerActive = false;
     nextPlayerIndex = _peekNextPlayerIndex();
+    _recordDeadTile(discard);
 
     // AI打牌后，检查响应
     processTurn();
@@ -1435,6 +1439,16 @@ class MahjongGame {
     double bestScore = -9999;
     double bestSafety = -9999;
 
+    int bestOpp = -999999;
+    for (int i = 0; i < 4; i++) {
+      if (i == playerIndex) continue;
+      bestOpp = max(bestOpp, players[i].totalScore);
+    }
+    int trialsLimit = monteCarloTrials;
+    if (players[playerIndex].totalScore + 50 < bestOpp) {
+      trialsLimit = max(20, (monteCarloTrials * 0.6).round());
+    }
+
     final evals = <Map<String, dynamic>>[];
 
     for (final c in candidates) {
@@ -1448,7 +1462,7 @@ class MahjongGame {
         evals.add({'tile': _tileKey(c), 'score': -9999, 'safety': safety});
         continue; // 强烈危险，跳过
       }
-      final score = _simulateDiscardScore(playerIndex, c, rng, start, safety);
+      final score = _simulateDiscardScore(playerIndex, c, rng, start, safety, trialsLimit);
       evals.add({'tile': _tileKey(c), 'score': score, 'safety': safety, 'trials': _lastMcTrials});
       if (score > bestScore) {
         bestScore = score;
@@ -1461,12 +1475,12 @@ class MahjongGame {
     return chosen;
   }
 
-  double _simulateDiscardScore(int playerIndex, Tile discard, Random rng, DateTime start, double safety) {
+  double _simulateDiscardScore(int playerIndex, Tile discard, Random rng, DateTime start, double safety, int trialsLimit) {
     int trials = 0;
     int win = 0;
     int lose = 0;
 
-    for (int i = 0; i < monteCarloTrials; i++) {
+    for (int i = 0; i < trialsLimit; i++) {
       if (DateTime.now().difference(start) > monteCarloBudget) break;
       final r = _simulateOneTrial(playerIndex, discard, rng);
       if (r > 0) win++;
@@ -1483,10 +1497,13 @@ class MahjongGame {
   double _heuristicScore(int playerIndex, Tile discard, double safety) {
     final player = players[playerIndex];
     final oldShanten = _calcShantenProxy(player.handTiles);
+    final oldUke = _countUkeUke(player.handTiles);
     final temp = List<Tile>.from(player.handTiles);
     _removeOne(temp, discard);
     final newShanten = _calcShantenProxy(temp);
+    final newUke = _countUkeUke(temp);
     final shantenDelta = oldShanten - newShanten;
+    final ukeDelta = newUke - oldUke;
 
     final counts = _countTiles(player.handTiles);
     final key = '${discard.type.index}_${discard.number}';
@@ -1501,6 +1518,7 @@ class MahjongGame {
     double score = 0;
     score += safety * riskWeight; // safety 为负数，优先规避
     score += shantenDelta * 0.15 * attackWeight;
+    score += ukeDelta * 0.05 * attackWeight;
     if (cnt >= 2) score -= 0.10; // 丢对子/刻子
     if (connected) score -= 0.06; // 丢连张
     if (isolated) score += 0.08; // 丢孤张
@@ -1564,6 +1582,9 @@ class MahjongGame {
       else if (safeCount == 0) penalty -= 0.1; // 无现物更危险
       else penalty += 0.08 * safeCount;
     }
+
+    final dead = deadTiles[_tileKey(discard)] ?? 0;
+    if (dead > 0) penalty += min(0.4, dead * 0.1);
 
     return penalty;
   }
@@ -1681,6 +1702,15 @@ class MahjongGame {
     return counts;
   }
 
+  int _countUkeUke(List<Tile> hand) {
+    final counts = _countTiles(hand);
+    int n = 0;
+    for (final t in hand) {
+      if (_hasSameOrNeighbor(counts, t)) n++;
+    }
+    return n;
+  }
+
   bool _hasNeighbor(Map<String, int> counts, Tile t) {
     if (t.suit != TileSuit.wan && t.suit != TileSuit.tong && t.suit != TileSuit.tiao) return false;
     final leftKey = '${t.type.index}_${t.number - 1}';
@@ -1718,6 +1748,8 @@ class MahjongGame {
     if (myScore + 30 < bestOpp) w -= 0.1; // 落后更激进
     if (maxMeld >= 2) w += 0.2;
     if (maxMeld >= 3) w += 0.2;
+    if (wall.length < 20) w += 0.15;
+    if (wall.length > 100) w -= 0.10;
     return w.clamp(0.8, 1.6).toDouble();
   }
 
@@ -1731,7 +1763,8 @@ class MahjongGame {
     }
     if (myScore + 30 < bestOpp) w += 0.15; // 落后更进攻
     if (myScore > bestOpp) w -= 0.10; // 领先稍保守
-    if (wall.length < 30) w += 0.10; // 牌墙见底，略加速
+    if (wall.length < 20) w += 0.15; // 牌墙见底，略加速
+    if (wall.length > 100) w -= 0.10; // 早期略保守
     return w.clamp(0.85, 1.3).toDouble();
   }
 
@@ -1791,6 +1824,7 @@ class MahjongGame {
     double t = 1.0 + melds * 0.15;
     if (sh <= 1) t += 0.3;
     if (sh == 0) t += 0.2;
+    if (sh <= 1 && players[oppIndex].handTiles.length <= 10 && melds >= 2) t += 0.4;
     return t.clamp(1.0, 1.8).toDouble();
   }
 
@@ -1817,6 +1851,11 @@ class MahjongGame {
   void _recordHotTile(Tile t) {
     final key = _tileKey(t);
     hotTiles[key] = (hotTiles[key] ?? 0) + 1;
+  }
+
+  void _recordDeadTile(Tile t) {
+    final key = _tileKey(t);
+    deadTiles[key] = (deadTiles[key] ?? 0) + 1;
   }
 
   String _tileKey(Tile t) => '${t.type.index}_${t.number}';
