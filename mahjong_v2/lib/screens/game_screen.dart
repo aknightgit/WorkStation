@@ -219,7 +219,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: Colors.white, width: 2),
                       ),
-                      child: Text('冻结 $_freezeCountdown', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+                      child: Text('等待 $_freezeCountdown', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
                     ),
                   ),
                 ),
@@ -594,7 +594,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     final subBtnSize = btnSize * 0.55;
     final orbitRadius = btnSize * 1.1;
     final showDraw = _game.allowNextPlayerAction && _game.nextPlayerIndex == 0 && _game.pendingTile != null; 
-    final canFreeze = !_freezeActive && _game.canUseFreeze(0);
+    final showWait = _game.canUseFreeze(0);
+    final canFreeze = showWait && !_freezeActive;
     
     return Positioned(
       right: 10,
@@ -625,7 +626,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 ),
               ),
             // 等（冻结）
-            Positioned(left: btnSize * 0.5 - orbitRadius * 0.7, top: btnSize * 0.5, child: _buildOrbitBtn('等', Colors.indigo, canFreeze, subBtnSize * 0.9, _startFreeze)),
+            if (showWait)
+              Positioned(left: btnSize * 0.5 - orbitRadius * 0.7, top: btnSize * 0.5, child: _buildOrbitBtn('等', Colors.indigo, canFreeze, subBtnSize * 0.9, _startFreeze)),
             // 吃
             Positioned(left: btnSize * 0.5 + orbitRadius, top: btnSize * 0.5, child: _buildOrbitBtn('吃', Colors.orange, canChow, subBtnSize, _onChow)),
             // 碰
@@ -670,7 +672,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   String _turnHintText() {
-    if (_freezeActive) return '冻结中…';
+    if (_freezeActive) return '等待中…';
     if (_game.awaitingPlayerResponse) return '可碰/杠/胡';
     if (_game.allowNextPlayerAction && _game.nextPlayerIndex == 0) return '可摸牌/可吃牌';
     if (_game.currentPlayerIndex == 0) {

@@ -1402,36 +1402,34 @@ class MahjongGame {
     if (freezeActive) return;
     if (allowNextPlayerAction) return;
 
-    // 响应窗口开启时，仅允许碰/杠/胡
+    // 响应窗口开启时，仅允许碰/杠/胡（1秒内决定）
     if (!skipPlayerResponse && currentPlayerIndex != 0) {
       final player = players[0];
       final canRespond = canHu(player) || canKong(player) || canPong(player);
-      if (canRespond) {
-        awaitingPlayerResponse = true;
-        onStateChanged?.call();
-        return;
-      }
+      awaitingPlayerResponse = canRespond;
+    } else {
+      awaitingPlayerResponse = false;
     }
+    onStateChanged?.call();
 
-    awaitingPlayerResponse = false;
-    final responder = checkPlayerResponses(allowChow: false);
-    if (responder != null) {
-      responseWindowOpen = false;
-      allowNextPlayerAction = false;
-      Future.delayed(const Duration(milliseconds: 300), () {
-        aiPlay(responder);
-        onStateChanged?.call();
-      });
-      return;
-    }
-
-    // 启动1秒响应窗口计时
+    // 启动1秒响应窗口计时（不强制卡住）
     if (!responseTimerActive) {
       responseTimerActive = true;
       Future.delayed(const Duration(seconds: 1), () {
         responseTimerActive = false;
         if (freezeActive) return;
         if (pendingTile == null || !responseWindowOpen) return;
+
+        // 窗口结束时，先判定是否有人碰/杠/胡
+        final responder = checkPlayerResponses(allowChow: false);
+        if (responder != null) {
+          responseWindowOpen = false;
+          allowNextPlayerAction = false;
+          aiPlay(responder);
+          onStateChanged?.call();
+          return;
+        }
+
         responseWindowOpen = false;
         allowNextPlayerAction = true;
         awaitingPlayerResponse = false;
