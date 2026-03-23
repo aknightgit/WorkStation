@@ -154,157 +154,143 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           final sw = constraints.maxWidth;
           final sh = constraints.maxHeight;
 
-          // Table dimensions
-          final tableW = sw * 0.88;
-          final tableH = sh * 0.72;
-          final tableLeft = (sw - tableW) / 2;
+          // === Trapezoid table: top 80% width, bottom 100% width ===
+          final tableTopW = sw * 0.80;
+          final tableBotW = sw * 1.00;
+          final tableH = sh * 0.78;
+          final tableLeft = (sw - tableBotW) / 2;
           final tableTop = (sh - tableH) / 2;
 
-          // Wall tile sizing
-          final wallTileW = sw * 0.032;
-          final wallTileH = wallTileW * 1.3;
-
-          // River / discard tile sizing
-          final riverTileW = wallTileW * 0.8;
-          final riverTileH = wallTileH * 0.8;
+          // Wall tile sizing — LONG side horizontal (砖块横放)
+          final wallTileW = sw * 0.038;  // 长边
+          final wallTileH = wallTileW * 0.55;  // 短边（扁）
 
           // Hand tile sizing
-          final handTileW = wallTileW * 1.4;
-          final handTileH = wallTileH * 1.4;
+          final handTileW = sw * 0.052;
+          final handTileH = handTileW * 1.3;
+
+          // River tile sizing
+          final riverTileW = handTileW * 0.65;
+          final riverTileH = handTileH * 0.65;
+
+          // Wall offset from table edge
+          final wallInset = sw * 0.04;
 
           return Stack(
             children: [
-              // ===== 1. Full-screen wood background =====
+              // ===== 1. Wood background =====
               Positioned.fill(
                 child: Container(
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Color(0xFF5D4037),
-                        Color(0xFF4E342E),
-                        Color(0xFF3E2723),
-                      ],
+                      begin: Alignment.topLeft, end: Alignment.bottomRight,
+                      colors: [Color(0xFF5D4037), Color(0xFF4E342E), Color(0xFF3E2723)],
                     ),
                   ),
-                  child: Image.asset(
-                    'assets/backgrounds/light_wood.png',
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const SizedBox(),
-                  ),
+                  child: Image.asset('assets/backgrounds/light_wood.png',
+                    fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox()),
                 ),
               ),
 
-              // ===== 2. Felt table =====
+              // ===== 2. Trapezoid felt table =====
               Positioned(
-                left: tableLeft,
-                top: tableTop,
-                width: tableW,
-                height: tableH,
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFD4AF37), width: 3),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black54, blurRadius: 20, offset: Offset(0, 8)),
-                    ],
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Color(0xFF1B5E20),
-                        Color(0xFF2E7D32),
-                        Color(0xFF1B5E20),
-                      ],
-                      stops: [0.0, 0.5, 1.0],
-                    ),
+                left: 0, top: 0, width: sw, height: sh,
+                child: CustomPaint(
+                  painter: _TrapezoidPainter(
+                    centerX: sw / 2,
+                    topY: tableTop,
+                    bottomY: tableTop + tableH,
+                    topWidth: tableTopW,
+                    bottomWidth: tableBotW,
                   ),
                 ),
               ),
 
-              // ===== 3. Wall tiles (4 sides) =====
-              // Top wall
-              _buildWallHorizontal(
-                left: tableLeft + (tableW - 18 * (wallTileW + 0.6)) / 2,
-                top: tableTop + tableH * 0.03,
-                count: 18, tileW: wallTileW, tileH: wallTileH,
+              // ===== 3. Wall tiles — ALL sides horizontal (长边相连) =====
+              // Top wall (narrow side, fewer tiles)
+              _buildWallRow(
+                centerX: sw / 2,
+                y: tableTop + wallInset,
+                count: 14, tileW: wallTileW, tileH: wallTileH,
+                tableTopW: tableTopW, tableBotW: tableBotW,
+                tableTop: tableTop, tableH: tableH,
+                side: 0,
               ),
-              // Bottom wall
-              _buildWallHorizontal(
-                left: tableLeft + (tableW - 18 * (wallTileW + 0.6)) / 2,
-                top: tableTop + tableH * 0.97 - wallTileH,
+              // Bottom wall (wide side)
+              _buildWallRow(
+                centerX: sw / 2,
+                y: tableTop + tableH - wallInset - wallTileH,
                 count: 18, tileW: wallTileW, tileH: wallTileH,
+                tableTopW: tableTopW, tableBotW: tableBotW,
+                tableTop: tableTop, tableH: tableH,
+                side: 2,
               ),
-              // Left wall
-              _buildWallVertical(
-                left: tableLeft + tableW * 0.03,
-                top: tableTop + (tableH - 18 * (wallTileH + 0.6)) / 2,
-                count: 18, tileW: wallTileW, tileH: wallTileH,
+              // Left wall — horizontal tiles, rotated
+              _buildWallRow(
+                centerX: sw / 2,
+                y: tableTop + tableH / 2,
+                count: 14, tileW: wallTileW, tileH: wallTileH,
+                tableTopW: tableTopW, tableBotW: tableBotW,
+                tableTop: tableTop, tableH: tableH,
+                side: 3,
               ),
-              // Right wall
-              _buildWallVertical(
-                left: tableLeft + tableW * 0.97 - wallTileW,
-                top: tableTop + (tableH - 18 * (wallTileH + 0.6)) / 2,
-                count: 18, tileW: wallTileW, tileH: wallTileH,
+              // Right wall — horizontal tiles, rotated
+              _buildWallRow(
+                centerX: sw / 2,
+                y: tableTop + tableH / 2,
+                count: 14, tileW: wallTileW, tileH: wallTileH,
+                tableTopW: tableTopW, tableBotW: tableBotW,
+                tableTop: tableTop, tableH: tableH,
+                side: 1,
               ),
 
-              // ===== 4. Discard area (river) =====
+              // ===== 4. Discard area =====
               if (_game.phase == GamePhase.playing)
-                _buildRiverArea(tableLeft, tableTop, tableW, tableH, riverTileW, riverTileH),
+                _buildRiverArea(sw, sh, tableTopW, tableBotW, tableH, tableTop, riverTileW, riverTileH),
 
-              // ===== 5. Avatars (on table edges) =====
-              _buildTableAvatar(0, tableLeft, tableTop, tableW, tableH, sw),
-              _buildTableAvatar(1, tableLeft, tableTop, tableW, tableH, sw),
-              _buildTableAvatar(2, tableLeft, tableTop, tableW, tableH, sw),
-              _buildTableAvatar(3, tableLeft, tableTop, tableW, tableH, sw),
+              // ===== 5. Avatars =====
+              _buildAvatar(0, sw, sh, tableTopW, tableBotW, tableH, tableTop),
+              _buildAvatar(1, sw, sh, tableTopW, tableBotW, tableH, tableTop),
+              _buildAvatar(2, sw, sh, tableTopW, tableBotW, tableH, tableTop),
+              _buildAvatar(3, sw, sh, tableTopW, tableBotW, tableH, tableTop),
 
-              // ===== 6. Turn hint (above discard area) =====
+              // ===== 6. Turn hint =====
               if (_game.phase == GamePhase.playing)
                 Positioned(
                   left: 0, right: 0,
-                  top: tableTop + tableH * 0.28,
+                  top: tableTop + tableH * 0.32,
                   child: Center(
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        _turnHintText(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20)),
+                      child: Text(_turnHintText(),
+                        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ),
 
-              // ===== 7. Multiplier display =====
+              // ===== 7. Multiplier =====
               if (_game.phase == GamePhase.playing)
-                _buildMultiplierDisplay(tableLeft, tableTop, tableW, tableH),
+                _buildMultiplier(sw, tableTop + 12),
 
-              // ===== 8. Dice area (during rolling phase) =====
+              // ===== 8. Dice =====
               if (_game.phase == GamePhase.waiting || _game.phase == GamePhase.diceRolling)
                 _buildDiceArea(sw, sh),
 
-              // ===== 9. Hand tiles (bottom) =====
+              // ===== 9. Hand =====
               if (_game.phase == GamePhase.playing)
                 _buildHandArea(sw, sh, handTileW, handTileH),
 
-              // ===== 10. Action buttons (right side) =====
+              // ===== 10. Actions =====
               if (_game.phase == GamePhase.playing) _buildActionButtons(sw),
 
-              // ===== 11. Freeze overlay =====
+              // ===== 11. Freeze =====
               if (_freezeActive) _buildFreezeOverlay(),
 
-              // ===== 12. Rebel buttons =====
+              // ===== 12. Rebel =====
               if (canRebelNow) _buildRebelButtons(),
 
-              // ===== 13. Settlement overlay =====
+              // ===== 13. Settlement =====
               if (_game.phase == GamePhase.scoring && _game.lastSettlement != null)
                 _buildSettlementOverlay(sw, sh),
             ],
@@ -314,30 +300,61 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
-  // ==================== WALL TILES ====================
-
-  Widget _buildWallHorizontal({
-    required double left, required double top,
+  // ==================== WALL TILES (长边相连) ====================
+  // side: 0=top, 1=right, 2=bottom, 3=left
+  Widget _buildWallRow({
+    required double centerX, required double y,
     required int count, required double tileW, required double tileH,
+    required double tableTopW, required double tableBotW,
+    required double tableTop, required double tableH,
+    required int side,
   }) {
+    // Calculate wall position based on trapezoid side
+    double left;
+    double top;
+    double angle = 0;
+
+    // Interpolate table width at the wall's Y position
+    final t = (y - tableTop) / tableH;
+    final widthAtY = tableTopW + (tableBotW - tableTopW) * t.clamp(0.0, 1.0);
+    final leftAtY = centerX - widthAtY / 2;
+
+    if (side == 0) {
+      // Top wall — horizontal, centered
+      left = centerX - (count * (tileW + 0.5)) / 2;
+      top = y;
+      // Slight angle to match trapezoid edge
+      angle = -0.04;
+    } else if (side == 2) {
+      // Bottom wall — horizontal, centered
+      left = centerX - (count * (tileW + 0.5)) / 2;
+      top = y;
+      angle = 0.04;
+    } else if (side == 1) {
+      // Right wall — horizontal tiles, rotated 90°
+      left = leftAtY + widthAtY - tileH - 2;
+      top = y - (count * (tileW + 0.5)) / 2;
+      angle = 1.5708; // 90°
+    } else {
+      // Left wall — horizontal tiles, rotated 90°
+      left = leftAtY + 2;
+      top = y - (count * (tileW + 0.5)) / 2;
+      angle = -1.5708; // -90°
+    }
+
     return Positioned(
       left: left,
       top: top,
-      child: Row(
-        children: List.generate(count, (_) => _wallTile(w: tileW, h: tileH)),
-      ),
-    );
-  }
-
-  Widget _buildWallVertical({
-    required double left, required double top,
-    required int count, required double tileW, required double tileH,
-  }) {
-    return Positioned(
-      left: left,
-      top: top,
-      child: Column(
-        children: List.generate(count, (_) => _wallTile(w: tileW, h: tileH)),
+      child: Transform.rotate(
+        angle: angle,
+        alignment: side == 0 || side == 2 ? Alignment.center : Alignment.topLeft,
+        child: side == 0 || side == 2
+            ? Row(
+                children: List.generate(count, (_) => _wallTile(w: tileW, h: tileH)),
+              )
+            : Column(
+                children: List.generate(count, (_) => _wallTile(w: tileW, h: tileH)),
+              ),
       ),
     );
   }
@@ -345,12 +362,13 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   // ==================== RIVER / DISCARD AREA ====================
 
   Widget _buildRiverArea(
-    double tableLeft, double tableTop, double tableW, double tableH,
-    double tw, double th,
+    double sw, double sh, double tableTopW, double tableBotW,
+    double tableH, double tableTop, double tw, double th,
   ) {
-    final riverW = tableW * 0.50;
-    final riverH = tableH * 0.45;
-    final riverLeft = tableLeft + (tableW - riverW) / 2;
+    final centerX = sw / 2;
+    final riverW = tableTopW * 0.55;
+    final riverH = tableH * 0.40;
+    final riverLeft = centerX - riverW / 2;
     final riverTop = tableTop + (tableH - riverH) / 2;
 
     return Stack(
@@ -489,49 +507,48 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   // ==================== AVATARS ON TABLE EDGES ====================
 
-  Widget _buildTableAvatar(
-    int playerIndex,
-    double tableLeft, double tableTop, double tableW, double tableH,
-    double screenW,
+  Widget _buildAvatar(
+    int idx, double sw, double sh,
+    double tableTopW, double tableBotW, double tableH, double tableTop,
   ) {
-    final p = _game.players[playerIndex];
-    final isActive = _game.currentPlayerIndex == playerIndex;
-    final color = _playerColors[playerIndex];
-    final direction = _directionLabels[playerIndex];
+    final p = _game.players[idx];
+    final isActive = _game.currentPlayerIndex == idx;
+    final color = _playerColors[idx];
+    final direction = _directionLabels[idx];
+    final centerX = sw / 2;
 
+    // Position on trapezoid edges
     double cx, cy;
-    switch (playerIndex) {
-      case 0: // bottom center
-        cx = tableLeft + tableW / 2;
-        cy = tableTop + tableH * 0.90;
+    switch (idx) {
+      case 0: // bottom
+        cx = centerX;
+        cy = tableTop + tableH * 0.92;
         break;
-      case 1: // right center
-        cx = tableLeft + tableW * 0.92;
-        cy = tableTop + tableH / 2;
+      case 1: // right
+        cx = centerX + tableBotW * 0.42;
+        cy = tableTop + tableH * 0.65;
         break;
-      case 2: // top center
-        cx = tableLeft + tableW / 2;
-        cy = tableTop + tableH * 0.10;
+      case 2: // top
+        cx = centerX;
+        cy = tableTop + tableH * 0.08;
         break;
-      case 3: // left center
-        cx = tableLeft + tableW * 0.08;
-        cy = tableTop + tableH / 2;
+      case 3: // left
+        cx = centerX - tableBotW * 0.42;
+        cy = tableTop + tableH * 0.65;
         break;
       default:
-        cx = tableLeft;
+        cx = centerX;
         cy = tableTop;
     }
 
     return Positioned(
-      left: cx - 28,
-      top: cy - 32,
+      left: cx - 26,
+      top: cy - 28,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Avatar circle with glow for active player
           Container(
-            width: 52,
-            height: 52,
+            width: 48, height: 48,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: color,
@@ -540,52 +557,24 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 width: isActive ? 3 : 2,
               ),
               boxShadow: [
-                if (isActive)
-                  BoxShadow(color: color.withValues(alpha: 0.7), blurRadius: 12, spreadRadius: 2),
+                if (isActive) BoxShadow(color: color.withValues(alpha: 0.7), blurRadius: 12, spreadRadius: 2),
                 BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 6),
               ],
             ),
-            child: Stack(
-              children: [
-                Center(
-                  child: Text(
-                    direction,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                // Color dot indicator
-                Positioned(
-                  right: 2, top: 2,
-                  child: Container(
-                    width: 12, height: 12,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 1.5),
-                    ),
-                  ),
-                ),
-              ],
+            child: Center(
+              child: Text(direction,
+                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
             ),
           ),
-          const SizedBox(height: 3),
-          // Score badge
+          const SizedBox(height: 2),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.black54,
-              borderRadius: BorderRadius.circular(10),
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+            decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(8)),
             child: Text(
               '${p.totalScore > 0 ? "+" : ""}${p.totalScore}',
               style: TextStyle(
                 color: p.totalScore >= 0 ? Colors.greenAccent : Colors.redAccent,
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
+                fontSize: 10, fontWeight: FontWeight.bold,
               ),
             ),
           ),
@@ -596,12 +585,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   // ==================== MULTIPLIER DISPLAY ====================
 
-  Widget _buildMultiplierDisplay(
-    double tableLeft, double tableTop, double tableW, double tableH,
-  ) {
+  Widget _buildMultiplier(double sw, double top) {
     return Positioned(
       left: 0, right: 0,
-      top: tableTop + tableH * 0.05,
+      top: top,
       child: Center(
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -1450,4 +1437,61 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _game.decideRebel(0, false);
     setState(() {});
   }
+}
+
+// ===== Trapezoid Painter =====
+class _TrapezoidPainter extends CustomPainter {
+  final double centerX;
+  final double topY;
+  final double bottomY;
+  final double topWidth;
+  final double bottomWidth;
+
+  _TrapezoidPainter({
+    required this.centerX,
+    required this.topY,
+    required this.bottomY,
+    required this.topWidth,
+    required this.bottomWidth,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(centerX - topWidth / 2, topY)
+      ..lineTo(centerX + topWidth / 2, topY)
+      ..lineTo(centerX + bottomWidth / 2, bottomY)
+      ..lineTo(centerX - bottomWidth / 2, bottomY)
+      ..close();
+
+    // Green felt fill
+    final fillPaint = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          Color(0xFF1B5E20),
+          Color(0xFF2E7D32),
+          Color(0xFF1B5E20),
+        ],
+        stops: [0.0, 0.5, 1.0],
+      ).createShader(Rect.fromLTWH(0, topY, size.width, bottomY - topY));
+    canvas.drawPath(path, fillPaint);
+
+    // Gold border
+    final borderPaint = Paint()
+      ..color = const Color(0xFFD4AF37)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+    canvas.drawPath(path, borderPaint);
+
+    // Shadow
+    canvas.drawShadow(path, Colors.black54, 15, true);
+  }
+
+  @override
+  bool shouldRepaint(_TrapezoidPainter old) =>
+      centerX != old.centerX || topY != old.topY ||
+      bottomY != old.bottomY || topWidth != old.topWidth ||
+      bottomWidth != old.bottomWidth;
 }
