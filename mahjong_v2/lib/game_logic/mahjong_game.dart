@@ -223,12 +223,17 @@ class MahjongGame {
     diceValues[1] = Random().nextInt(6) + 1;
     diceRolled = true;
     
-    // 计算回合倍数（需求文档：双数×2/×4，单数×1）
-    if (diceValues[0] == diceValues[1]) {
-      roundMultiplier = 4; // 对子
+    // 计算回合倍数（按最新规则）
+    final d1 = diceValues[0];
+    final d2 = diceValues[1];
+    if (d1 == d2) {
+      // 对子：11/44 为4倍，其他对子2倍
+      roundMultiplier = (d1 == 1 || d1 == 4) ? 4 : 2;
+    } else if ((d1 == 1 && d2 == 4) || (d1 == 4 && d2 == 1)) {
+      // 1-4 组合两倍
+      roundMultiplier = 2;
     } else {
-      final sum = diceValues[0] + diceValues[1];
-      roundMultiplier = (sum % 2 == 0) ? 2 : 1;
+      roundMultiplier = 1;
     }
   }
 
