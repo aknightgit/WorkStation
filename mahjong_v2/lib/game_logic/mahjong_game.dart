@@ -59,6 +59,7 @@ class Player {
   List<Tile> handTiles = [];
   List<List<Tile>> melds = []; // 吃/碰/杠牌组
   List<bool> meldHidden = []; // 对应是否暗杠/暗刻
+  Map<int, int> meldSourceCounts = {}; // 吃/碰/杠来源计数
   List<Tile> flowerTiles = [];
   List<Tile> playedTiles = [];
   int score = 0;
@@ -254,6 +255,7 @@ class MahjongGame {
       p.handTiles.clear();
       p.melds.clear();
       p.meldHidden.clear();
+      p.meldSourceCounts.clear();
       p.playedTiles.clear();
       p.flowerTiles.clear();
     }
@@ -435,6 +437,7 @@ class MahjongGame {
     final fromPlayer = player.index; // 吃牌者
     final toPlayer = (currentPlayerIndex + 1) % 4; // 上家
     recordBao(fromPlayer, toPlayer);
+    player.meldSourceCounts[toPlayer] = (player.meldSourceCounts[toPlayer] ?? 0) + 1;
     
     // 吃牌后轮到该玩家出牌
     pendingTile = null;
@@ -484,6 +487,7 @@ class MahjongGame {
     final fromPlayer = player.index; // 碰牌者
     final toPlayer = currentPlayerIndex; // 打牌者
     recordBao(fromPlayer, toPlayer);
+    player.meldSourceCounts[toPlayer] = (player.meldSourceCounts[toPlayer] ?? 0) + 1;
     
     // 碰牌后轮到该玩家出牌
     pendingTile = null;
@@ -850,6 +854,7 @@ class MahjongGame {
       p.handTiles.clear();
       p.melds.clear();
       p.meldHidden.clear();
+      p.meldSourceCounts.clear();
       p.playedTiles.clear();
       p.flowerTiles.clear();
     }
@@ -989,6 +994,7 @@ class MahjongGame {
       final fromPlayer = player.index; // 杠牌者
       final toPlayer = currentPlayerIndex; // 打牌者
       recordBao(fromPlayer, toPlayer);
+      player.meldSourceCounts[toPlayer] = (player.meldSourceCounts[toPlayer] ?? 0) + 1;
     }
 
     final meld = <Tile>[];

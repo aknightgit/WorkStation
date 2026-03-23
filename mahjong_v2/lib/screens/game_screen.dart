@@ -15,6 +15,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   bool canRebel = false;
   bool canPong = false, canKong = false, canHu = false, canChow = false;
   int? selectedTileIndex;
+  final List<Color> _playerColors = [Colors.red, Colors.green, Colors.blue, Colors.orange];
   
   // 骰子动画
   late AnimationController _diceAnimController;
@@ -138,10 +139,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               ),
               
               // ===== 头像 =====
-              _buildAvatar('东', Colors.red, w * 0.5, h * 0.05),
-              _buildAvatar('南', Colors.green, w * 0.95, h * 0.5),
-              _buildAvatar('西', Colors.blue, w * 0.5, h * 0.95),
-              _buildAvatar('北', Colors.orange, w * 0.05, h * 0.5),
+              _buildAvatar('东', Colors.red, w * 0.5, h * 0.05, _playerColors[0]),
+              _buildAvatar('南', Colors.green, w * 0.95, h * 0.5, _playerColors[1]),
+              _buildAvatar('西', Colors.blue, w * 0.5, h * 0.95, _playerColors[2]),
+              _buildAvatar('北', Colors.orange, w * 0.05, h * 0.5, _playerColors[3]),
               
               // ===== 骰子 + 发牌按钮 =====
               if (_game.phase == GamePhase.waiting || _game.phase == GamePhase.diceRolling)
@@ -202,14 +203,14 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               if (_game.phase == GamePhase.playing)
                 Positioned(
                   left: 10, right: 10, bottom: 20,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       if (player.flowerTiles.isNotEmpty || player.melds.isNotEmpty)
-                        _buildMeldsArea(tileW, tileH),
+                        SizedBox(width: tileW * 4.2, child: _buildMeldsArea(tileW, tileH)),
                       if (player.flowerTiles.isNotEmpty || player.melds.isNotEmpty)
-                        const SizedBox(height: 4),
-                      _buildMyHand(tileW, tileH),
+                        const SizedBox(width: 6),
+                      Expanded(child: _buildMyHand(tileW, tileH)),
                     ],
                   ),
                 ),
@@ -287,16 +288,30 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildAvatar(String name, Color c, double x, double y) {
+  Widget _buildAvatar(String name, Color c, double x, double y, Color dotColor) {
     return Positioned(
       left: x - 20, top: y - 20,
-      child: Container(
-        width: 40, height: 40,
-        decoration: BoxDecoration(
-          color: c, shape: BoxShape.circle,
-          border: Border.all(color: Colors.white, width: 2),
-        ),
-        child: Center(child: Text(name, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold))),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+              color: c, shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+            ),
+            child: Center(child: Text(name, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold))),
+          ),
+          Positioned(
+            right: -2,
+            top: -2,
+            child: Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 1)),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -482,47 +497,69 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   Widget _buildMeldsArea(double w, double h) {
     final player = _game.players[0];
     if (player.melds.isEmpty && player.flowerTiles.isEmpty) return const SizedBox.shrink();
-    return SizedBox(
-      height: h * 0.7,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            if (player.flowerTiles.isNotEmpty)
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                child: Row(
-                  children: player.flowerTiles.map((t) {
-                    return Container(
-                      width: w * 0.6,
-                      height: h * 0.6,
-                      margin: const EdgeInsets.symmetric(horizontal: 1),
-                      child: Image.asset(t.imagePath, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const SizedBox()),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ...List.generate(player.melds.length, (mi) {
-              final meld = player.melds[mi];
-              final hidden = (mi < player.meldHidden.length) ? player.meldHidden[mi] : false;
-              return Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                child: Row(
-                  children: meld.map((t) {
-                    final img = hidden ? 'assets/images/tiles/Regular/Back.png' : t.imagePath;
-                    return Container(
-                      width: w * 0.6,
-                      height: h * 0.6,
-                      margin: const EdgeInsets.symmetric(horizontal: 1),
-                      child: Image.asset(img, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const SizedBox()),
-                    );
-                  }).toList(),
-                ),
-              );
-            }),
-          ],
+
+    final sourceWidgets = <Widget>[];
+    player.meldSourceCounts.forEach((idx, count) {
+      final name = _game.players[idx].name;
+      final color = _playerColors[idx % _playerColors.length];
+      sourceWidgets.add(Text('$name×$count', style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.bold)));
+      sourceWidgets.add(const SizedBox(width: 6));
+    });
+    if (sourceWidgets.isNotEmpty) sourceWidgets.removeLast();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (sourceWidgets.isNotEmpty)
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: sourceWidgets),
+          ),
+        if (sourceWidgets.isNotEmpty) const SizedBox(height: 4),
+        SizedBox(
+          height: h * 0.7,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                if (player.flowerTiles.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Row(
+                      children: player.flowerTiles.map((t) {
+                        return Container(
+                          width: w * 0.6,
+                          height: h * 0.6,
+                          margin: const EdgeInsets.symmetric(horizontal: 1),
+                          child: Image.asset(t.imagePath, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const SizedBox()),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ...List.generate(player.melds.length, (mi) {
+                  final meld = player.melds[mi];
+                  final hidden = (mi < player.meldHidden.length) ? player.meldHidden[mi] : false;
+                  return Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Row(
+                      children: meld.map((t) {
+                        final img = hidden ? 'assets/images/tiles/Regular/Back.png' : t.imagePath;
+                        return Container(
+                          width: w * 0.6,
+                          height: h * 0.6,
+                          margin: const EdgeInsets.symmetric(horizontal: 1),
+                          child: Image.asset(img, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const SizedBox()),
+                        );
+                      }).toList(),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 
