@@ -1459,13 +1459,17 @@ class MahjongGame {
     final connected = _hasNeighbor(counts, discard);
     final isolated = !_hasSameOrNeighbor(counts, discard);
 
+    final riskWeight = _riskWeight(playerIndex);
+    final patternBias = _patternBiasScore(playerIndex, discard, counts);
+
     double score = 0;
-    score += safety; // safety 为负数，优先规避
+    score += safety * riskWeight; // safety 为负数，优先规避
     score += shantenDelta * 0.15;
     if (cnt >= 2) score -= 0.10; // 丢对子/刻子
     if (connected) score -= 0.06; // 丢连张
     if (isolated) score += 0.08; // 丢孤张
     if (_isWildTile(discard)) score -= 0.30; // 尽量不丢百搭
+    score += patternBias;
     return score;
   }
 
@@ -1480,6 +1484,11 @@ class MahjongGame {
       }
       final match = players[i].handTiles.where((t) => t.type == discard.type && t.number == discard.number).length;
       if (match >= 2) penalty -= 0.2; // 给对手碰机会
+
+      // 危险牌记忆：对手已打出的牌更安全
+      if (_hasDiscarded(players[i].playedTiles, discard)) {
+        penalty += 0.2;
+      }
     }
     return penalty;
   }
@@ -1618,6 +1627,76 @@ class MahjongGame {
     }
     final idx2 = hand.indexWhere((t) => t.type == target.type && t.number == target.number);
     if (idx2 >= 0) hand.removeAt(idx2);
+  }
+
+  double _riskWeight(int playerIndex) {
+    double w = 1.0;
+    final myScore = players[playerIndex].totalScore;
+    int bestOpp = -999999;
+    int maxMeld = 0;
+    for (int i = 0; i < 4; i++) {
+      if (i == playerIndex) continue;
+      bestOpp = max(bestOpp, players[i].totalScore);
+      maxMeld = max(maxMeld, players[i].melds.length);
+    }
+    if (myScore > bestOpp) w += 0.2; // 领先更保守
+    if (myScore + 30 < bestOpp) w -= 0.1; // 落后更激进
+    if (maxMeld >= 2) w += 0.2;
+    if (maxMeld >= 3) w += 0.2;
+    return w.clamp(0.8, 1.6).toDouble();
+  }
+
+  double _patternBiasScore(int playerIndex, Tile discard, Map<String, int> counts) {
+    final hand = players[playerIndex].handTiles;
+    int wan = 0, tong = 0, tiao = 0, honor = 0;
+    int pairs = 0, triplets = 0;
+    for (final t in hand) {
+      if (t.suit == TileSuit.wan) wan++;
+      else if (t.suit == TileSuit.tong) tong++;
+      else if (t.suit == TileSuit.tiao) tiao++;
+      else if (t.type == TileType.wind || t.type == TileType.dragon) honor++;
+    }
+    for (final v in counts.values) {
+      if (v >= 2) pairs++;
+      if (v >= 3) triplets++;
+    }
+
+    final maxSuit = max(wan, max(tong, tiao));
+    final suits = [wan, tong, tiao];
+    suits.sort();
+    final second = suits[1];
+
+    TileSuit? dominant;
+    if (maxSuit == wan) dominant = TileSuit.wan;
+    if (maxSuit == tong) dominant = TileSuit.tong;
+    if (maxSuit == tiao) dominant = TileSuit.tiao;
+
+    final targetQing = honor == 0 && maxSuit >= 7 && (maxSuit - second) >= 2;
+    final targetHun = honor > 0 && maxSuit >= 7 && (maxSuit - second) >= 2;
+    final targetPeng = (pairs + triplets) >= 3;
+
+    double score = 0;
+    if (targetQing && dominant != null) {
+      if (discard.suit == dominant) score -= 0.10;
+      else score += 0.10;
+      if (discard.type == TileType.wind || discard.type == TileType.dragon) score += 0.10;
+    }
+    if (targetHun && dominant != null) {
+      if (discard.suit == dominant) score -= 0.08;
+      else if (discard.type == TileType.wind || discard.type == TileType.dragon) score -= 0.05;
+      else score += 0.08;
+    }
+    if (targetPeng) {
+      final key = '${discard.type.index}_${discard.number}';
+      final cnt = counts[key] ?? 0;
+      if (cnt >= 2) score -= 0.08;
+      if (_hasNeighbor(counts, discard)) score += 0.05;
+    }
+    return score;
+  }
+
+  bool _hasDiscarded(List<Tile> list, Tile t) {
+    return list.any((x) => x.type == t.type && x.number == t.number);
   }
 
   bool _canHuWithExtra(List<Tile> hand, Tile? extra) {
