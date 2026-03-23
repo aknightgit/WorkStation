@@ -655,10 +655,11 @@ class MahjongGame {
   SettlementResult _settleWin(int winnerIndex, {String reason = '胡牌'}) {
     final winner = players[winnerIndex];
     final isSelfDraw = !lastWinFromDiscard;
-    final fixed = _calcFixedScore(winner, isSelfDraw);
-    final huType = _calcHuType(winner);
+    final extraTile = lastWinFromDiscard ? lastPlayedTile : null;
+    final fixed = _calcFixedScore(winner, isSelfDraw, extra: extraTile);
+    final huType = _calcHuType(winner, extra: extraTile);
     final useFormula = huType == '混一色' || huType == '碰碰胡';
-    final basePoints = fixed.points > 0 ? fixed.points : (useFormula ? min(10, _calcBasePoints(winner)) : 0);
+    final basePoints = fixed.points > 0 ? fixed.points : (useFormula ? min(10, _calcBasePoints(winner, extra: extraTile)) : 0);
     final finalReason = fixed.points > 0 ? fixed.reason : (huType ?? reason);
     final extraMultiplier = _calcExtraMultiplier(winner);
     final total = basePoints * finalMultiplier * extraMultiplier;
@@ -748,8 +749,8 @@ class MahjongGame {
     );
   }
 
-  FixedScore _calcFixedScore(Player winner, bool isSelfDraw) {
-    final huType = _calcHuType(winner);
+  FixedScore _calcFixedScore(Player winner, bool isSelfDraw, {Tile? extra}) {
+    final huType = _calcHuType(winner, extra: extra);
     if (huType == '风碰') return FixedScore(40, '风碰');
     if (huType == '风一色') return FixedScore(20, '风一色');
     if (huType == '清碰') return FixedScore(20, '清碰');
@@ -759,9 +760,9 @@ class MahjongGame {
     return FixedScore(0, '');
   }
 
-  int _calcBasePoints(Player winner) {
+  int _calcBasePoints(Player winner, {Tile? extra}) {
     final flowerCount = _countFlowers(winner);
-    final meldPoints = _calcMeldPoints(winner);
+    final meldPoints = _calcMeldPoints(winner, extra: extra);
     return 2 + flowerCount + meldPoints;
   }
 
@@ -770,9 +771,9 @@ class MahjongGame {
     return winner.flowerTiles.length + inHand;
   }
 
-  int _calcMeldPoints(Player winner) {
+  int _calcMeldPoints(Player winner, {Tile? extra}) {
     int points = 0;
-    final tiles = _allNonFlowerTiles(winner);
+    final tiles = _allNonFlowerTilesWithExtra(winner, extra);
     final counts = <String, int>{};
     for (final t in tiles) {
       final key = '${t.type.index}_${t.number}';
@@ -820,13 +821,21 @@ class MahjongGame {
   }
 
   bool _isFengYiSe(Player winner) {
-    final tiles = _allNonFlowerTiles(winner);
+    return _isFengYiSeWithExtra(winner, null);
+  }
+
+  bool _isFengYiSeWithExtra(Player winner, Tile? extra) {
+    final tiles = _allNonFlowerTilesWithExtra(winner, extra);
     if (tiles.isEmpty) return false;
     return tiles.every((t) => t.type == TileType.wind);
   }
 
   bool _isFengPeng(Player winner) {
-    final tiles = _allNonFlowerTiles(winner);
+    return _isFengPengWithExtra(winner, null);
+  }
+
+  bool _isFengPengWithExtra(Player winner, Tile? extra) {
+    final tiles = _allNonFlowerTilesWithExtra(winner, extra);
     if (tiles.isEmpty) return false;
     if (!tiles.every((t) => t.type == TileType.wind)) return false;
     final counts = <String, int>{};
@@ -839,7 +848,11 @@ class MahjongGame {
   }
 
   bool _isQingYiSe(Player winner) {
-    final tiles = _allNonFlowerTiles(winner);
+    return _isQingYiSeWithExtra(winner, null);
+  }
+
+  bool _isQingYiSeWithExtra(Player winner, Tile? extra) {
+    final tiles = _allNonFlowerTilesWithExtra(winner, extra);
     if (tiles.isEmpty) return false;
     // 不能包含风/箭
     if (tiles.any((t) => t.type == TileType.wind || t.type == TileType.dragon)) return false;
@@ -958,17 +971,21 @@ class MahjongGame {
   }
 
   bool _isQingPeng(Player winner) {
-    return _isQingYiSe(winner) && _isPengPengHu(winner);
+    return _isQingPengWithExtra(winner, null);
   }
 
-  String? _calcHuType(Player winner) {
+  bool _isQingPengWithExtra(Player winner, Tile? extra) {
+    return _isQingYiSeWithExtra(winner, extra) && _isPengPengHuWithExtra(winner, extra);
+  }
+
+  String? _calcHuType(Player winner, {Tile? extra}) {
     // 按优先级（高→低）
-    if (_isFengPeng(winner)) return '风碰';
-    if (_isFengYiSe(winner)) return '风一色';
-    if (_isQingPeng(winner)) return '清碰';
-    if (_isQingYiSe(winner)) return '清一色';
-    if (_isHunYiSe(winner)) return '混一色';
-    if (_isPengPengHu(winner)) return '碰碰胡';
+    if (_isFengPengWithExtra(winner, extra)) return '风碰';
+    if (_isFengYiSeWithExtra(winner, extra)) return '风一色';
+    if (_isQingPengWithExtra(winner, extra)) return '清碰';
+    if (_isQingYiSeWithExtra(winner, extra)) return '清一色';
+    if (_isHunYiSeWithExtra(winner, extra)) return '混一色';
+    if (_isPengPengHuWithExtra(winner, extra)) return '碰碰胡';
     return null;
   }
 
@@ -1389,10 +1406,10 @@ class MahjongGame {
     final ownerIndex = robKongOwnerIndex!;
     final winner = players[winnerIndex];
     final isSelfDraw = false;
-    final fixed = _calcFixedScore(winner, isSelfDraw);
-    final huType = _calcHuType(winner);
+    final fixed = _calcFixedScore(winner, isSelfDraw, extra: robKongTile);
+    final huType = _calcHuType(winner, extra: robKongTile);
     final useFormula = huType == '混一色' || huType == '碰碰胡';
-    final basePoints = fixed.points > 0 ? fixed.points : (useFormula ? min(10, _calcBasePoints(winner)) : 0);
+    final basePoints = fixed.points > 0 ? fixed.points : (useFormula ? min(10, _calcBasePoints(winner, extra: robKongTile)) : 0);
     final extra = _calcExtraMultiplier(winner);
     final total = basePoints * finalMultiplier * extra;
     final robTotal = total * 3;
@@ -2189,10 +2206,11 @@ class MahjongGame {
 
   Map<String, dynamic> buildWinSummary(int winnerIndex, {required bool isSelfDraw}) {
     final winner = players[winnerIndex];
-    final fixed = _calcFixedScore(winner, isSelfDraw);
-    final huType = _calcHuType(winner);
+    final extraTile = isSelfDraw ? null : lastPlayedTile;
+    final fixed = _calcFixedScore(winner, isSelfDraw, extra: extraTile);
+    final huType = _calcHuType(winner, extra: extraTile);
     final useFormula = huType == '混一色' || huType == '碰碰胡';
-    final basePoints = fixed.points > 0 ? fixed.points : (useFormula ? min(10, _calcBasePoints(winner)) : 0);
+    final basePoints = fixed.points > 0 ? fixed.points : (useFormula ? min(10, _calcBasePoints(winner, extra: extraTile)) : 0);
     final reason = fixed.points > 0 ? fixed.reason : (huType ?? '胡牌');
     final extra = _calcExtraMultiplier(winner);
     final total = basePoints * finalMultiplier * extra;

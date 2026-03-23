@@ -10,3 +10,7 @@ mahjong-game/.packages
 
 # AI logs
 mahjong_v2/ai_logs/
+
+# HR data
+hr_docs/
+.learnings/
