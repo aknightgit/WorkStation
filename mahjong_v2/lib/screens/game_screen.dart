@@ -86,42 +86,31 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
-  // ===== Helper: wall tile with gradient back =====
+  // ===== Helper: wall tile with pomax back =====
   Widget _wallTile({required double w, required double h}) {
     return Container(
       width: w,
       height: h,
       margin: const EdgeInsets.all(0.4),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF1565C0),  // blue top
-            Color(0xFF0D47A1),  // darker blue
-          ],
-        ),
-        borderRadius: BorderRadius.circular(3),
-        border: Border.all(color: const Color(0xFFD4AF37), width: 0.8),
+        borderRadius: BorderRadius.circular(2),
         boxShadow: const [
           BoxShadow(color: Colors.black38, blurRadius: 2, offset: Offset(1, 1)),
         ],
       ),
-      child: Center(
-        child: Container(
-          width: w * 0.6,
-          height: h * 0.5,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                const Color(0xFF0D47A1).withValues(alpha: 0.6),
-                const Color(0xFF1565C0).withValues(alpha: 0.3),
-              ],
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(2),
+        child: Image.asset(
+          'assets/tilesets/pomax_hq/Back.png',
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF1565C0), Color(0xFF0D47A1)],
+              ),
+              borderRadius: BorderRadius.circular(2),
+              border: Border.all(color: const Color(0xFFD4AF37), width: 0.5),
             ),
-            borderRadius: BorderRadius.circular(2),
-            border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.5), width: 0.5),
           ),
         ),
       ),

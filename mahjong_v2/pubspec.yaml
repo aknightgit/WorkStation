@@ -21,4 +21,5 @@ flutter:
   assets:
     - assets/images/tiles/Regular/
     - assets/tilesets/
+    - assets/tilesets/pomax_hq/
     - assets/backgrounds/

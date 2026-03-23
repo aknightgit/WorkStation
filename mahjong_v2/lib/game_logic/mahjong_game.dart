@@ -13,9 +13,10 @@ class Tile {
 
   // 素材路径
   String get imagePath {
-    // 花牌统一用背面（避免缺素材）
+    const dir = 'assets/tilesets/pomax_hq';
+    // 花牌用背面
     if (isFlower || suit == TileSuit.hua) {
-      return 'assets/images/tiles/Regular/Back.png';
+      return '$dir/Back.png';
     }
 
     // 根据suit和number返回对应素材
@@ -24,19 +25,19 @@ class Tile {
     else if (suit == TileSuit.tong) prefix = 'Pin';
     else if (suit == TileSuit.tiao) prefix = 'Sou';
     else if (suit == TileSuit.feng) {
-      if (number == 1) return 'assets/images/tiles/Regular/Ton.png';
-      if (number == 2) return 'assets/images/tiles/Regular/Nan.png';
-      if (number == 3) return 'assets/images/tiles/Regular/Shaa.png';
-      if (number == 4) return 'assets/images/tiles/Regular/Pei.png';
+      if (number == 1) return '$dir/Ton.png';
+      if (number == 2) return '$dir/Nan.png';
+      if (number == 3) return '$dir/Shaa.png';
+      if (number == 4) return '$dir/Pei.png';
     }
     else if (suit == TileSuit.dragon) {
-      if (number == 1) return 'assets/images/tiles/Regular/Haku.png';
-      if (number == 2) return 'assets/images/tiles/Regular/Hatsu.png';
-      if (number == 3) return 'assets/images/tiles/Regular/Chun.png';
+      if (number == 1) return '$dir/Haku.png';
+      if (number == 2) return '$dir/Hatsu.png';
+      if (number == 3) return '$dir/Chun.png';
     }
 
-    if (prefix.isEmpty) return 'assets/images/tiles/Regular/Blank.png';
-    return 'assets/images/tiles/Regular/${prefix}$number.png';
+    if (prefix.isEmpty) return '$dir/Blank.png';
+    return '$dir/${prefix}$number.png';
   }
 
   String get displayName {
