@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+
+# Build artifacts
+*.tar.gz
+*.zip
+*.tgz
+
+# Credential files - NEVER push these
+/data/LS_ENV/**
+**/*.ppk
+*password*
+*credential*
+*.pem
+*.ppk
+*password*
+*credential*
+*.pem
+.env.local
+.env.production
+
+# OS files
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# HR data
+hr_docs/
+
+# Learnings (local only)
+.learnings/
+
+# Stock data (large CSV)
+stock_data/
+
+# Memory files (local context, not for GitHub)
+memory/
+
+# Archive
+_archive/
